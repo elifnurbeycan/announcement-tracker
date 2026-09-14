@@ -26,7 +26,7 @@ Bu proje, Gelir İdaresi Başkanlığı (GİB) e-Belge portalı ve benzeri kurum
 
 ## Mimari ve Yeni Kaynak (Site) Ekleme
 
-Proje **Strategy Pattern** mimarisinde kurgulanmıştır. Yeni bir duyuru kaynağı eklemek için aşağıdaki 2 adım izlenir:
+Proje **Strategy Pattern** mimarisinde kurgulanmıştır. Yeni bir duyuru kaynağı eklemek için aşağıdaki adımlar izlenir:
 
 1. **`SiteType` Enum'ına Ekleme** (`src/main/java/com/yasarbilgi/announcementtracker/enums/SiteType.java`):
    ```java
@@ -59,6 +59,14 @@ Proje **Strategy Pattern** mimarisinde kurgulanmıştır. Yeni bir duyuru kayna�
    }
    ```
    *Spring Bean mekanizması sayesinde yeni yazılan scraper otomatik olarak algılanır.*
+
+3. **Ön Yüz Filtre Butonu (Opsiyonel)** (`src/main/resources/static/index.html`):
+   Yönetim panelindeki kaynak filtresinde yeni sitenin görünmesi için buton listesine ekleyin:
+   ```html
+   <button class="filter-btn" onClick={() => setSiteFilter('YENI_KAYNAK')}>Yeni Kaynak</button>
+   ```
+
+> **Not (Veritabanı Uyumluluğu):** Projedeki `DatabaseConstraintFixer` bileşeni, PostgreSQL enum kısıtlamalarını uygulama açılışında otomatik günceller; bu sayede veritabanında manuel SQL çalıştırmanız gerekmez.
 
 ---
 
