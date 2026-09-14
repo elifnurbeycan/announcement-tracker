@@ -1,0 +1,67 @@
+package com.yasarbilgi.announcementtracker.controller;
+
+import com.yasarbilgi.announcementtracker.dto.response.ApiResponseDto;
+import com.yasarbilgi.announcementtracker.dto.response.AnnouncementResponseDto;
+import com.yasarbilgi.announcementtracker.enums.SiteType;
+import com.yasarbilgi.announcementtracker.service.AnnouncementService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/announcements")
+@RequiredArgsConstructor
+public class AnnouncementController {
+
+    private final AnnouncementService announcementService;
+
+    @GetMapping
+    public ResponseEntity<ApiResponseDto<Page<AnnouncementResponseDto>>> getAnnouncements(
+            @RequestParam(required = false) SiteType siteType,
+            @PageableDefault(size = 20, sort = "announcementDate", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        Page<AnnouncementResponseDto> page = announcementService.getAllAnnouncements(siteType, pageable);
+        return ResponseEntity.ok(ApiResponseDto.ok("Announcements fetched successfully", page));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponseDto<AnnouncementResponseDto>> getAnnouncementById(@PathVariable Long id) {
+        AnnouncementResponseDto dto = announcementService.getAnnouncementById(id);
+        return ResponseEntity.ok(ApiResponseDto.ok("Announcement found", dto));
+    }
+
+    @PostMapping("/trigger")
+    public ResponseEntity<ApiResponseDto<List<AnnouncementResponseDto>>> triggerScrape(
+            @RequestParam(required = false) SiteType siteType) {
+
+        List<AnnouncementResponseDto> newItems;
+        if (siteType != null) {
+            newItems = announcementService.triggerScrapeSite(siteType);
+        } else {
+            newItems = announcementService.triggerScrapeAll();
+        }
+
+        return ResponseEntity.ok(ApiResponseDto.ok(
+                "Scraping executed successfully. Found " + newItems.size() + " new announcements.",
+                newItems
+        ));
+    }
+
+    @PostMapping("/notify-pending")
+    public ResponseEntity<ApiResponseDto<Integer>> notifyPending() {
+        int count = announcementService.notifyPendingAnnouncements();
+        return ResponseEntity.ok(ApiResponseDto.ok("Notified " + count + " pending announcements", count));
+    }
+
+    @PostMapping("/send-test-email")
+    public ResponseEntity<ApiResponseDto<Void>> sendTestEmail() {
+        announcementService.sendTestEmail();
+        return ResponseEntity.ok(ApiResponseDto.ok("Test email notification dispatched to subscribers"));
+    }
+}

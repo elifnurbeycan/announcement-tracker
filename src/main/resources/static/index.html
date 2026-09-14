@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-Belge Duyuru & Bildirim Paneli</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- React 18 & Babel & Lucide Icons -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-dark: #090d16;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --card-hover: rgba(31, 41, 55, 0.8);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(59, 130, 246, 0.3);
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
+            --text-main: #f3f4f6;
+            --text-sub: #9ca3af;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 28px 24px;
+        }
+
+        .container { max-width: 1320px; margin: 0 auto; }
+
+        /* Navbar Header */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+        }
+
+        .brand-text h1 {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(to right, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .brand-text p {
+            font-size: 12px;
+            color: var(--text-sub);
+            font-weight: 500;
+        }
+
+        .status-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+
+        .btn-scrape {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            color: white;
+            border: none;
+            padding: 12px 22px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-scrape:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 22px rgba(37, 99, 235, 0.5);
+        }
+
+        .btn-scrape:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Stats Section */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .stat-info .label { font-size: 13px; color: var(--text-sub); font-weight: 500; }
+        .stat-info .val { font-size: 30px; font-weight: 800; margin-top: 4px; color: #f9fafb; }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent-cyan);
+        }
+
+        /* Content Main Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+
+        /* Search & Filter Toolbar */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            min-width: 260px;
+        }
+
+        .search-input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 16px 12px 44px;
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-sub);
+        }
+
+        .filter-pills {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pill {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            color: var(--text-sub);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pill.active, .pill:hover {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--primary);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        /* Announcement Cards */
+        .announcement-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 22px;
+            margin-bottom: 16px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .announcement-card:hover {
+            border-color: var(--border-glow);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+        }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .site-badge {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(59, 130, 246, 0.15));
+            color: var(--accent-cyan);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .card-date {
+            font-size: 13px;
+            color: var(--text-sub);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .card-title-text {
+            font-size: 16px;
+            font-weight: 700;
+            color: #f9fafb;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .card-body-text {
+            font-size: 14px;
+            color: #d1d5db;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+
+        .card-footer {
+            display: flex;
+            gap: 12px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-pdf {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-pdf:hover { background: rgba(239, 68, 68, 0.25); }
+
+        .btn-source {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-sub);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-source:hover { color: white; background: rgba(255, 255, 255, 0.1); }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 24px;
+            padding: 16px 0;
+        }
+
+        .page-btn {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Sidebar Panels */
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+
+        .side-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .side-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group { margin-bottom: 14px; }
+        .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-sub); margin-bottom: 6px; }
+        .input-field {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .input-field:focus { border-color: var(--primary); }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--accent-cyan));
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 6px;
+            transition: opacity 0.2s;
+        }
+
+        .btn-submit:hover { opacity: 0.9; }
+
+        .sub-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+
+        .sub-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+        }
+
+        .sub-info .name { font-size: 13px; font-weight: 600; color: white; }
+        .sub-info .mail { font-size: 11px; color: var(--text-sub); }
+
+        .sub-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-sub-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .btn-sub-unsub {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-sub-unsub:hover {
+            background: rgba(245, 158, 11, 0.25);
+        }
+
+        .btn-sub-activate {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-sub-activate:hover {
+            background: rgba(16, 185, 129, 0.25);
+        }
+
+        .btn-sub-del {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-sub-del:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: rgba(17, 24, 39, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--success);
+            color: white;
+            padding: 14px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [announcements, setAnnouncements] = useState([]);
+            const [subscribers, setSubscribers] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [scraping, setScraping] = useState(false);
+            const [search, setSearch] = useState('');
+            const [filter, setFilter] = useState('ALL'); // ALL, TODAY, HAS_PDF
+            const [page, setPage] = useState(0);
+            const [totalPages, setTotalPages] = useState(0);
+            const [totalElements, setTotalElements] = useState(0);
+
+            // Subscriber Search & Pagination state
+            const [subSearch, setSubSearch] = useState('');
+            const [subPage, setSubPage] = useState(0);
+            const SUB_PER_PAGE = 5;
+
+
+            // Form & Settings state
+            const [scrapeMinutes, setScrapeMinutes] = useState(60);
+            const [isCustomMode, setIsCustomMode] = useState(false);
+            const [customMinutesInput, setCustomMinutesInput] = useState('');
+            const [fullName, setFullName] = useState('');
+            const [email, setEmail] = useState('');
+            const [toasts, setToasts] = useState([]);
+
+            const showToast = (message, type = 'success') => {
+                const id = Date.now();
+                setToasts(prev => [...prev, { id, message, type }]);
+                setTimeout(() => {
+                    setToasts(prev => prev.filter(t => t.id !== id));
+                }, 4000);
+            };
+
+            const fetchAnnouncements = async (pageNo = 0) => {
+                setLoading(true);
+                try {
+                    const res = await fetch(`/api/v1/announcements?page=${pageNo}&size=15`);
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                        setAnnouncements(data.data.content || []);
+                        setTotalPages(data.data.totalPages || 0);
+                        setTotalElements(data.data.totalElements || 0);
+                        setPage(data.data.number || 0);
+                    }
+                } catch (err) {
+                    console.error("Fetch error:", err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const fetchSubscribers = async () => {
+                try {
+                    const res = await fetch('/api/v1/subscribers');
+                    const data = await res.json();
+                    if (data.success) {
+                        setSubscribers(data.data || []);
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
+            };
+
+            const fetchSettings = async () => {
+                try {
+                    const res = await fetch('/api/v1/settings/scrape');
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                        const mins = data.data.intervalMinutes || 60;
+                        setScrapeMinutes(mins);
+                        const standardValues = [15, 20, 30, 45, 60, 120, 180, 360, 720, 1440];
+                        if (!standardValues.includes(mins)) {
+                            setIsCustomMode(true);
+                            setCustomMinutesInput(String(mins));
+                        }
+                    }
+                } catch (err) {
+                    console.error("Fetch settings error:", err);
+                }
+            };
+
+            const handleUpdateIntervalMinutes = async (mins) => {
+                if (mins === 'custom') {
+                    setIsCustomMode(true);
+                    setCustomMinutesInput(String(scrapeMinutes));
+                    return;
+                }
+                const newMins = parseInt(mins, 10);
+                if (isNaN(newMins) || newMins < 1) return;
+
+                setScrapeMinutes(newMins);
+                setIsCustomMode(false);
+                try {
+                    const res = await fetch(`/api/v1/settings/scrape?intervalMinutes=${newMins}`, { method: 'POST' });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        const timeText = newMins >= 60 && newMins % 60 === 0 ? `${newMins / 60} saat` : `${newMins} dakika`;
+                        showToast(`Otomatik tarama sıklığı ${timeText} (${newMins} dk) olarak güncellendi!`);
+                    } else {
+                        showToast('Ayar güncellenirken hata: ' + (data.message || ''), 'danger');
+                    }
+                } catch (err) {
+                    showToast('Hata: ' + err.message, 'danger');
+                }
+            };
+
+            const handleSaveCustomMinutes = (e) => {
+                e.preventDefault();
+                handleUpdateIntervalMinutes(customMinutesInput);
+            };
+
+            useEffect(() => {
+                fetchAnnouncements();
+                fetchSubscribers();
+                fetchSettings();
+            }, []);
+
+            useEffect(() => {
+                setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50);
+            }, [subscribers, announcements, loading, subPage, subSearch]);
+
+
+            const handleScrape = async () => {
+                setScraping(true);
+                try {
+                    const res = await fetch('/api/v1/announcements/trigger', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        const count = data.data ? data.data.length : 0;
+                        showToast(`Tarama tamamlandı! ${count} yeni duyuru bulundu ve veritabanına eklendi.`);
+                        fetchAnnouncements(0);
+                    }
+                } catch (err) {
+                    showToast('Tarama hatası oluştu: ' + err.message, 'danger');
+                } finally {
+                    setScraping(false);
+                }
+            };
+
+            const handleAddSubscriber = async (e) => {
+                e.preventDefault();
+                if (!email) return;
+                try {
+                    const res = await fetch('/api/v1/subscribers', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ fullName, email })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        showToast(`'${email}' başarıyla e-posta abonesi yapıldı!`);
+                        setFullName('');
+                        setEmail('');
+                        fetchSubscribers();
+                    } else {
+                        showToast('Abone eklenirken hata: ' + (data.message || ''), 'danger');
+                    }
+                } catch (err) {
+                    showToast('Hata: ' + err.message, 'danger');
+                }
+            };
+
+            const handleDeleteSubscriber = async (id) => {
+                if (!confirm('Bu aboneyi listeden tamamen silmek istediğinize emin misiniz?')) return;
+                try {
+                    await fetch(`/api/v1/subscribers/${id}`, { method: 'DELETE' });
+                    showToast('Abone listeden silindi.');
+                    fetchSubscribers();
+                } catch (err) {
+                    showToast('Silinirken hata oluştu.', 'danger');
+                }
+            };
+
+            const handleToggleSubscriberStatus = async (id, currentActive) => {
+                const newActive = !currentActive;
+                try {
+                    const res = await fetch(`/api/v1/subscribers/${id}/status?active=${newActive}`, { method: 'PATCH' });
+                    if (res.ok) {
+                        showToast(newActive ? 'Abone aktif edildi.' : 'Abonelik pasife alındı (İptal edildi).');
+                        fetchSubscribers();
+                    }
+                } catch (err) {
+                    showToast('Durum güncellenirken hata oluştu.', 'danger');
+                }
+            };
+
+            const handleExcelUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    showToast('Excel/CSV dosyası işleniyor...', 'info');
+                    const res = await fetch('/api/v1/subscribers/upload-excel', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        showToast(data.message || 'Toplu aboneler başarıyla içe aktarıldı!');
+                        fetchSubscribers();
+                    } else {
+                        showToast('Excel yükleme hatası: ' + (data.message || ''), 'danger');
+                    }
+                } catch (err) {
+                    showToast('Hata: ' + err.message, 'danger');
+                }
+                e.target.value = ''; // Reset input
+            };
+
+
+            // Filter logic
+            const filteredAnnouncements = announcements.filter(item => {
+                const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) || 
+                                     item.content.toLowerCase().includes(search.toLowerCase());
+                if (!matchesSearch) return false;
+
+                if (filter === 'HAS_PDF') return !!item.attachmentUrl;
+                if (filter === 'TODAY') {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    return item.announcementDate === todayStr;
+                }
+                return true;
+            });
+
+            // Subscriber filter & pagination logic
+            const filteredSubscribers = subscribers.filter(sub => {
+                const q = subSearch.toLowerCase();
+                return (sub.fullName && sub.fullName.toLowerCase().includes(q)) || 
+                       (sub.email && sub.email.toLowerCase().includes(q));
+            });
+            const totalSubPages = Math.ceil(filteredSubscribers.length / SUB_PER_PAGE) || 1;
+            const paginatedSubscribers = filteredSubscribers.slice(subPage * SUB_PER_PAGE, (subPage + 1) * SUB_PER_PAGE);
+
+            const handleSendTestEmail = async () => {
+                try {
+                    const res = await fetch('/api/v1/announcements/send-test-email', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        showToast('Test bildirimi e-posta abonelerine başarıyla gönderildi!');
+                    } else {
+                        showToast('Mail gönderim hatası: ' + data.message, 'danger');
+                    }
+                } catch (err) {
+                    showToast('Hata: ' + err.message, 'danger');
+                }
+            };
+
+            return (
+                <div class="container">
+                    {/* Header */}
+                    <div class="navbar">
+                        <div class="brand">
+                            <div class="brand-icon">
+                                <i data-lucide="bell" style={{color: 'white'}}></i>
+                            </div>
+                            <div class="brand-text">
+                                <h1>e-Belge Duyuru Takip Sistemi</h1>
+                            </div>
+
+                        </div>
+                        <div style={{display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap'}}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '10px', fontSize: '13px', color: 'var(--text-sub)'}}>
+                                <i data-lucide="clock" style={{width: '15px', height: '15px', color: '#38bdf8'}}></i>
+                                <span style={{fontWeight: '500'}}>Tarama Periyodu:</span>
+                                {!isCustomMode ? (
+                                    <select 
+                                        value={scrapeMinutes} 
+                                        onChange={(e) => handleUpdateIntervalMinutes(e.target.value)}
+                                        style={{background: 'rgba(30, 41, 59, 0.95)', color: '#f9fafb', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '6px', padding: '4px 8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', outline: 'none'}}
+                                    >
+                                        <option value="15">15 Dakika</option>
+                                        <option value="20">20 Dakika</option>
+                                        <option value="30">30 Dakika</option>
+                                        <option value="45">45 Dakika</option>
+                                        <option value="60">1 Saat</option>
+                                        <option value="120">2 Saat</option>
+                                        <option value="180">3 Saat</option>
+                                        <option value="360">6 Saat</option>
+                                        <option value="720">12 Saat</option>
+                                        <option value="1440">24 Saat</option>
+                                        <option value="custom">✏️ Özel Süre (dk)...</option>
+                                    </select>
+                                ) : (
+                                    <form onSubmit={handleSaveCustomMinutes} style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}>
+                                        <input 
+                                            type="number" 
+                                            min="1" 
+                                            max="10000"
+                                            placeholder="Örn: 20"
+                                            value={customMinutesInput}
+                                            onChange={(e) => setCustomMinutesInput(e.target.value)}
+                                            style={{width: '70px', background: 'rgba(30, 41, 59, 0.95)', color: '#f9fafb', border: '1px solid #38bdf8', borderRadius: '6px', padding: '4px 6px', fontSize: '13px', fontWeight: '700', outline: 'none'}}
+                                            autoFocus
+                                        />
+                                        <span style={{fontSize: '12px', color: '#94a3b8'}}>dk</span>
+                                        <button type="submit" title="Kaydet" style={{background: '#10b981', color: 'white', border: 'none', borderRadius: '6px', padding: '4px 8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer'}}>
+                                            ✓
+                                        </button>
+                                        <button type="button" title="Vazgeç" onClick={() => setIsCustomMode(false)} style={{background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '6px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer'}}>
+                                            ✕
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+                            <div class="status-tag">
+                                <div class="pulse-dot"></div>
+                                PostgreSQL Veritabanı Aktif
+                            </div>
+                            <button class="btn-scrape" style={{background: 'linear-gradient(135deg, #10b981, #059669)'}} onClick={handleSendTestEmail}>
+                                <i data-lucide="send"></i>
+                                Test Maili Gönder
+                            </button>
+                            <button class="btn-scrape" onClick={handleScrape} disabled={scraping}>
+                                <i data-lucide={scraping ? "loader" : "refresh-cw"} class={scraping ? "spin" : ""}></i>
+                                {scraping ? 'Web Taranıyor...' : 'Duyuruları Tara & Güncelle'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-info">
+                                <div class="label">Kaydedilen Toplam Duyuru</div>
+                                <div class="val">{totalElements}</div>
+                            </div>
+                            <div class="stat-icon"><i data-lucide="database"></i></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-info">
+                                <div class="label">Takip Edilen Kaynak</div>
+                                <div class="val" style={{fontSize: '20px', color: '#38bdf8'}}>e-Belge GİB</div>
+                            </div>
+                            <div class="stat-icon"><i data-lucide="globe"></i></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-info">
+                                <div class="label">Aktif E-Posta Aboneleri</div>
+                                <div class="val" style={{color: '#10b981'}}>{subscribers.length}</div>
+                            </div>
+                            <div class="stat-icon"><i data-lucide="mail"></i></div>
+                        </div>
+                    </div>
+
+                    {/* Main Layout */}
+                    <div class="main-layout">
+                        <div>
+                            {/* Toolbar */}
+                            <div class="toolbar">
+                                <div class="search-box">
+                                    <i data-lucide="search" class="search-icon"></i>
+                                    <input 
+                                        type="text" 
+                                        class="search-input" 
+                                        placeholder="Duyuru veya anahtar kelime ara..." 
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                    />
+                                </div>
+                                <div class="filter-pills">
+                                    <button class={`pill ${filter === 'ALL' ? 'active' : ''}`} onClick={() => setFilter('ALL')}>Tüm Duyurular</button>
+                                    <button class={`pill ${filter === 'HAS_PDF' ? 'active' : ''}`} onClick={() => setFilter('HAS_PDF')}>Ek Dosyası Olanlar</button>
+                                </div>
+                            </div>
+
+                            {/* Cards List */}
+                            {loading ? (
+                                <div style={{textAlign: 'center', padding: '60px', color: '#9ca3af'}}>
+                                    Duyurular PostgreSQL veritabanından yükleniyor...
+                                </div>
+
+                            ) : filteredAnnouncements.length === 0 ? (
+                                <div style={{textAlign: 'center', padding: '60px', background: 'var(--card-bg)', borderRadius: '16px', border: '1px dashed var(--border-color)', color: '#9ca3af'}}>
+                                    Aramanıza uygun duyuru bulunamadı.
+                                </div>
+                            ) : (
+                                filteredAnnouncements.map(item => (
+                                    <div key={item.id} class="announcement-card">
+                                        <div class="card-top">
+                                            <span class="site-badge">{item.sourceSiteDisplayName || 'e-Belge GİB'}</span>
+                                            <span class="card-date">
+                                                <i data-lucide="calendar" style={{width: '14px', height: '14px'}}></i>
+                                                {item.announcementDate ? new Date(item.announcementDate).toLocaleDateString('tr-TR') : 'Tarih Belirtilmemiş'}
+                                            </span>
+                                        </div>
+                                        <div class="card-title-text">{item.title}</div>
+                                        <div class="card-body-text">{item.content}</div>
+                                        <div class="card-footer">
+                                            {item.attachmentUrl && (
+                                                <a href={item.attachmentUrl} target="_blank" class="btn-link btn-pdf">
+                                                    <i data-lucide="file-text" style={{width: '14px', height: '14px'}}></i>
+                                                    Ek Dosyayı İndir
+                                                </a>
+                                            )}
+                                            {item.sourceUrl && (
+                                                <a href={item.sourceUrl} target="_blank" class="btn-link btn-source">
+                                                    <i data-lucide="external-link" style={{width: '14px', height: '14px'}}></i>
+                                                    Resmi Kaynağa Git
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+
+                            {/* Pagination Controls */}
+                            {totalPages > 1 && (
+                                <div class="pagination">
+                                    <button class="page-btn" disabled={page === 0} onClick={() => fetchAnnouncements(page - 1)}>
+                                        <i data-lucide="chevron-left" style={{width: '16px'}}></i> Önceki
+                                    </button>
+                                    <span style={{fontSize: '13px', color: '#9ca3af'}}>Sayfa {page + 1} / {totalPages}</span>
+                                    <button class="page-btn" disabled={page >= totalPages - 1} onClick={() => fetchAnnouncements(page + 1)}>
+                                        Sonraki <i data-lucide="chevron-right" style={{width: '16px'}}></i>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Sidebar */}
+                        <div class="sidebar">
+                            <div class="side-card">
+                                <div class="side-title">
+                                    <i data-lucide="user-plus" style={{color: '#38bdf8'}}></i>
+                                    E-Posta Abonesi Ekle
+                                </div>
+                                <form onSubmit={handleAddSubscriber}>
+                                    <div class="form-group">
+                                        <label class="form-label">AD SOYAD</label>
+                                        <input 
+                                            type="text" 
+                                            class="input-field" 
+                                            placeholder="Ad Soyad giriniz" 
+                                            value={fullName}
+                                            onChange={(e) => setFullName(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">E-POSTA ADRESİ</label>
+                                        <input 
+                                            type="email" 
+                                            class="input-field" 
+                                            placeholder="E-posta adresi giriniz" 
+                                            value={email}
+                                            onChange={(e) => setEmail(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <button type="submit" class="btn-submit">Abone Yap & Mail Gönder</button>
+                                </form>
+                            </div>
+
+                            <div class="side-card">
+                                <div class="side-title">
+                                    <i data-lucide="file-spreadsheet" style={{color: '#10b981'}}></i>
+                                    Excel / CSV İle Toplu Abone Ekle
+                                </div>
+                                <div style={{border: '1px dashed #334155', borderRadius: '10px', padding: '16px', textContent: 'center', textAlign: 'center', background: '#0f172a'}}>
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center'}}>
+                                        <a href="/api/v1/subscribers/template-excel" download="Abone_Yukleme_Taslak_Sablonu.xlsx" style={{display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#38bdf8', textDecoration: 'none', fontWeight: '600', padding: '6px 12px', background: 'rgba(56,189,248,0.1)', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.3)'}}>
+                                            <i data-lucide="download" style={{width: '14px', height: '14px'}}></i>
+                                            Örnek Taslak Excel İndir (.xlsx)
+                                        </a>
+
+                                        <label class="btn-submit" style={{cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, #059669, #10b981)', width: '100%', justifyContent: 'center'}}>
+                                            <i data-lucide="upload" style={{width: '16px', height: '16px'}}></i>
+                                            Doldurulan Excel / CSV'yi Yükle
+                                            <input type="file" accept=".xlsx,.xls,.csv,.txt" onChange={handleExcelUpload} style={{display: 'none'}} />
+                                        </label>
+                                    </div>
+                                    <div style={{fontSize: '11px', color: '#94a3b8', marginTop: '10px'}}>
+                                        Sütunlar: <b>E-Posta</b>, <b>Ad Soyad</b> (.xlsx, .csv desteklenir)
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div class="side-card">
+                                <div class="side-title" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <i data-lucide="users" style={{color: '#10b981'}}></i>
+                                        E-Posta Aboneleri
+                                    </div>
+                                    <span style={{fontSize: '11px', background: 'rgba(16,185,129,0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '10px', fontWeight: '600'}}>
+                                        {filteredSubscribers.length} / {subscribers.length}
+                                    </span>
+                                </div>
+
+                                {/* Subscriber Search Input */}
+                                <div style={{position: 'relative', marginBottom: '12px'}}>
+                                    <i data-lucide="search" class="search-icon" style={{width: '14px', height: '14px', left: '10px', top: '50%', transform: 'translateY(-50%)', position: 'absolute', color: 'var(--text-sub)'}}></i>
+                                    <input 
+                                        type="text" 
+                                        class="search-input" 
+                                        style={{fontSize: '12px', padding: '7px 12px 7px 30px', height: '34px'}}
+                                        placeholder="Abone adı veya e-posta ara..." 
+                                        value={subSearch}
+                                        onChange={(e) => { setSubSearch(e.target.value); setSubPage(0); }}
+                                    />
+                                </div>
+
+                                <div class="sub-list">
+                                    {filteredSubscribers.length === 0 ? (
+                                        <div style={{fontSize: '13px', color: '#9ca3af', textAlign: 'center', padding: '12px 0'}}>
+                                            {subSearch ? 'Aramanıza uygun abone bulunamadı.' : 'Henüz kayıtlı bildirim abonesi bulunmuyor.'}
+                                        </div>
+                                    ) : (
+                                        paginatedSubscribers.map(sub => (
+                                            <div key={sub.id} class="sub-item" style={{opacity: sub.active ? 1 : 0.65}}>
+                                                <div class="sub-info">
+                                                    <div class="name" style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                                        {sub.fullName || sub.email}
+                                                        <span style={{fontSize: '10px', padding: '2px 6px', borderRadius: '10px', background: sub.active ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)', color: sub.active ? '#34d399' : '#f87171', fontWeight: '600'}}>
+                                                            {sub.active ? 'Aktif' : 'İptal'}
+                                                        </span>
+                                                    </div>
+                                                    <div class="mail">{sub.email}</div>
+                                                </div>
+                                                <div class="sub-actions">
+                                                    <button class={`btn-sub-action ${sub.active ? 'btn-sub-unsub' : 'btn-sub-activate'}`} onClick={() => handleToggleSubscriberStatus(sub.id, sub.active)} title={sub.active ? "Aboneliği İptal Et (Pasife Al)" : "Aboneliği Yeniden Aktif Et"}>
+                                                        <i data-lucide={sub.active ? "user-x" : "user-check"} style={{width: '12px', height: '12px'}}></i>
+                                                        {sub.active ? 'İptal Et' : 'Aktif Et'}
+                                                    </button>
+                                                    <button class="btn-sub-action btn-sub-del" onClick={() => handleDeleteSubscriber(sub.id)} title="Aboneyi Sistemden Tamamen Sil">
+                                                        <i data-lucide="trash-2" style={{width: '12px', height: '12px'}}></i>
+                                                        Sil
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                {/* Subscriber Pagination Controls */}
+                                {totalSubPages > 1 && (
+                                    <div class="pagination" style={{marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed var(--border-color)', justifyContent: 'space-between', gap: '8px'}}>
+                                        <button class="page-btn" disabled={subPage === 0} onClick={() => setSubPage(p => p - 1)} style={{padding: '4px 10px', fontSize: '11px', height: '28px'}}>
+                                            <i data-lucide="chevron-left" style={{width: '12px', height: '12px'}}></i> Önceki
+                                        </button>
+                                        <span style={{fontSize: '11px', color: '#9ca3af'}}>Sayfa {subPage + 1} / {totalSubPages}</span>
+                                        <button class="page-btn" disabled={subPage >= totalSubPages - 1} onClick={() => setSubPage(p => p + 1)} style={{padding: '4px 10px', fontSize: '11px', height: '28px'}}>
+                                            Sonraki <i data-lucide="chevron-right" style={{width: '12px', height: '12px'}}></i>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                        </div>
+                    </div>
+
+                    {/* Toast Notification Container */}
+                    <div class="toast-container">
+                        {toasts.map(t => (
+                            <div key={t.id} class="toast" style={{borderColor: t.type === 'danger' ? '#ef4444' : '#10b981'}}>
+                                <i data-lucide={t.type === 'danger' ? 'alert-circle' : 'check-circle-2'} style={{color: t.type === 'danger' ? '#ef4444' : '#10b981'}}></i>
+                                {t.message}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+
+        // Refresh icons on mount/update
+        setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 100);
+    </script>
+</body>
+</html>

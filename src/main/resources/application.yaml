@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: announcement-tracker
+  
+  # PostgreSQL Datasource Configuration
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/announcement_tracker_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:elif.bycn35@gmail.com}
+    password: ${SPRING_MAIL_PASSWORD:asusiyauzolynspr}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+announcement:
+  tracker:
+    cron: "${ANNOUNCEMENT_CRON:0 0 * * * *}"
+    enabled: ${ANNOUNCEMENT_SCHEDULER_ENABLED:true}
+    app-base-url: ${APP_BASE_URL:http://localhost:8080}
+    email:
+      from: ${MAIL_FROM:noreply@announcementtracker.com}
+      default-recipient: ${DEFAULT_RECIPIENT:admin@example.com}
+
