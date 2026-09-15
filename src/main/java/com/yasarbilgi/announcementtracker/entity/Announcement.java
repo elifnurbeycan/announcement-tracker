@@ -10,7 +10,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "announcements", indexes = {
         @Index(name = "idx_announcement_hash", columnList = "content_hash", unique = true),
-        @Index(name = "idx_announcement_site", columnList = "source_site")
+        @Index(name = "idx_announcement_site", columnList = "source_site"),
+        @Index(name = "idx_announcement_notified", columnList = "is_notified"),
+        @Index(name = "idx_announcement_date", columnList = "announcement_date")
 })
 @Getter
 @Setter

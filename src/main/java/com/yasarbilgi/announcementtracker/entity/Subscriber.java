@@ -4,6 +4,9 @@ import com.yasarbilgi.announcementtracker.enums.SiteType;
 import jakarta.persistence.*;
 import lombok.*;
 
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -32,6 +35,7 @@ public class Subscriber {
 
     @ElementCollection(targetClass = SiteType.class, fetch = FetchType.EAGER)
     @CollectionTable(name = "subscriber_site_preferences", joinColumns = @JoinColumn(name = "subscriber_id"))
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @Enumerated(EnumType.STRING)
     @Column(name = "site_type")
     @Builder.Default

@@ -158,8 +158,8 @@ public class EmailServiceImpl implements EmailService {
                 sb.append("      </tr>");
                 sb.append("    </table>");
 
-                sb.append("    <div style='font-size: 13px; color: #1d4ed8; background: #ffffff; padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; word-break: break-all; margin: 14px 0 16px 0; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif;'>");
-                sb.append("      <a href='").append(attachUrl).append("' style='color: #1d4ed8 !important; font-weight: 600; text-decoration: underline;' target='_blank'>").append(escapeHtml(attachUrl)).append("</a>");
+                sb.append("    <div style='font-size: 13px; color: #1d4ed8; background: #ffffff; padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; word-break: break-all; overflow-wrap: anywhere; margin: 14px 0 16px 0; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif;'>");
+                sb.append("      <a href='").append(attachUrl).append("' style='color: #1d4ed8 !important; font-weight: 600; text-decoration: underline; word-break: break-all; overflow-wrap: anywhere;' target='_blank'>").append(escapeHtml(attachUrl)).append("</a>");
                 sb.append("    </div>");
 
                 sb.append("    <a href='").append(attachUrl).append("' class='cta-btn-secondary' target='_blank'>").append(btnText).append("</a>");

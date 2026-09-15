@@ -184,12 +184,12 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        // Tüm bekleyen duyuruları bildirildi olarak işaretler
-        for (Announcement a : pending) {
+        // Yalnızca bildirimi gönderilen duyuruları bildirildi olarak işaretler
+        for (Announcement a : toNotify) {
             a.setNotified(true);
             a.setNotifiedAt(now);
         }
-        announcementRepository.saveAll(pending);
+        announcementRepository.saveAll(toNotify);
 
         return toNotify.size();
     }
