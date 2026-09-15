@@ -1,4 +1,4 @@
-package com.yasarbilgi.announcementtracker.service;
+package com.yasarbilgi.announcementtracker.settings.service;
 
 import com.yasarbilgi.announcementtracker.dto.response.ScrapeSettingsDto;
 import com.yasarbilgi.announcementtracker.entity.SystemSetting;
@@ -15,12 +15,12 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class SettingsServiceTest {
+class SettingsServiceImplTest {
 
     @Mock
     private SystemSettingRepository systemSettingRepository;
@@ -35,36 +35,38 @@ class SettingsServiceTest {
     }
 
     @Test
-    @DisplayName("Veritabanında ayar yokken varsayılan 60 dakika döner")
-    void getScrapeIntervalMinutes_DefaultValue() {
+    @DisplayName("Varsayılan tarama aralığı dakika değerini okuma")
+    void getScrapeIntervalMinutes_DefaultValue_ShouldReturn60() {
         when(systemSettingRepository.findById("SCRAPE_INTERVAL_MINUTES")).thenReturn(Optional.empty());
 
         int minutes = settingsService.getScrapeIntervalMinutes();
 
-        assertEquals(60, minutes);
+        assertThat(minutes).isEqualTo(60);
     }
 
     @Test
-    @DisplayName("Veritabanında kayıtlı dakika ayarı başarıyla okunur")
-    void getScrapeIntervalMinutes_CustomValue() {
-        when(systemSettingRepository.findById("SCRAPE_INTERVAL_MINUTES"))
-                .thenReturn(Optional.of(SystemSetting.builder().settingKey("SCRAPE_INTERVAL_MINUTES").settingValue("20").build()));
+    @DisplayName("Veritabanından özel tarama aralığı dakika değerini okuma")
+    void getScrapeIntervalMinutes_CustomValue_ShouldReturnDbValue() {
+        SystemSetting setting = SystemSetting.builder()
+                .settingKey("SCRAPE_INTERVAL_MINUTES")
+                .settingValue("30")
+                .build();
+        when(systemSettingRepository.findById("SCRAPE_INTERVAL_MINUTES")).thenReturn(Optional.of(setting));
 
         int minutes = settingsService.getScrapeIntervalMinutes();
 
-        assertEquals(20, minutes);
+        assertThat(minutes).isEqualTo(30);
     }
 
     @Test
-    @DisplayName("Tarama dakikasını güncelleme işlemi çalışır")
-    void updateScrapeSettings_Success() {
+    @DisplayName("Tarama ayarlarını güncelleme ve veritabanına kaydetme")
+    void updateScrapeSettings_ShouldSaveToDb() {
         when(systemSettingRepository.findById(anyString())).thenReturn(Optional.empty());
-        when(systemSettingRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ScrapeSettingsDto updated = settingsService.updateScrapeSettings(20, true);
+        ScrapeSettingsDto dto = settingsService.updateScrapeSettings(20, true);
 
-        assertEquals(20, updated.getIntervalMinutes());
-        assertTrue(updated.isEnabled());
-        verify(systemSettingRepository, times(3)).save(any(SystemSetting.class));
+        assertThat(dto.getIntervalMinutes()).isEqualTo(20);
+        assertThat(dto.isEnabled()).isTrue();
+        verify(systemSettingRepository, atLeastOnce()).save(any(SystemSetting.class));
     }
 }

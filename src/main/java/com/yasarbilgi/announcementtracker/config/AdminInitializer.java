@@ -24,7 +24,7 @@ public class AdminInitializer implements CommandLineRunner {
             AdminUser superAdmin = AdminUser.builder()
                     .username("admin")
                     .passwordHash(passwordEncoderHelper.encode("admin123"))
-                    .fullName("Süper Admin")
+                    .fullName("Super Admin")
                     .build();
 
             adminUserRepository.save(superAdmin);
