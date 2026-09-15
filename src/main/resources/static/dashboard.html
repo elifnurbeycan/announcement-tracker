@@ -235,7 +235,7 @@
         /* Layout Main Content */
         .main-layout {
             display: grid;
-            grid-template-columns: 1fr 360px;
+            grid-template-columns: 1fr 370px;
             gap: 24px;
         }
 
@@ -243,7 +243,6 @@
             .main-layout { grid-template-columns: 1fr; }
         }
 
-        /* Content Section */
         .content-panel {
             display: flex;
             flex-direction: column;
@@ -489,7 +488,7 @@
             font-weight: 700;
             font-size: 13px;
             cursor: pointer;
-            margin-top: 6px;
+            margin-top: 8px;
             transition: opacity 0.2s;
             display: inline-flex;
             align-items: center;
@@ -499,18 +498,24 @@
 
         .btn-submit:hover { opacity: 0.9; }
 
-        /* Fixed Single-Line Subscriber Action Buttons */
+        /* Fixed Single-Line Subscriber Action Buttons & Preferences */
         .sub-list { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
 
         .sub-item {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 14px;
+            flex-direction: column;
+            gap: 10px;
+            padding: 14px;
             background: rgba(15, 23, 42, 0.6);
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            gap: 12px;
+        }
+
+        .sub-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 10px;
         }
 
         .sub-info {
@@ -522,43 +527,66 @@
             font-size: 13px;
             font-weight: 700;
             color: white;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
         }
 
         .sub-info .mail {
             font-size: 11.5px;
             color: var(--text-sub);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+
+        .sub-site-badges {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+
+        .sub-site-pill {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
         }
 
         .sub-actions {
             display: flex;
             align-items: center;
             gap: 6px;
-            flex-shrink: 0;
+            flex-wrap: wrap;
+            margin-top: 4px;
         }
 
-        /* Fixed Single-Line Buttons (Prevents awkward line wrapping!) */
         .btn-sub-action {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            height: 32px;
-            padding: 0 12px;
+            gap: 5px;
+            height: 30px;
+            padding: 0 10px;
             border-radius: 8px;
-            font-size: 12px;
+            font-size: 11.5px;
             font-weight: 600;
             white-space: nowrap;
             cursor: pointer;
             border: 1px solid transparent;
             transition: all 0.2s;
-            flex-shrink: 0;
         }
+
+        .btn-sub-pref {
+            background: rgba(139, 92, 246, 0.15);
+            color: #c084fc;
+            border-color: rgba(139, 92, 246, 0.35);
+        }
+
+        .btn-sub-pref:hover { background: rgba(139, 92, 246, 0.25); }
 
         .btn-sub-unsub {
             background: rgba(245, 158, 11, 0.15);
@@ -583,6 +611,30 @@
         }
 
         .btn-sub-del:hover { background: rgba(239, 68, 68, 0.25); }
+
+        /* Modal Overlay for Site Preferences */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-card {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--border-glow);
+            border-radius: 20px;
+            padding: 28px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            animation: fadeIn 0.3s ease-out;
+        }
 
         /* Toast Notifications */
         .toast-container {
@@ -624,7 +676,6 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Auth Helper with Automatic Header
         const getAuthHeader = () => {
             const token = localStorage.getItem('adminToken');
             return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -647,13 +698,13 @@
 
         // --- Modular React Component Definitions ---
 
-        // 1. StatCard Component
-        function StatCard({ title, value, icon, color, bg }) {
+        function StatCard({ title, value, subtext, icon, color, bg }) {
             return (
                 <div class="stat-card">
                     <div class="stat-info">
                         <div class="title">{title}</div>
                         <div class="value">{value}</div>
+                        {subtext && <div style={{fontSize: '11px', color: 'var(--text-sub)', marginTop: '4px'}}>{subtext}</div>}
                     </div>
                     <div class="stat-icon" style={{ background: bg, color: color }}>
                         <i data-lucide={icon}></i>
@@ -662,7 +713,6 @@
             );
         }
 
-        // 2. AnnouncementCard Component
         function AnnouncementCard({ item }) {
             return (
                 <div class="announcement-card">
@@ -693,27 +743,55 @@
             );
         }
 
-        // 3. SubscriberItem Component (With Fixed Single-Line Buttons)
-        function SubscriberItem({ sub, onToggleStatus, onDelete }) {
+        function SubscriberItem({ sub, availableSites, onToggleStatus, onDelete, onEditPreferences }) {
+            // Find display names for subscribed sites
+            const prefSiteNames = (sub.subscribedSites || []).map(siteKey => {
+                const found = availableSites.find(s => s.name === siteKey);
+                return found ? found.displayName : siteKey;
+            });
+
             return (
                 <div class="sub-item" style={{ opacity: sub.active ? 1 : 0.7 }}>
-                    <div class="sub-info">
-                        <div class="name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>{sub.fullName || sub.email}</span>
-                            <span style={{
-                                fontSize: '10px', 
-                                padding: '2px 6px', 
-                                borderRadius: '8px', 
-                                background: sub.active ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)', 
-                                color: sub.active ? '#34d399' : '#f87171', 
-                                fontWeight: '700'
-                            }}>
-                                {sub.active ? 'Aktif' : 'İptal'}
-                            </span>
+                    <div class="sub-header-row">
+                        <div class="sub-info">
+                            <div class="name">
+                                <span>{sub.fullName || sub.email}</span>
+                                <span style={{
+                                    fontSize: '10px', 
+                                    padding: '2px 6px', 
+                                    borderRadius: '8px', 
+                                    background: sub.active ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)', 
+                                    color: sub.active ? '#34d399' : '#f87171', 
+                                    fontWeight: '700'
+                                }}>
+                                    {sub.active ? 'Aktif' : 'İptal'}
+                                </span>
+                            </div>
+                            <div class="mail">{sub.email}</div>
                         </div>
-                        <div class="mail">{sub.email}</div>
                     </div>
+
+                    {/* Preferred Site Badges */}
+                    <div class="sub-site-badges">
+                        <span style={{fontSize: '10.5px', color: 'var(--text-sub)', marginRight: '4px'}}>Siteler:</span>
+                        {prefSiteNames.length > 0 ? (
+                            prefSiteNames.map(name => (
+                                <span key={name} class="sub-site-pill">{name}</span>
+                            ))
+                        ) : (
+                            <span style={{fontSize: '10px', color: '#ef4444'}}>Hiçbiri Seçili Değil</span>
+                        )}
+                    </div>
+
                     <div class="sub-actions">
+                        <button 
+                            class="btn-sub-action btn-sub-pref"
+                            onClick={() => onEditPreferences(sub)}
+                            title="Abone Tercih Ettiği Siteleri Düzenle"
+                        >
+                            <i data-lucide="sliders" style={{width: '13px', height: '13px'}}></i>
+                            Siteler
+                        </button>
                         <button 
                             class={`btn-sub-action ${sub.active ? 'btn-sub-unsub' : 'btn-sub-activate'}`} 
                             onClick={() => onToggleStatus(sub.id, sub.active)} 
@@ -735,7 +813,6 @@
             );
         }
 
-        // 4. Pagination Component
         function Pagination({ currentPage, totalPages, onPageChange }) {
             if (totalPages <= 1) return null;
             return (
@@ -751,7 +828,6 @@
             );
         }
 
-        // 5. Navbar Header Component
         function Navbar({ currentUser, scrapeMinutes, isCustomMode, customMinutesInput, onUpdateInterval, onCustomInputSubmit, onCustomInputChange, onToggleCustomMode, scraping, onScrape, onLogout }) {
             return (
                 <div class="navbar">
@@ -816,11 +892,10 @@
                             {scraping ? 'Web Taranıyor...' : 'Duyuruları Tara & Güncelle'}
                         </button>
 
-                        {/* Far Right Clean Profile & Logout Button */}
                         <div class="admin-profile">
                             <div class="admin-badge">
                                 <i data-lucide="shield-check" style={{width: '15px', height: '15px'}}></i>
-                                <span>SüperAdmin: <b>{currentUser?.fullName || currentUser?.username || 'Admin'}</b></span>
+                                <span><b>{currentUser?.fullName || currentUser?.username || 'Süper Admin'}</b></span>
                             </div>
                             <button class="btn-logout" onClick={onLogout} title="Oturumu Kapat">
                                 <i data-lucide="log-out" style={{width: '14px', height: '14px'}}></i> Çıkış Yap
@@ -834,6 +909,7 @@
         // Main Dashboard Application
         function DashboardApp() {
             const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('adminUser') || 'null'));
+            const [sites, setSites] = useState([]); // Dynamic sites fetched from GET /api/v1/sites
             const [announcements, setAnnouncements] = useState([]);
             const [subscribers, setSubscribers] = useState([]);
             const [loading, setLoading] = useState(true);
@@ -849,12 +925,20 @@
             const [subPage, setSubPage] = useState(0);
             const SUB_PER_PAGE = 5;
 
-            // Settings state
+            // New Subscriber Form State
+            const [fullName, setFullName] = useState('');
+            const [email, setEmail] = useState('');
+            const [selectedNewSubSites, setSelectedNewSubSites] = useState([]);
+            const [selectedExcelSites, setSelectedExcelSites] = useState([]);
+
+            // Preferences Modal Editing State
+            const [editingSub, setEditingSub] = useState(null);
+            const [editingSites, setEditingSites] = useState([]);
+
+            // Settings & Toasts state
             const [scrapeMinutes, setScrapeMinutes] = useState(60);
             const [isCustomMode, setIsCustomMode] = useState(false);
             const [customMinutesInput, setCustomMinutesInput] = useState('');
-            const [fullName, setFullName] = useState('');
-            const [email, setEmail] = useState('');
             const [toasts, setToasts] = useState([]);
 
             const showToast = (message, type = 'success') => {
@@ -863,6 +947,22 @@
                 setTimeout(() => {
                     setToasts(prev => prev.filter(t => t.id !== id));
                 }, 4000);
+            };
+
+            // Fetch dynamic site list from API on mount
+            const fetchSites = async () => {
+                try {
+                    const res = await authFetch('/api/v1/sites');
+                    const data = await res.json();
+                    if (data.success && data.data) {
+                        setSites(data.data);
+                        // Default new subscriber & excel checkboxes to all available sites
+                        setSelectedNewSubSites(data.data.map(s => s.name));
+                        setSelectedExcelSites(data.data.map(s => s.name));
+                    }
+                } catch (err) {
+                    console.error("Fetch sites error:", err);
+                }
             };
 
             // Verify session on mount
@@ -963,6 +1063,7 @@
             };
 
             useEffect(() => {
+                fetchSites();
                 fetchAnnouncements();
                 fetchSubscribers();
                 fetchSettings();
@@ -970,7 +1071,7 @@
 
             useEffect(() => {
                 setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 100);
-            }, [subscribers, announcements, loading, subPage, subSearch]);
+            }, [subscribers, announcements, loading, subPage, subSearch, sites, editingSub]);
 
             const handleScrape = async () => {
                 setScraping(true);
@@ -995,13 +1096,18 @@
                 try {
                     const res = await authFetch('/api/v1/subscribers', {
                         method: 'POST',
-                        body: JSON.stringify({ fullName, email })
+                        body: JSON.stringify({ 
+                            fullName, 
+                            email, 
+                            subscribedSites: selectedNewSubSites 
+                        })
                     });
                     const data = await res.json();
                     if (res.ok && data.success) {
                         showToast(`'${email}' başarıyla e-posta abonesi yapıldı!`);
                         setFullName('');
                         setEmail('');
+                        setSelectedNewSubSites(sites.map(s => s.name)); // Reset to all
                         fetchSubscribers();
                     } else {
                         showToast('Abone eklenirken hata: ' + (data.message || ''), 'danger');
@@ -1035,6 +1141,31 @@
                 }
             };
 
+            const handleOpenEditPreferences = (sub) => {
+                setEditingSub(sub);
+                setEditingSites(sub.subscribedSites || []);
+            };
+
+            const handleSavePreferences = async () => {
+                if (!editingSub) return;
+                try {
+                    const res = await authFetch(`/api/v1/subscribers/${editingSub.id}/sites`, {
+                        method: 'PATCH',
+                        body: JSON.stringify(editingSites)
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        showToast(`'${editingSub.email}' site bildirim tercihleri güncellendi!`);
+                        setEditingSub(null);
+                        fetchSubscribers();
+                    } else {
+                        showToast('Tercihler güncellenirken hata: ' + (data.message || ''), 'danger');
+                    }
+                } catch (err) {
+                    showToast('Hata: ' + err.message, 'danger');
+                }
+            };
+
             const handleExcelUpload = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -1042,10 +1173,13 @@
                 const formData = new FormData();
                 formData.append('file', file);
 
+                const sitesQuery = selectedExcelSites.map(s => `sites=${encodeURIComponent(s)}`).join('&');
+                const uploadUrl = '/api/v1/subscribers/upload-excel' + (sitesQuery ? `?${sitesQuery}` : '');
+
                 try {
                     showToast('Excel/CSV dosyası işleniyor...', 'info');
                     const token = localStorage.getItem('adminToken');
-                    const res = await fetch('/api/v1/subscribers/upload-excel', {
+                    const res = await fetch(uploadUrl, {
                         method: 'POST',
                         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
                         body: formData
@@ -1072,15 +1206,16 @@
                 window.location.href = '/login.html';
             };
 
-            // Filter logic
+            // Dynamic filter logic
             const filteredAnnouncements = announcements.filter(item => {
                 const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) || 
                                      item.content.toLowerCase().includes(search.toLowerCase());
                 if (!matchesSearch) return false;
 
                 if (filter === 'HAS_PDF') return !!item.attachmentUrl;
-                if (filter === 'EBELGE_GIB') return item.sourceSite === 'EBELGE_GIB' || (item.sourceSiteDisplayName && item.sourceSiteDisplayName.toLowerCase().includes('gib'));
-                if (filter === 'KOSGEB') return item.sourceSite === 'KOSGEB' || (item.sourceSiteDisplayName && item.sourceSiteDisplayName.toLowerCase().includes('kosgeb'));
+                if (filter !== 'ALL' && filter !== 'HAS_PDF' && filter !== 'TODAY') {
+                    return item.sourceSite === filter;
+                }
                 if (filter === 'TODAY') {
                     const todayStr = new Date().toISOString().split('T')[0];
                     return item.announcementDate === todayStr;
@@ -1132,7 +1267,8 @@
                         />
                         <StatCard 
                             title="Taranan Kaynak Sayısı" 
-                            value="2 Portal (GİB, KOSGEB)" 
+                            value={`${sites.length} Aktif Kaynak`}
+                            subtext={sites.map(s => s.displayName).join(' • ')} 
                             icon="globe" 
                             color="#8b5cf6" 
                             bg="rgba(139, 92, 246, 0.15)" 
@@ -1143,7 +1279,7 @@
                     <div class="main-layout">
                         {/* Left Announcement List */}
                         <div class="content-panel">
-                            {/* Toolbar */}
+                            {/* Toolbar with Dynamic Site Filter Pills */}
                             <div class="toolbar">
                                 <div class="search-box">
                                     <i data-lucide="search" class="search-icon"></i>
@@ -1155,10 +1291,21 @@
                                         onChange={(e) => setSearch(e.target.value)}
                                     />
                                 </div>
+
                                 <div class="filter-pills">
                                     <button class={`pill ${filter === 'ALL' ? 'active' : ''}`} onClick={() => setFilter('ALL')}>Tüm Duyurular</button>
-                                    <button class={`pill ${filter === 'EBELGE_GIB' ? 'active' : ''}`} onClick={() => setFilter('EBELGE_GIB')}>e-Belge GİB</button>
-                                    <button class={`pill ${filter === 'KOSGEB' ? 'active' : ''}`} onClick={() => setFilter('KOSGEB')}>KOSGEB</button>
+                                    
+                                    {/* Dynamically generated site pills */}
+                                    {sites.map(site => (
+                                        <button 
+                                            key={site.name} 
+                                            class={`pill ${filter === site.name ? 'active' : ''}`} 
+                                            onClick={() => setFilter(site.name)}
+                                        >
+                                            {site.displayName}
+                                        </button>
+                                    ))}
+
                                     <button class={`pill ${filter === 'HAS_PDF' ? 'active' : ''}`} onClick={() => setFilter('HAS_PDF')}>Ek Dosyası Olanlar</button>
                                 </div>
                             </div>
@@ -1188,7 +1335,7 @@
 
                         {/* Right Sidebar */}
                         <div class="sidebar">
-                            {/* Add Subscriber Form */}
+                            {/* Add Subscriber Form with Dynamic Site Preference Checkboxes */}
                             <div class="side-card">
                                 <div class="side-title">
                                     <i data-lucide="user-plus" style={{color: '#38bdf8'}}></i>
@@ -1206,6 +1353,7 @@
                                             required
                                         />
                                     </div>
+
                                     <div class="form-group">
                                         <label class="form-label">E-POSTA ADRESİ</label>
                                         <input 
@@ -1217,6 +1365,31 @@
                                             required
                                         />
                                     </div>
+
+                                    {/* Dynamic Site Checkboxes */}
+                                    <div class="form-group">
+                                        <label class="form-label">BİLDİRİM ALINACAK SİTELER</label>
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', background: 'rgba(15, 23, 42, 0.6)', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)'}}>
+                                            {sites.map(s => (
+                                                <label key={s.name} style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', cursor: 'pointer', color: '#e2e8f0', userSelect: 'none'}}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={selectedNewSubSites.includes(s.name)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setSelectedNewSubSites(prev => [...prev, s.name]);
+                                                            } else {
+                                                                setSelectedNewSubSites(prev => prev.filter(n => n !== s.name));
+                                                            }
+                                                        }}
+                                                        style={{width: '15px', height: '15px', accentColor: 'var(--primary)', cursor: 'pointer'}}
+                                                    />
+                                                    <span>{s.displayName}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
                                     <button type="submit" class="btn-submit">
                                         <i data-lucide="user-plus" style={{width: '15px', height: '15px'}}></i>
                                         Abone Yap & Mail Gönder
@@ -1231,6 +1404,30 @@
                                     Excel / CSV İle Toplu Abone Ekle
                                 </div>
                                 <div style={{border: '1px dashed #334155', borderRadius: '12px', padding: '16px', textAlign: 'center', background: '#0f172a'}}>
+                                    {/* Target sites checkboxes for Excel import */}
+                                    <div style={{marginBottom: '14px', textAlign: 'left'}}>
+                                        <label class="form-label" style={{fontSize: '11px'}}>BİLDİRİM ALINACAK SİTELER</label>
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px', background: 'rgba(15, 23, 42, 0.6)', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)'}}>
+                                            {sites.map(s => (
+                                                <label key={s.name} style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', color: '#e2e8f0', userSelect: 'none'}}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={selectedExcelSites.includes(s.name)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setSelectedExcelSites(prev => [...prev, s.name]);
+                                                            } else {
+                                                                setSelectedExcelSites(prev => prev.filter(n => n !== s.name));
+                                                            }
+                                                        }}
+                                                        style={{width: '14px', height: '14px', accentColor: 'var(--primary)', cursor: 'pointer'}}
+                                                    />
+                                                    <span>{s.displayName}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
                                     <div style={{display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center'}}>
                                         <a href="/api/v1/subscribers/template-excel" download="Abone_Yukleme_Taslak_Sablonu.xlsx" style={{display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#38bdf8', textDecoration: 'none', fontWeight: '600', padding: '8px 14px', background: 'rgba(56,189,248,0.1)', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.3)'}}>
                                             <i data-lucide="download" style={{width: '14px', height: '14px'}}></i>
@@ -1283,8 +1480,10 @@
                                             <SubscriberItem 
                                                 key={sub.id} 
                                                 sub={sub} 
+                                                availableSites={sites}
                                                 onToggleStatus={handleToggleSubscriberStatus}
                                                 onDelete={handleDeleteSubscriber}
+                                                onEditPreferences={handleOpenEditPreferences}
                                             />
                                         ))
                                     )}
@@ -1299,6 +1498,56 @@
                             </div>
                         </div>
                     </div>
+
+                    {/* Site Preference Editing Modal */}
+                    {editingSub && (
+                        <div class="modal-overlay" onClick={() => setEditingSub(null)}>
+                            <div class="modal-card" onClick={(e) => e.stopPropagation()}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px'}}>
+                                    <h3 style={{fontSize: '16px', fontWeight: '700', color: 'white'}}>Site Bildirim Tercihleri</h3>
+                                    <button onClick={() => setEditingSub(null)} style={{background: 'none', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer'}}>✕</button>
+                                </div>
+                                <div style={{fontSize: '13px', color: '#94a3b8', marginBottom: '14px'}}>
+                                    <b>{editingSub.fullName || editingSub.email}</b> abonesinin duyuru bildirimi alacağı web sitelerini seçin:
+                                </div>
+
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '22px', background: 'rgba(15, 23, 42, 0.7)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)'}}>
+                                    {sites.map(s => (
+                                        <label key={s.name} style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13.5px', cursor: 'pointer', color: '#f1f5f9', userSelect: 'none'}}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={editingSites.includes(s.name)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setEditingSites(prev => [...prev, s.name]);
+                                                    } else {
+                                                        setEditingSites(prev => prev.filter(n => n !== s.name));
+                                                    }
+                                                }}
+                                                style={{width: '16px', height: '16px', accentColor: 'var(--primary)', cursor: 'pointer'}}
+                                            />
+                                            <span>{s.displayName}</span>
+                                        </label>
+                                    ))}
+                                </div>
+
+                                <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end'}}>
+                                    <button 
+                                        onClick={() => setEditingSub(null)}
+                                        style={{background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: '600'}}
+                                    >
+                                        İptal
+                                    </button>
+                                    <button 
+                                        onClick={handleSavePreferences}
+                                        style={{background: 'linear-gradient(135deg, var(--primary), var(--accent-cyan))', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: '700'}}
+                                    >
+                                        Tercihleri Kaydet
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Toast Notification Container */}
                     <div class="toast-container">

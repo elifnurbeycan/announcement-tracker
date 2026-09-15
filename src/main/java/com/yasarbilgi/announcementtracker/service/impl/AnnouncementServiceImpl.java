@@ -165,11 +165,23 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 ? todaysAnnouncements
                 : pending.stream().limit(3).toList();
 
-        List<String> recipientEmails = getRecipientEmails();
-        log.info("Bekleyen {} duyurudan seçilen {} adet duyuru {} alıcıya bildiriliyor...", 
-                pending.size(), toNotify.size(), recipientEmails.size());
+        List<Subscriber> activeSubscribers = subscriberRepository.findByActiveTrue();
 
-        emailService.sendAnnouncementNotification(toNotify, recipientEmails);
+        for (Announcement a : toNotify) {
+            // Her duyuru için yalnızca o sitenin tercihini açmış abonelere mail gönderir
+            List<String> recipients = activeSubscribers.stream()
+                    .filter(sub -> sub.getSubscribedSites() != null && sub.getSubscribedSites().contains(a.getSourceSite()))
+                    .map(Subscriber::getEmail)
+                    .toList();
+
+            if (recipients.isEmpty() && activeSubscribers.isEmpty()) {
+                recipients = List.of(defaultRecipient);
+            }
+
+            if (!recipients.isEmpty()) {
+                emailService.sendSingleAnnouncementNotification(a, recipients);
+            }
+        }
 
         LocalDateTime now = LocalDateTime.now();
         // Tüm bekleyen duyuruları bildirildi olarak işaretler
