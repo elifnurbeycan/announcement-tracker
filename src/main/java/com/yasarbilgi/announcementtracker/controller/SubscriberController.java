@@ -3,6 +3,7 @@ package com.yasarbilgi.announcementtracker.controller;
 import com.yasarbilgi.announcementtracker.dto.request.SubscriberRequestDto;
 import com.yasarbilgi.announcementtracker.dto.response.ApiResponseDto;
 import com.yasarbilgi.announcementtracker.dto.response.SubscriberResponseDto;
+import com.yasarbilgi.announcementtracker.enums.SiteType;
 import com.yasarbilgi.announcementtracker.service.SubscriberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,11 +12,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/subscribers")
 @RequiredArgsConstructor
-public class    SubscriberController {
+public class SubscriberController {
 
     private final SubscriberService subscriberService;
 
@@ -47,10 +49,20 @@ public class    SubscriberController {
         return ResponseEntity.ok(ApiResponseDto.ok("Abone aktiflik durumu güncellendi."));
     }
 
+    @PatchMapping("/{id}/sites")
+    public ResponseEntity<ApiResponseDto<SubscriberResponseDto>> updateSitePreferences(
+            @PathVariable Long id,
+            @RequestBody Set<SiteType> sites) {
+        SubscriberResponseDto response = subscriberService.updateSitePreferences(id, sites);
+        return ResponseEntity.ok(ApiResponseDto.ok("Abone site tercihleri güncellendi.", response));
+    }
+
     @PostMapping("/upload-excel")
     public ResponseEntity<ApiResponseDto<Integer>> uploadExcelSubscribers(
-            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
-        int count = subscriberService.importSubscribersFromExcel(file);
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(value = "sites", required = false) List<SiteType> sites) {
+        Set<SiteType> targetSites = (sites != null && !sites.isEmpty()) ? new java.util.HashSet<>(sites) : null;
+        int count = subscriberService.importSubscribersFromExcel(file, targetSites);
         return ResponseEntity.ok(ApiResponseDto.ok(count + " adet e-posta abonesi başarıyla içe aktarıldı.", count));
     }
 
@@ -59,12 +71,10 @@ public class    SubscriberController {
         try (org.apache.poi.ss.usermodel.Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
             org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Aboneler");
 
-            // Header Row
             org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("E-Posta");
             header.createCell(1).setCellValue("Ad Soyad");
 
-            // Example Data Rows
             org.apache.poi.ss.usermodel.Row row1 = sheet.createRow(1);
             row1.createCell(0).setCellValue("ornek.abone1@firma.com");
             row1.createCell(1).setCellValue("Ahmet Yılmaz");
@@ -89,7 +99,6 @@ public class    SubscriberController {
             throw new RuntimeException("Taslak Excel dosyası oluşturulurken hata: " + e.getMessage(), e);
         }
     }
-
 
     @PostMapping("/unsubscribe")
     public ResponseEntity<ApiResponseDto<Boolean>> unsubscribeApi(@RequestParam String email) {
@@ -118,4 +127,3 @@ public class    SubscriberController {
         return ResponseEntity.ok(html);
     }
 }
-
