@@ -146,9 +146,8 @@
 
     <script type="text/babel">
         const { useState, useEffect } = React;
-
-        function LoginApp() {
-            const [username, setUsername] = useState('admin');
+        function LoginApp() {
+            const [username, setUsername] = useState('');
             const [password, setPassword] = useState('');
             const [error, setError] = useState('');
             const [loading, setLoading] = useState(false);
@@ -192,7 +191,7 @@
                             <i data-lucide="shield-check" style={{width: '32px', height: '32px', color: 'white'}}></i>
                         </div>
                         <h2>Super Admin Giriş Paneli</h2>
-                        <p>Duyuru Takip Yönetim Sistemine Giriş Yapın</p>
+                        <p>Duyuru Takip Yönetim Sisteme Giriş Yapın</p>
                     </div>
 
                     {error && <div class="login-error">{error}</div>}
@@ -203,7 +202,7 @@
                             <input 
                                 type="text" 
                                 class="input-field" 
-                                placeholder="Kullanıcı adı (Varsayılan: admin)" 
+                                placeholder="Kullanıcı adınızı girin" 
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 required 
@@ -216,7 +215,7 @@
                             <input 
                                 type="password" 
                                 class="input-field" 
-                                placeholder="Şifre (Varsayılan: admin123)" 
+                                placeholder="••••••••" 
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required 
@@ -227,10 +226,6 @@
                             {loading ? 'Giriş Yapılıyor...' : 'Super Admin Olarak Giriş Yap'}
                         </button>
                     </form>
-
-                    <div style={{marginTop: '22px', fontSize: '11.5px', color: '#64748b', textAlign: 'center', lineHeight: '1.5'}}>
-                        🔐 Güvenlik Protokolü: İlk girişte veritabanında tanımlı <b>admin / admin123</b> bilgileri kullanılır.
-                    </div>
                 </div>
             );
         }

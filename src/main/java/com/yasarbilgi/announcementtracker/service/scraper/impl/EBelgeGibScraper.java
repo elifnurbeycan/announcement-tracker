@@ -76,20 +76,23 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
 
             // Metinden başlık ve benzersiz içerik karması (hash) türetir
             String title = extractTitleFromText(text);
-            String contentHash = calculateHash(getSiteType().name() + ":" + dateStr + ":" + text);
+            String contentHash = calculateHash(getSiteType().name() + ":" + date.toString() + ":" + title);
 
-            ScrapedAnnouncementDto dto = ScrapedAnnouncementDto.builder()
-                    .title(title)
-                    .content(text)
-                    .announcementDate(date)
-                    .sourceSite(getSiteType())
-                    .sourceUrl(TARGET_URL)
-                    .attachmentUrl(attachmentUrl)
-                    .imageUrl(imageUrl)
-                    .contentHash(contentHash)
-                    .build();
+            boolean existsInList = results.stream().anyMatch(r -> r.getContentHash().equals(contentHash));
+            if (!existsInList) {
+                ScrapedAnnouncementDto dto = ScrapedAnnouncementDto.builder()
+                        .title(title)
+                        .content(text)
+                        .announcementDate(date)
+                        .sourceSite(getSiteType())
+                        .sourceUrl(TARGET_URL)
+                        .attachmentUrl(attachmentUrl)
+                        .imageUrl(imageUrl)
+                        .contentHash(contentHash)
+                        .build();
 
-            results.add(dto);
+                results.add(dto);
+            }
         }
 
         // Tarih başlıklarıyla eşleşen alternatif duyuru yapılarını ayrıştırır
@@ -104,8 +107,9 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
                 String text = nextElement.text().trim();
                 if (text.isBlank()) continue;
 
+                LocalDate date = parseDate(dateStr);
                 String title = extractTitleFromText(text);
-                String contentHash = calculateHash(getSiteType().name() + ":" + dateStr + ":" + text);
+                String contentHash = calculateHash(getSiteType().name() + ":" + date.toString() + ":" + title);
 
                 // Mükerrer kayıt oluşmasını engeller
                 boolean exists = results.stream().anyMatch(r -> r.getContentHash().equals(contentHash));
@@ -120,7 +124,7 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
                     ScrapedAnnouncementDto dto = ScrapedAnnouncementDto.builder()
                             .title(title)
                             .content(text)
-                            .announcementDate(parseDate(dateStr))
+                            .announcementDate(date)
                             .sourceSite(getSiteType())
                             .sourceUrl(TARGET_URL)
                             .attachmentUrl(attachmentUrl)
@@ -165,10 +169,17 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
             return "e-Belge Duyurusu";
         }
         int dotIdx = text.indexOf('.');
-        if (dotIdx > 15 && dotIdx < 150) {
+        if (dotIdx > 15 && dotIdx < 300) {
             return text.substring(0, dotIdx + 1).trim();
         }
-        return text.length() > 120 ? text.substring(0, 117) + "..." : text;
+        if (text.length() <= 200) {
+            return text;
+        }
+        int lastSpace = text.substring(0, 200).lastIndexOf(' ');
+        if (lastSpace > 50) {
+            return text.substring(0, lastSpace).trim();
+        }
+        return text.substring(0, 200).trim();
     }
 }
 
