@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Duyuru yönetimi, web kazıma koordinasyonu ve bildirim tetikleme iş mantığını yöneten servis.
@@ -43,22 +44,38 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private String defaultRecipient;
 
     /**
-     * Sistemde kayıtlı tüm duyuru kaynaklarını (scrapers) tarar ve yeni duyuruları veritabanına kaydeder.
+     * Sistemde kayıtlı tüm duyuru kaynaklarını (scrapers) paralel olarak tarar ve yeni duyuruları kaydeder.
      */
     @Override
     @Transactional
     public List<AnnouncementResponseDto> triggerScrapeAll() {
-        log.info("Kayıtlı tüm duyuru kaynakları için web kazıma başlatılıyor...");
-        List<AnnouncementResponseDto> newAnnouncements = new ArrayList<>();
+        log.info("Kayıtlı tüm duyuru kaynakları için eş zamanlı (paralel) web kazıma başlatılıyor...");
 
-        for (AnnouncementScraper scraper : scraperRegistry.getAllScrapers()) {
-            try {
-                List<AnnouncementResponseDto> scrapedForSite = processScrapingForScraper(scraper);
-                newAnnouncements.addAll(scrapedForSite);
-            } catch (Exception e) {
-                log.error("Site için kazıma işlemi başarısız oldu: {}. Neden: {}", scraper.getSiteType(), e.getMessage(), e);
-            }
+        List<AnnouncementScraper> scrapers = scraperRegistry.getAllScrapers();
+        if (scrapers.isEmpty()) {
+            return List.of();
         }
+
+        // Tüm kazıyıcılar için eş zamanlı CompletableFuture görevleri oluşturulur
+        List<CompletableFuture<List<AnnouncementResponseDto>>> futures = scrapers.stream()
+                .map(scraper -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return processScrapingForScraper(scraper);
+                    } catch (Exception e) {
+                        log.error("Site için kazıma işlemi başarısız oldu: {}. Neden: {}", scraper.getSiteType(), e.getMessage(), e);
+                        return List.<AnnouncementResponseDto>of();
+                    }
+                }))
+                .toList();
+
+        // Tüm paralel görevlerin tamamlanması beklenir
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        // Tüm kazıyıcılardan gelen yeni duyurular tek bir listede birleştirilir
+        List<AnnouncementResponseDto> newAnnouncements = futures.stream()
+                .map(CompletableFuture::join)
+                .flatMap(List::stream)
+                .toList();
 
         // Yeni eklenen duyurular için abonelere e-posta bildirimi gönderilir
         if (!newAnnouncements.isEmpty()) {
@@ -90,7 +107,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
      * Kazıyıcı tarafından çekilen duyuruları veritabanındakilerle karşılaştırıp mükerrer olmayanları kaydeder.
      */
     private List<AnnouncementResponseDto> processScrapingForScraper(AnnouncementScraper scraper) {
-        List<ScrapedAnnouncementDto> scrapedDtos = scraper.scrape();
+        List<ScrapedAnnouncementDto> scrapedDtos = scraper.scrape(announcementRepository::existsByContentHash);
         List<Announcement> newEntities = new ArrayList<>();
 
         for (ScrapedAnnouncementDto dto : scrapedDtos) {

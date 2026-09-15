@@ -75,7 +75,7 @@ class AnnouncementServiceImplTest {
     @DisplayName("Tüm scraper'lar tetiklendiğinde yeni duyuruların kaydedilmesi ve maillerin filtrelenerek gönderilmesi")
     void triggerScrapeAll_ShouldScrapeAndNotifySubscribersOfMatchingSite() {
         when(scraperRegistry.getAllScrapers()).thenReturn(List.of(scraperMock));
-        when(scraperMock.scrape()).thenReturn(List.of(scrapedDto));
+        when(scraperMock.scrape(any())).thenReturn(List.of(scrapedDto));
         when(announcementRepository.existsByContentHash("hash123")).thenReturn(false);
 
         when(announcementRepository.saveAll(anyList())).thenAnswer(invocation -> {
@@ -114,7 +114,7 @@ class AnnouncementServiceImplTest {
     void triggerScrapeAll_ScraperThrowsException_ShouldHandleGracefully() {
         AnnouncementScraper failingScraper = mock(AnnouncementScraper.class);
         when(failingScraper.getSiteType()).thenReturn(SiteType.KOSGEB);
-        when(failingScraper.scrape()).thenThrow(new RuntimeException("Network timeout"));
+        when(failingScraper.scrape(any())).thenThrow(new RuntimeException("Network timeout"));
 
         when(scraperRegistry.getAllScrapers()).thenReturn(List.of(failingScraper));
 
@@ -128,7 +128,7 @@ class AnnouncementServiceImplTest {
     @DisplayName("Mükerrer duyuru tespit edildiğinde veritabanına tekrar kaydedilmemeli")
     void triggerScrapeSite_DuplicateAnnouncement_ShouldSkipSave() {
         when(scraperRegistry.getRequiredScraper(SiteType.EBELGE_GIB)).thenReturn(scraperMock);
-        when(scraperMock.scrape()).thenReturn(List.of(scrapedDto));
+        when(scraperMock.scrape(any())).thenReturn(List.of(scrapedDto));
         when(announcementRepository.existsByContentHash("hash123")).thenReturn(true);
 
         List<AnnouncementResponseDto> results = announcementService.triggerScrapeSite(SiteType.EBELGE_GIB);

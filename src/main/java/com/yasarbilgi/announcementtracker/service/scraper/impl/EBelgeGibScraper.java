@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * Gelir İdaresi Başkanlığı e-Belge (ebelge.gib.gov.tr) portalı duyurularını ayrıştıran kazıyıcı sınıf.
@@ -30,9 +31,10 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
 
     /**
      * e-Belge duyurular sayfasını bağlanan HTML belgesinden ayrıştırır ve DTO listesi olarak döndürür.
+     * Erken Çıkış (Early Exit): Veritabanında zaten var olan bir duyuru hash'ine rastlanırsa taramayı anında sonlandırır.
      */
     @Override
-    public List<ScrapedAnnouncementDto> scrape() {
+    public List<ScrapedAnnouncementDto> scrape(Predicate<String> hashExistsPredicate) {
         List<ScrapedAnnouncementDto> results = new ArrayList<>();
         log.info("Site için duyuru tarama işlemi başlatılıyor: {}", getSiteType());
 
@@ -77,6 +79,11 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
             // Metinden başlık ve benzersiz içerik karması (hash) türetir
             String title = extractTitleFromText(text);
             String contentHash = calculateHash(getSiteType().name() + ":" + date.toString() + ":" + title);
+
+            if (hashExistsPredicate != null && hashExistsPredicate.test(contentHash)) {
+                log.info("e-Belge GİB: Zaten veritabanında var olan duyuruya ulaşıldı [hash: {}]. Erken çıkış (Early Exit) yapılıyor.", contentHash);
+                break;
+            }
 
             boolean existsInList = results.stream().anyMatch(r -> r.getContentHash().equals(contentHash));
             if (!existsInList) {

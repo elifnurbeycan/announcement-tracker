@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.format.DateTimeFormatter;
@@ -32,9 +33,10 @@ public class EmailServiceImpl implements EmailService {
 
 
     /**
-     * Yeni duyuruları toplu e-posta olarak kayıtlı abonelere gönderir.
+     * Yeni duyuruları toplu e-posta olarak kayıtlı abonelere asenkron gönderir.
      */
     @Override
+    @Async("emailExecutor")
     public void sendAnnouncementNotification(List<Announcement> announcements, List<String> recipientEmails) {
         if (announcements == null || announcements.isEmpty()) {
             log.info("Gönderilecek yeni duyuru bulunamadı.");
@@ -55,9 +57,10 @@ public class EmailServiceImpl implements EmailService {
     }
 
     /**
-     * Tek bir duyuruyu hedef abonelere e-posta ile iletir.
+     * Tek bir duyuruyu hedef abonelere asenkron olarak e-posta ile iletir.
      */
     @Override
+    @Async("emailExecutor")
     public void sendSingleAnnouncementNotification(Announcement announcement, List<String> recipientEmails) {
         sendAnnouncementNotification(List.of(announcement), recipientEmails);
     }
