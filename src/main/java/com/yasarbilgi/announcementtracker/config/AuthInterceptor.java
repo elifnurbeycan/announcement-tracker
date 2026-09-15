@@ -46,7 +46,7 @@ public class AuthInterceptor implements HandlerInterceptor {
                 response.setStatus(HttpStatus.UNAUTHORIZED.value());
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setCharacterEncoding("UTF-8");
-                response.getWriter().write("{\"success\":false,\"message\":\"Yetkisiz Erişim! Lütfen SüperAdmin olarak giriş yapın.\"}");
+                response.getWriter().write("{\"success\":false,\"message\":\"Yetkisiz Erişim! Lütfen Super Admin olarak giriş yapın.\"}");
             } else {
                 // HTML Page requests redirect to login.html
                 response.sendRedirect("/login.html");
