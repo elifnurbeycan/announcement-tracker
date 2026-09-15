@@ -45,7 +45,7 @@ public class KosgebScraper extends AbstractAnnouncementScraper {
     }
 
     @Override
-    public List<ScrapedAnnouncementDto> scrape() {
+    public List<ScrapedAnnouncementDto> scrape(java.util.function.Predicate<String> hashExistsPredicate) {
         List<ScrapedAnnouncementDto> results = new ArrayList<>();
         log.info("Site için duyuru tarama işlemi başlatılıyor: {}", getSiteType());
 
@@ -75,6 +75,11 @@ public class KosgebScraper extends AbstractAnnouncementScraper {
 
             String content = title; // KOSGEB başlığı içerik özeti olarak kullanılır
             String contentHash = calculateHash(getSiteType().name() + ":" + title + ":" + announcementDate.toString());
+
+            if (hashExistsPredicate != null && hashExistsPredicate.test(contentHash)) {
+                log.info("KOSGEB: Zaten veritabanında var olan duyuruya ulaşıldı [hash: {}]. Erken çıkış (Early Exit) yapılıyor.", contentHash);
+                break;
+            }
 
             ScrapedAnnouncementDto dto = ScrapedAnnouncementDto.builder()
                     .title(title)

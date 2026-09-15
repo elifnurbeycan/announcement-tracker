@@ -12,13 +12,26 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Collections;
 import java.util.HexFormat;
+import java.util.List;
+import java.util.function.Predicate;
 
 @Slf4j
 public abstract class AbstractAnnouncementScraper implements AnnouncementScraper {
 
     protected static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     protected static final int TIMEOUT_MS = 15000;
+
+    @Override
+    public List<com.yasarbilgi.announcementtracker.dto.ScrapedAnnouncementDto> scrape() {
+        return scrape(hash -> false);
+    }
+
+    @Override
+    public List<com.yasarbilgi.announcementtracker.dto.ScrapedAnnouncementDto> scrape(Predicate<String> hashExistsPredicate) {
+        return Collections.emptyList();
+    }
 
     /**
      * Fetch document with custom user agent and timeout settings.

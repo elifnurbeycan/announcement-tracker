@@ -20,6 +20,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        jdbc.batch_size: 50
+        order_inserts: true
+        order_updates: true
 
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
