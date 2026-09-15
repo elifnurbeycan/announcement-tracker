@@ -7,7 +7,8 @@ import lombok.Getter;
  */
 @Getter
 public enum SiteType {
-    EBELGE_GIB("e-Belge GİB", "https://ebelge.gib.gov.tr/duyurular.html");
+    EBELGE_GIB("e-Belge GİB", "https://ebelge.gib.gov.tr/duyurular.html"),
+    KOSGEB("KOSGEB Duyuruları", "https://www.kosgeb.gov.tr/site/tr/genel/duyurular");
 
     private final String displayName;
     private final String baseUrl;
@@ -17,4 +18,3 @@ public enum SiteType {
         this.baseUrl = baseUrl;
     }
 }
-
