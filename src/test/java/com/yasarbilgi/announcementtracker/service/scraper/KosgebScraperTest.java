@@ -32,8 +32,5 @@ class KosgebScraperTest {
         assertNotNull(first.getTitle(), "Başlık alanı boş olmamalıdır");
         assertNotNull(first.getAnnouncementDate(), "Tarih alanı null olmamalıdır");
         assertEquals(SiteType.KOSGEB, first.getSourceSite());
-
-        System.out.println("Başarıyla ayrıştırılan KOSGEB duyuru sayısı: " + results.size());
-        System.out.println("Örnek KOSGEB duyuru başlığı: " + first.getTitle());
     }
 }

@@ -35,8 +35,5 @@ class EBelgeGibScraperTest {
         assertNotNull(first.getContent(), "Content should not be null");
         assertNotNull(first.getContentHash(), "Hash should be calculated");
         assertEquals(SiteType.EBELGE_GIB, first.getSourceSite());
-
-        System.out.println("Scraped " + scrapedList.size() + " items successfully.");
-        System.out.println("Sample announcement title: " + first.getTitle());
     }
 }

@@ -11,6 +11,7 @@ import com.yasarbilgi.announcementtracker.util.PasswordEncoderHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -20,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AuthServiceImpl implements AuthService {
 
     private final AdminUserRepository adminUserRepository;
@@ -31,6 +33,7 @@ public class AuthServiceImpl implements AuthService {
     private record SessionInfo(AdminUserDto userDto, LocalDateTime expiresAt) {}
 
     @Override
+    @Transactional
     public LoginResponseDto login(LoginRequestDto request) {
         log.info("SuperAdmin login attempt for username: {}", request.getUsername());
 
