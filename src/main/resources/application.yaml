@@ -1,9 +1,23 @@
 server:
   port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
 
 spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   application:
     name: announcement-tracker
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/announcement-tracker-realm}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/announcement-tracker-realm/protocol/openid-connect/certs}
   
   # PostgreSQL Datasource Configuration
   datasource:
@@ -31,8 +45,8 @@ spring:
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME:elif.bycn35@gmail.com}
-    password: ${SPRING_MAIL_PASSWORD:asusiyauzolynspr}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -49,4 +63,10 @@ announcement:
     email:
       from: ${MAIL_FROM:noreply@announcementtracker.com}
       default-recipient: ${DEFAULT_RECIPIENT:admin@example.com}
+
+keycloak:
+  auth-server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8180}
+  realm: ${KEYCLOAK_REALM:announcement-tracker-realm}
+  client-id: ${KEYCLOAK_CLIENT_ID:announcement-tracker-app}
+
 

@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Sensitive Local Profiles & Environment Files ###
+src/main/resources/application-dev.yaml
+src/main/resources/application-local.yaml
+.env
+

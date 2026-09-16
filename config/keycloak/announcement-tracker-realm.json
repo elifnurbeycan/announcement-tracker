@@ -1,0 +1,87 @@
+{
+  "realm": "announcement-tracker-realm",
+  "displayName": "Announcement Tracker Realm",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "ROLE_SUPER_ADMIN",
+        "description": "Super Admin role for administrative tasks"
+      },
+      {
+        "name": "ROLE_SUBSCRIBER",
+        "description": "Subscriber role for reading portal announcements"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "announcement-tracker-app",
+      "name": "Announcement Tracker Application Client",
+      "description": "Client for Announcement Tracker web portal and REST API",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/*",
+        "http://localhost:8180/*",
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Super",
+      "lastName": "Admin",
+      "email": "admin@announcementtracker.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ROLE_SUPER_ADMIN"
+      ]
+    },
+    {
+      "username": "user@example.com",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Portal",
+      "lastName": "User",
+      "email": "user@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ROLE_SUBSCRIBER"
+      ]
+    }
+  ]
+}
