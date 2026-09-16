@@ -802,7 +802,7 @@
                         </button>
                         <button 
                             class="btn-sub-action btn-sub-del" 
-                            onClick={() => onDelete(sub.id)} 
+                            onClick={() => onDelete(sub)} 
                             title="Aboneyi Sil"
                         >
                             <i data-lucide="trash-2" style={{width: '13px', height: '13px'}}></i>
@@ -934,6 +934,13 @@
             // Preferences Modal Editing State
             const [editingSub, setEditingSub] = useState(null);
             const [editingSites, setEditingSites] = useState([]);
+            const [deletingSub, setDeletingSub] = useState(null);
+
+            useEffect(() => {
+                if (deletingSub || editingSub) {
+                    setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50);
+                }
+            }, [deletingSub, editingSub]);
 
             // Settings & Toasts state
             const [scrapeMinutes, setScrapeMinutes] = useState(60);
@@ -1117,11 +1124,15 @@
                 }
             };
 
-            const handleDeleteSubscriber = async (id) => {
-                if (!confirm('Bu aboneyi listeden tamamen silmek istediğinize emin misiniz?')) return;
+            const handleOpenDeleteModal = (sub) => {
+                setDeletingSub(sub);
+            };
+
+            const confirmDeleteSubscriber = async (id) => {
                 try {
                     await authFetch(`/api/v1/subscribers/${id}`, { method: 'DELETE' });
                     showToast('Abone listeden silindi.');
+                    setDeletingSub(null);
                     fetchSubscribers();
                 } catch (err) {
                     showToast('Silinirken hata oluştu.', 'danger');
@@ -1482,7 +1493,7 @@
                                                 sub={sub} 
                                                 availableSites={sites}
                                                 onToggleStatus={handleToggleSubscriberStatus}
-                                                onDelete={handleDeleteSubscriber}
+                                                onDelete={handleOpenDeleteModal}
                                                 onEditPreferences={handleOpenEditPreferences}
                                             />
                                         ))
@@ -1543,6 +1554,72 @@
                                         style={{background: 'linear-gradient(135deg, var(--primary), var(--accent-cyan))', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: '700'}}
                                     >
                                         Tercihleri Kaydet
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Subscriber Deletion Confirmation Modal */}
+                    {deletingSub && (
+                        <div class="modal-overlay" onClick={() => setDeletingSub(null)}>
+                            <div class="modal-card" onClick={(e) => e.stopPropagation()} style={{maxWidth: '420px', textAlign: 'center'}}>
+                                <div style={{
+                                    width: '56px', 
+                                    height: '56px', 
+                                    borderRadius: '50%', 
+                                    background: 'rgba(239, 68, 68, 0.15)', 
+                                    color: '#ef4444', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'center', 
+                                    margin: '0 auto 16px auto',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                                }}>
+                                    <i data-lucide="trash-2" style={{width: '26px', height: '26px'}}></i>
+                                </div>
+                                
+                                <h3 style={{fontSize: '18px', fontWeight: '700', color: 'white', marginBottom: '8px'}}>
+                                    Aboneyi Sil
+                                </h3>
+                                
+                                <p style={{fontSize: '13.5px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '24px'}}>
+                                    <strong style={{color: '#f3f4f6'}}>{deletingSub.fullName || deletingSub.email}</strong> abonesini listeden tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                                </p>
+
+                                <div style={{display: 'flex', gap: '12px', justifyContent: 'center'}}>
+                                    <button 
+                                        onClick={() => setDeletingSub(null)}
+                                        style={{
+                                            flex: 1,
+                                            background: 'rgba(255,255,255,0.06)', 
+                                            color: '#cbd5e1', 
+                                            border: '1px solid var(--border-color)', 
+                                            padding: '10px 16px', 
+                                            borderRadius: '10px', 
+                                            cursor: 'pointer', 
+                                            fontSize: '13px', 
+                                            fontWeight: '600'
+                                        }}
+                                    >
+                                        İptal
+                                    </button>
+                                    <button 
+                                        onClick={() => confirmDeleteSubscriber(deletingSub.id)}
+                                        style={{
+                                            flex: 1,
+                                            background: 'linear-gradient(135deg, #ef4444, #dc2626)', 
+                                            color: 'white', 
+                                            border: 'none', 
+                                            padding: '10px 16px', 
+                                            borderRadius: '10px', 
+                                            cursor: 'pointer', 
+                                            fontSize: '13px', 
+                                            fontWeight: '700',
+                                            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.35)'
+                                        }}
+                                    >
+                                        Evet, Sil
                                     </button>
                                 </div>
                             </div>
