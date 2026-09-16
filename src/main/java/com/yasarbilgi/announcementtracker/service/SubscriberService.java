@@ -28,4 +28,10 @@ public interface SubscriberService {
     int importSubscribersFromExcel(MultipartFile file);
 
     int importSubscribersFromExcel(MultipartFile file, Set<SiteType> targetSites);
+
+    SubscriberResponseDto setPasswordWithToken(com.yasarbilgi.announcementtracker.dto.request.SetPasswordRequestDto dto);
+
+    com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto loginUser(com.yasarbilgi.announcementtracker.dto.request.UserLoginRequestDto dto);
+
+    SubscriberResponseDto validateUserToken(String userToken);
 }

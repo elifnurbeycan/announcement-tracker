@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanıcı Paneli - Duyuru Takip Sistemi</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- React 18 & Babel & Lucide Icons -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-main: #0f172a;
+            --card-bg: #1e293b;
+            --border: rgba(255, 255, 255, 0.08);
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --accent-purple: #8b5cf6;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 800;
+            background: linear-gradient(to right, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-badge {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .btn-logout {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-logout:hover { background: rgba(239, 68, 68, 0.25); }
+
+        .container {
+            max-width: 1240px;
+            margin: 32px auto;
+            padding: 0 24px;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 28px;
+        }
+
+        @media (max-width: 860px) {
+            .grid-layout { grid-template-columns: 1fr; }
+        }
+
+        .panel-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header-flex {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-main);
+        }
+
+        .pref-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .pref-name { font-size: 14px; font-weight: 600; }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #334155;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px; width: 18px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* Filter Tabs */
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            color: var(--text-sub);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .btn-mark-all {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-mark-all:hover { background: rgba(16, 185, 129, 0.25); }
+
+        /* Announcement Cards */
+        .announcement-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            position: relative;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .announcement-card.unread {
+            border-left: 4px solid var(--success);
+            background: rgba(30, 41, 59, 0.85);
+        }
+
+        .announcement-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .badge-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .announcement-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-gib { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+        .badge-kosgeb { background: rgba(139, 92, 246, 0.2); color: #c084fc; border: 1px solid rgba(139, 92, 246, 0.3); }
+
+        .badge-unread {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .badge-read {
+            background: rgba(148, 163, 184, 0.1);
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .announcement-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--text-main); }
+        .announcement-date { font-size: 12px; color: var(--text-sub); margin-bottom: 12px; }
+
+        .announcement-content {
+            font-size: 13px;
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin-bottom: 14px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-footer-flex {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .link-btn {
+            color: #60a5fa;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .link-btn:hover { text-decoration: underline; }
+
+        .btn-toggle-read {
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .btn-toggle-read:hover { color: white; }
+
+        .toast-saved {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #34d399;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        /* Pagination Controls */
+        .pagination-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 24px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .pagination-info {
+            font-size: 13px;
+            color: var(--text-sub);
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .page-btn {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            min-width: 36px;
+            height: 36px;
+            padding: 0 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .page-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .filter-section-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function UserDashboardApp() {
+            const [user, setUser] = useState(null);
+            const [preferences, setPreferences] = useState({ EBELGE_GIB: true, KOSGEB: true });
+            const [allAnnouncements, setAllAnnouncements] = useState([]);
+            const [readIds, setReadIds] = useState(new Set());
+            const [siteFilter, setSiteFilter] = useState('ALL'); // ALL, EBELGE_GIB, KOSGEB
+            const [activeFilter, setActiveFilter] = useState('ALL'); // ALL, UNREAD, READ
+            const [page, setPage] = useState(0);
+            const [pageSize] = useState(10);
+            const [loading, setLoading] = useState(true);
+            const [savingMsg, setSavingMsg] = useState('');
+
+            useEffect(() => {
+                const token = localStorage.getItem('userToken');
+                if (!token) {
+                    window.location.href = '/user-login.html';
+                    return;
+                }
+                fetchUserProfile(token);
+                fetchAnnouncements(token, siteFilter);
+            }, []);
+
+            useEffect(() => {
+                if (user && user.email) {
+                    const savedRead = localStorage.getItem(`read_announcements_${user.email}`);
+                    if (savedRead) {
+                        try {
+                            setReadIds(new Set(JSON.parse(savedRead)));
+                        } catch (e) {}
+                    }
+                }
+            }, [user]);
+
+            useEffect(() => {
+                setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 100);
+            }, [allAnnouncements, user, preferences, readIds, activeFilter, siteFilter, page]);
+
+            const fetchUserProfile = async (token) => {
+                try {
+                    const res = await fetch('/api/v1/user/me', {
+                        headers: { 'Authorization': token }
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success && data.data) {
+                        setUser(data.data);
+                        const sites = data.data.subscribedSites || [];
+                        setPreferences({
+                            EBELGE_GIB: sites.includes('EBELGE_GIB'),
+                            KOSGEB: sites.includes('KOSGEB')
+                        });
+                    } else {
+                        handleLogout();
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            };
+
+            const fetchAnnouncements = async (token, site = siteFilter) => {
+                setLoading(true);
+                try {
+                    const tokenToUse = token || localStorage.getItem('userToken');
+                    let url = `/api/v1/user/me/announcements?size=1000`;
+                    if (site && site !== 'ALL') {
+                        url += `&siteType=${site}`;
+                    }
+                    const res = await fetch(url, {
+                        headers: { 'Authorization': tokenToUse }
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success && data.data) {
+                        setAllAnnouncements(data.data.content || []);
+                    }
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleSiteFilterChange = (newSite) => {
+                setSiteFilter(newSite);
+                setPage(0);
+                const token = localStorage.getItem('userToken');
+                fetchAnnouncements(token, newSite);
+            };
+
+            const handleStatusFilterChange = (newStatusFilter) => {
+                setActiveFilter(newStatusFilter);
+                setPage(0);
+            };
+
+            const handlePageChange = (newPage) => {
+                setPage(newPage);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
+
+            const markAsRead = (id) => {
+                const updated = new Set(readIds);
+                updated.add(id);
+                setReadIds(updated);
+                if (user && user.email) {
+                    localStorage.setItem(`read_announcements_${user.email}`, JSON.stringify(Array.from(updated)));
+                }
+            };
+
+            const markAsUnread = (id) => {
+                const updated = new Set(readIds);
+                updated.delete(id);
+                setReadIds(updated);
+                if (user && user.email) {
+                    localStorage.setItem(`read_announcements_${user.email}`, JSON.stringify(Array.from(updated)));
+                }
+            };
+
+            const markAllAsRead = () => {
+                const allIds = allAnnouncements.map(a => a.id);
+                const updated = new Set([...readIds, ...allIds]);
+                setReadIds(updated);
+                if (user && user.email) {
+                    localStorage.setItem(`read_announcements_${user.email}`, JSON.stringify(Array.from(updated)));
+                }
+            };
+
+            const handleTogglePreference = async (siteType) => {
+                const updated = { ...preferences, [siteType]: !preferences[siteType] };
+                setPreferences(updated);
+
+                const selectedSites = Object.keys(updated).filter(k => updated[k]);
+                const token = localStorage.getItem('userToken');
+
+                try {
+                    const res = await fetch('/api/v1/user/me/preferences', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': token
+                        },
+                        body: JSON.stringify(selectedSites)
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        setSavingMsg('Tercihler kaydedildi!');
+                        setTimeout(() => setSavingMsg(''), 3000);
+                        fetchAnnouncements(token, siteFilter);
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem('userToken');
+                localStorage.removeItem('userInfo');
+                window.location.href = '/user-login.html';
+            };
+
+            // Calculated Counts & Filtered List
+            const totalElements = allAnnouncements.length;
+            const totalReadCount = allAnnouncements.filter(a => readIds.has(a.id)).length;
+            const totalUnreadCount = allAnnouncements.filter(a => !readIds.has(a.id)).length;
+
+            const filteredAnnouncements = allAnnouncements.filter(a => {
+                const isRead = readIds.has(a.id);
+                if (activeFilter === 'UNREAD') return !isRead;
+                if (activeFilter === 'READ') return isRead;
+                return true;
+            });
+
+            const filteredCount = filteredAnnouncements.length;
+            const totalPages = Math.ceil(filteredCount / pageSize) || 1;
+            const currentPageAnnouncements = filteredAnnouncements.slice(page * pageSize, (page + 1) * pageSize);
+
+            if (loading && allAnnouncements.length === 0) {
+                return (
+                    <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh'}}>
+                        <p style={{color: '#94a3b8'}}>Duyurular Yükleniyor...</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div>
+                    <nav class="navbar">
+                        <div class="brand">
+                            <i data-lucide="bell-ring"></i>
+                            Duyuru Takip - Kullanıcı Paneli
+                        </div>
+                        <div class="user-info">
+                            <span class="user-badge">{user ? user.email : ''}</span>
+                            <button class="btn-logout" onClick={handleLogout}>Çıkış Yap</button>
+                        </div>
+                    </nav>
+
+                    <div class="container">
+                        <div class="grid-layout">
+                            {/* Sol Panel: Takip Tercihleri */}
+                            <div>
+                                <div class="panel-card">
+                                    <div class="card-title">
+                                        <i data-lucide="sliders" style={{width: '20px', height: '20px', color: '#60a5fa'}}></i>
+                                        Takip Edilen Kaynaklar
+                                    </div>
+                                    <p style={{fontSize: '13px', color: '#94a3b8', marginBottom: '18px'}}>
+                                        E-posta ile bildirim almak istediğiniz resmi kaynakları seçin.
+                                    </p>
+
+                                    <div class="pref-item">
+                                        <span class="pref-name">e-Belge GİB</span>
+                                        <label class="switch">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={preferences.EBELGE_GIB} 
+                                                onChange={() => handleTogglePreference('EBELGE_GIB')}
+                                            />
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="pref-item">
+                                        <span class="pref-name">KOSGEB Duyuruları</span>
+                                        <label class="switch">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={preferences.KOSGEB} 
+                                                onChange={() => handleTogglePreference('KOSGEB')}
+                                            />
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    {savingMsg && <div class="toast-saved">{savingMsg}</div>}
+                                </div>
+                            </div>
+
+                            {/* Sağ Panel: İlgili Duyurular */}
+                            <div>
+                                <div class="panel-card">
+                                    <div class="card-header-flex">
+                                        <div class="card-title">
+                                            <i data-lucide="newspaper" style={{width: '20px', height: '20px', color: '#c084fc'}}></i>
+                                            Size Özel Takip Edilen Duyurular ({totalElements})
+                                            {totalUnreadCount > 0 && (
+                                                <span style={{fontSize: '12px', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 8px', borderRadius: '12px'}}>
+                                                    {totalUnreadCount} Okunmamış Duyuru
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {totalUnreadCount > 0 && (
+                                            <button class="btn-mark-all" onClick={markAllAsRead}>
+                                                <i data-lucide="check-check" style={{width: '14px', height: '14px', verticalAlign: 'middle', marginRight: '4px'}}></i>
+                                                Tümünü Okundu İşaretle
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Site Filter Tabs */}
+                                    <div style={{ marginBottom: '16px' }}>
+                                        <div class="filter-section-title">Siteye Göre Filtrele</div>
+                                        <div class="tab-bar">
+                                            <button 
+                                                class={`tab-btn ${siteFilter === 'ALL' ? 'active' : ''}`}
+                                                onClick={() => handleSiteFilterChange('ALL')}
+                                            >
+                                                <i data-lucide="globe" style={{width: '13px', height: '13px', verticalAlign: 'middle', marginRight: '5px'}}></i>
+                                                Tüm Takip Edilen Siteler
+                                            </button>
+                                            {preferences.EBELGE_GIB && (
+                                                <button 
+                                                    class={`tab-btn ${siteFilter === 'EBELGE_GIB' ? 'active' : ''}`}
+                                                    onClick={() => handleSiteFilterChange('EBELGE_GIB')}
+                                                >
+                                                    <i data-lucide="building" style={{width: '13px', height: '13px', verticalAlign: 'middle', marginRight: '5px'}}></i>
+                                                    e-Belge GİB
+                                                </button>
+                                            )}
+                                            {preferences.KOSGEB && (
+                                                <button 
+                                                    class={`tab-btn ${siteFilter === 'KOSGEB' ? 'active' : ''}`}
+                                                    onClick={() => handleSiteFilterChange('KOSGEB')}
+                                                >
+                                                    <i data-lucide="rocket" style={{width: '13px', height: '13px', verticalAlign: 'middle', marginRight: '5px'}}></i>
+                                                    KOSGEB Duyuruları
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Read Status Filter Tabs with Total System Counts */}
+                                    <div style={{ marginBottom: '20px' }}>
+                                        <div class="filter-section-title">Duruma Göre Filtrele</div>
+                                        <div class="tab-bar">
+                                            <button 
+                                                class={`tab-btn ${activeFilter === 'ALL' ? 'active' : ''}`}
+                                                onClick={() => handleStatusFilterChange('ALL')}
+                                            >
+                                                Tümü ({totalElements})
+                                            </button>
+                                            <button 
+                                                class={`tab-btn ${activeFilter === 'UNREAD' ? 'active' : ''}`}
+                                                onClick={() => handleStatusFilterChange('UNREAD')}
+                                            >
+                                                Okunmamışlar ({totalUnreadCount})
+                                            </button>
+                                            <button 
+                                                class={`tab-btn ${activeFilter === 'READ' ? 'active' : ''}`}
+                                                onClick={() => handleStatusFilterChange('READ')}
+                                            >
+                                                Okunanlar ({totalReadCount})
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {loading ? (
+                                        <p style={{fontSize: '14px', color: '#94a3b8', margin: '30px 0', textAlign: 'center'}}>
+                                            Sayfa yükleniyor...
+                                        </p>
+                                    ) : currentPageAnnouncements.length === 0 ? (
+                                        <p style={{fontSize: '14px', color: '#94a3b8', margin: '30px 0', textAlign: 'center'}}>
+                                            Bu filtreye uygun duyuru bulunmuyor.
+                                        </p>
+                                    ) : (
+                                        currentPageAnnouncements.map(a => {
+                                            const isRead = readIds.has(a.id);
+                                            return (
+                                                <div key={a.id} class={`announcement-card ${!isRead ? 'unread' : ''}`}>
+                                                    <div class="badge-group">
+                                                        <span class={`announcement-badge ${a.sourceSite === 'EBELGE_GIB' ? 'badge-gib' : 'badge-kosgeb'}`}>
+                                                            {a.sourceSiteDisplayName || a.sourceSite}
+                                                        </span>
+                                                        {!isRead ? (
+                                                            <span class="badge-unread">
+                                                                <i data-lucide="circle-dot" style={{width: '12px', height: '12px', verticalAlign: 'middle', marginRight: '4px'}}></i>
+                                                                YENİ / OKUNMADI
+                                                            </span>
+                                                        ) : (
+                                                            <span class="badge-read">
+                                                                <i data-lucide="check" style={{width: '12px', height: '12px', verticalAlign: 'middle', marginRight: '4px'}}></i>
+                                                                OKUNDU
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    <h3 class="announcement-title">{a.title}</h3>
+                                                    <div class="announcement-date">
+                                                        <i data-lucide="calendar" style={{width: '14px', height: '14px', verticalAlign: 'middle', marginRight: '4px'}}></i>
+                                                        {a.announcementDate || 'Tarih Belirtilmedi'}
+                                                    </div>
+                                                    {a.content && <p class="announcement-content">{a.content}</p>}
+
+                                                    <div class="card-footer-flex" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                                            {a.attachmentUrl && (
+                                                                <a 
+                                                                    href={a.attachmentUrl} 
+                                                                    target="_blank" 
+                                                                    rel="noreferrer" 
+                                                                    class="link-btn btn-pdf"
+                                                                    style={{
+                                                                        background: 'rgba(239, 68, 68, 0.15)',
+                                                                        color: '#f87171',
+                                                                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                                                                        padding: '6px 12px',
+                                                                        borderRadius: '8px',
+                                                                        textDecoration: 'none',
+                                                                        fontSize: '12px',
+                                                                        fontWeight: '600',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '6px'
+                                                                    }}
+                                                                    onClick={() => markAsRead(a.id)}
+                                                                >
+                                                                    <i data-lucide="file-text" style={{width: '14px', height: '14px'}}></i>
+                                                                    Ek Dosyayı İndir
+                                                                </a>
+                                                            )}
+                                                            {a.sourceUrl && (
+                                                                <a 
+                                                                    href={a.sourceUrl} 
+                                                                    target="_blank" 
+                                                                    rel="noreferrer" 
+                                                                    class="link-btn"
+                                                                    style={{
+                                                                        background: 'rgba(255, 255, 255, 0.05)',
+                                                                        color: '#94a3b8',
+                                                                        border: '1px solid var(--border)',
+                                                                        padding: '6px 12px',
+                                                                        borderRadius: '8px',
+                                                                        textDecoration: 'none',
+                                                                        fontSize: '12px',
+                                                                        fontWeight: '600',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '6px'
+                                                                    }}
+                                                                    onClick={() => markAsRead(a.id)}
+                                                                >
+                                                                    <i data-lucide="external-link" style={{width: '14px', height: '14px'}}></i>
+                                                                    Resmi Kaynağa Git
+                                                                </a>
+                                                            )}
+                                                        </div>
+
+                                                        {!isRead ? (
+                                                            <button class="btn-toggle-read" onClick={() => markAsRead(a.id)}>
+                                                                Okundu İşaretle
+                                                            </button>
+                                                        ) : (
+                                                            <button class="btn-toggle-read" onClick={() => markAsUnread(a.id)}>
+                                                                Okunmadı İşaretle
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+
+                                    {/* Clean Pagination Controls (Matching SuperAdmin Style) */}
+                                    {totalPages > 1 && (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', paddingTop: '18px', borderTop: '1px solid var(--border)' }}>
+                                            <button 
+                                                class="tab-btn" 
+                                                disabled={page === 0} 
+                                                onClick={() => handlePageChange(page - 1)}
+                                                style={{ opacity: page === 0 ? 0.4 : 1, cursor: page === 0 ? 'not-allowed' : 'pointer' }}
+                                            >
+                                                ‹ Önceki
+                                            </button>
+                                            <span style={{ fontSize: '13px', color: 'var(--text-sub)', fontWeight: '600' }}>
+                                                Sayfa {page + 1} / {totalPages} ({filteredCount} Duyuru Listeleniyor)
+                                            </span>
+                                            <button 
+                                                class="tab-btn" 
+                                                disabled={page >= totalPages - 1} 
+                                                onClick={() => handlePageChange(page + 1)}
+                                                style={{ opacity: page >= totalPages - 1 ? 0.4 : 1, cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer' }}
+                                            >
+                                                Sonraki ›
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<UserDashboardApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>

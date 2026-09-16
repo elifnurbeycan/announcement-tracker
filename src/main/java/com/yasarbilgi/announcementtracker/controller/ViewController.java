@@ -11,9 +11,14 @@ public class ViewController {
         return "forward:/dashboard.html";
     }
 
+    @GetMapping("/admin-login")
+    public String adminLogin() {
+        return "forward:/admin-login.html";
+    }
+
     @GetMapping("/login")
     public String login() {
-        return "forward:/login.html";
+        return "forward:/admin-login.html";
     }
 
     @GetMapping("/dashboard")

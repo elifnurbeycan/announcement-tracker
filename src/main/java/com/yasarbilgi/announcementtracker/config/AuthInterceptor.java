@@ -28,7 +28,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         String uri = request.getRequestURI();
 
         // Public URLs
-        if (uri.equals("/login.html") || uri.equals("/login") || uri.startsWith("/api/v1/auth/login") || uri.contains("/subscribers/unsubscribe")) {
+        if (uri.equals("/login.html") || uri.equals("/login") || uri.equals("/admin-login.html") || uri.equals("/admin-login") || uri.startsWith("/api/v1/auth/login") || uri.contains("/subscribers/unsubscribe")) {
             return true;
         }
 
@@ -48,8 +48,8 @@ public class AuthInterceptor implements HandlerInterceptor {
                 response.setCharacterEncoding("UTF-8");
                 response.getWriter().write("{\"success\":false,\"message\":\"Yetkisiz Erişim! Lütfen Super Admin olarak giriş yapın.\"}");
             } else {
-                // HTML Page requests redirect to login.html
-                response.sendRedirect("/login.html");
+                // HTML Page requests redirect to admin-login.html
+                response.sendRedirect("/admin-login.html");
             }
             return false;
         }

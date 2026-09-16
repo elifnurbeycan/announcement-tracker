@@ -861,7 +861,7 @@
                                     <option value="360">6 Saat</option>
                                     <option value="720">12 Saat</option>
                                     <option value="1440">24 Saat</option>
-                                    <option value="custom">✏️ Özel Süre (dk)...</option>
+                                    <option value="custom">Özel Süre (dk)...</option>
                                 </select>
                             ) : (
                                 <form onSubmit={onCustomInputSubmit} style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}>
@@ -987,7 +987,7 @@
             const fetchAnnouncements = async (pageNo = 0) => {
                 setLoading(true);
                 try {
-                    const res = await authFetch(`/api/v1/announcements?page=${pageNo}&size=15`);
+                    const res = await authFetch(`/api/v1/announcements?page=${pageNo}&size=10`);
                     const data = await res.json();
                     if (data.success && data.data) {
                         setAnnouncements(data.data.content || []);

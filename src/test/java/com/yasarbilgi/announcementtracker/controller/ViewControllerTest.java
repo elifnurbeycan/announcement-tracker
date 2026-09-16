@@ -23,10 +23,17 @@ class ViewControllerTest {
     }
 
     @Test
-    @DisplayName("/login URL isteğinin /login.html adresine yönlendirilmesi")
-    void login_ShouldForwardToLoginHtml() {
+    @DisplayName("/login URL isteğinin /admin-login.html adresine yönlendirilmesi")
+    void login_ShouldForwardToAdminLoginHtml() {
         String forward = viewController.login();
-        assertThat(forward).isEqualTo("forward:/login.html");
+        assertThat(forward).isEqualTo("forward:/admin-login.html");
+    }
+
+    @Test
+    @DisplayName("/admin-login URL isteğinin /admin-login.html adresine yönlendirilmesi")
+    void adminLogin_ShouldForwardToAdminLoginHtml() {
+        String forward = viewController.adminLogin();
+        assertThat(forward).isEqualTo("forward:/admin-login.html");
     }
 
     @Test

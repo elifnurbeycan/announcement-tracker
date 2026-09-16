@@ -149,6 +149,20 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         return announcementRepository.findAll(pageable).map(this::mapToResponseDto);
     }
 
+    @Override
+    public Page<AnnouncementResponseDto> getAnnouncementsForSites(java.util.Set<SiteType> subscribedSites, SiteType siteFilter, Pageable pageable) {
+        if (subscribedSites == null || subscribedSites.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        if (siteFilter != null) {
+            if (!subscribedSites.contains(siteFilter)) {
+                return Page.empty(pageable);
+            }
+            return announcementRepository.findBySourceSite(siteFilter, pageable).map(this::mapToResponseDto);
+        }
+        return announcementRepository.findBySourceSiteIn(subscribedSites, pageable).map(this::mapToResponseDto);
+    }
+
     /**
      * ID değerine göre duyuru detayını getirir.
      */

@@ -27,6 +27,11 @@ public interface AnnouncementService {
     Page<AnnouncementResponseDto> getAllAnnouncements(SiteType siteType, Pageable pageable);
 
     /**
+     * Fetches stored announcements for a user's subscribed sites with site filtering and pagination.
+     */
+    Page<AnnouncementResponseDto> getAnnouncementsForSites(java.util.Set<SiteType> subscribedSites, SiteType siteFilter, Pageable pageable);
+
+    /**
      * Retrieves announcement by ID.
      */
     AnnouncementResponseDto getAnnouncementById(Long id);
