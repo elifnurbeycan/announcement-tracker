@@ -77,11 +77,11 @@ public class SubscriberController {
 
             org.apache.poi.ss.usermodel.Row row1 = sheet.createRow(1);
             row1.createCell(0).setCellValue("ornek.abone1@firma.com");
-            row1.createCell(1).setCellValue("Ahmet Yılmaz");
+            row1.createCell(1).setCellValue("Örnek Ad Soyad 1");
 
             org.apache.poi.ss.usermodel.Row row2 = sheet.createRow(2);
             row2.createCell(0).setCellValue("ornek.abone2@firma.com");
-            row2.createCell(1).setCellValue("Ayşe Kaya");
+            row2.createCell(1).setCellValue("Örnek Ad Soyad 2");
 
             sheet.autoSizeColumn(0);
             sheet.autoSizeColumn(1);

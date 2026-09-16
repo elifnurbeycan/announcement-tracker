@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class SettingsServiceImpl implements SettingsService {
 
     private final SystemSettingRepository systemSettingRepository;
@@ -32,7 +33,6 @@ public class SettingsServiceImpl implements SettingsService {
     private boolean defaultEnabled;
 
     @Override
-    @Transactional(readOnly = true)
     public int getScrapeIntervalMinutes() {
         return systemSettingRepository.findById(KEY_INTERVAL_MINUTES)
                 .map(setting -> {
@@ -56,13 +56,11 @@ public class SettingsServiceImpl implements SettingsService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public int getScrapeIntervalHours() {
         return getScrapeIntervalMinutes() / 60;
     }
 
     @Override
-    @Transactional(readOnly = true)
     public boolean isSchedulerEnabled() {
         return systemSettingRepository.findById(KEY_SCHEDULER_ENABLED)
                 .map(setting -> Boolean.parseBoolean(setting.getSettingValue()))
@@ -70,7 +68,6 @@ public class SettingsServiceImpl implements SettingsService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public ScrapeSettingsDto getScrapeSettings() {
         int minutes = getScrapeIntervalMinutes();
         return ScrapeSettingsDto.builder()

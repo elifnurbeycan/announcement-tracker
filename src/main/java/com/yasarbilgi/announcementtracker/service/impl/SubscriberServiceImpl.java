@@ -22,6 +22,7 @@ import java.util.Set;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class SubscriberServiceImpl implements SubscriberService {
 
     private final SubscriberRepository subscriberRepository;
@@ -71,7 +72,6 @@ public class SubscriberServiceImpl implements SubscriberService {
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<SubscriberResponseDto> getAllSubscribers() {
         return subscriberRepository.findAll().stream().map(this::mapToDto).toList();
     }

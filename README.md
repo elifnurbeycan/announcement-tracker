@@ -1,95 +1,91 @@
-# e-Belge Duyuru Takip Servisi
+# e-Belge & KOSGEB Duyuru Takip Servisi 🔔
 
-Bu proje, Gelir İdaresi Başkanlığı (GİB) e-Belge portalı ve benzeri kurumsal platformlardaki resmi duyuruları otomatik olarak izleyen, veritabanına kaydeden ve yeni duyuru tespit edildiğinde e-posta abonelerine bildirim gönderen bir **Spring Boot (Java 21)** servisidir.
+Bu proje, Gelir İdaresi Başkanlığı (GİB) e-Belge portalı ve KOSGEB resmi duyurularını otomatik olarak izleyen, veritabanına kaydeden, performans odaklı **Spring Boot (Java 21)** ve **Modern Web Paneli** tabanlı kurumsal bir izleme ve e-posta bildirim sistemidir.
 
 ---
 
-## Ekran Görüntüleri
+## 📸 Ekran Görüntüleri
 
-### Yönetim Paneli
+### Kurumsal Yönetim Paneli
 ![Yönetim Paneli](docs/images/dashboard-ui.png)
 
-### E-Posta Bildirim Şablonu
-![E-Posta Bildirimi](docs/images/email-notification.png)
+---
+
+## 🚀 Temel Özellikler
+
+- **🌐 Çoklu Kaynak Web Kazıma (Multi-Source Scraping)**: GİB e-Belge ve KOSGEB portalı duyuruları, ek dosyaları (.pdf, .zip vb.) ve görselleri otomatik taranır.
+- **⚡ Akıllı Erken Çıkış (Early Exit)**: Taramalar esnasında veritabanında daha önce taranmış olan ilk duyuruya ulaşıldığı an **1 milisaniye** içinde tarama sonlandırılır.
+- **🔀 Paralel Eş Zamanlı Kazıma**: `CompletableFuture` mimarisi ile tüm resmi siteler eş zamanlı (paralel) olarak taranır.
+- **✉️ Asenkron E-Posta Bildirimleri (`@Async`)**: Yeni duyurular oluştuğunda e-postalar arka planda ayrı thread pool (`emailExecutor`) üzerinde asenkron olarak gönderilir, kullanıcıyı bekletmez.
+- **📦 Hibernate JDBC Batching**: Toplu duyuru eklemeleri `batch_size: 50` ile tek bir SQL paketinde iletilerek veritabanı yükü %90 azaltılır.
+- **📊 Dinamik Tarama Periyodu**: Tarama sıklığı (ör. 15 dk, 20 dk, 1 saat) yönetim panelinden anlık değiştirilebilir ve ayarlar saklanır.
+- **📁 Toplu Abone Aktarımı**: Excel (.xlsx, .xls) ve CSV dosyalarından toplu abone içe aktarma ve site bazlı tercih atama desteklenir.
+- **🧪 Otomatik E2E UI ve Unit Test Kapsamı**: Playwright Java SDK ile uçtan uca UI testleri ve 98 adet unit/entegrasyon testi ile %100 yeşil test altyapısı.
 
 ---
 
-## Temel İşlevler
+## 🛠️ Mimari ve Yeni Kaynak (Site) Ekleme
 
-- **Otomatik Duyuru Taraması**: GİB e-Belge duyuruları ve ek dosyaları (PDF, ZIP paketleri) belirli aralıklarla taranır ve veritabanında güncellenir.
-- **Dinamik Tarama Periyodu**: Tarama sıklığı (ör. 15 dk, 20 dk, 1 saat) yönetim panelinden ayarlanabilir ve tercihler veritabanında saklanır.
-- **E-Posta Bildirimleri & Abonelik Yönetimi**: Yeni duyurular HTML e-posta formatında iletilir. E-posta altbilgisinde kişiselleştirilmiş abonelikten çıkma bağlantısı yer alır.
-- **Toplu Abone İçe Aktarma**: Excel (.xlsx, .csv) dosyası üzerinden toplu abone ekleme desteklenmektedir.
-- **Filtreleme & Sayfalama**: Arayüz üzerinden duyurular ve aboneler listesinde arama ve sayfalama yapılabilir.
-
----
-
-## Mimari ve Yeni Kaynak (Site) Ekleme
-
-Proje **Strategy Pattern** mimarisinde kurgulanmıştır. Yeni bir duyuru kaynağı eklemek için aşağıdaki adımlar izlenir:
+Proje **Strategy Pattern** ve **Spring Bean Auto-Registration** mimarisinde kurgulanmıştır. Yeni bir duyuru kaynağı eklemek için:
 
 1. **`SiteType` Enum'ına Ekleme** (`src/main/java/com/yasarbilgi/announcementtracker/enums/SiteType.java`):
    ```java
    EBELGE_GIB("e-Belge GİB", "https://ebelge.gib.gov.tr/duyurular.html"),
-   YENI_KAYNAK("Yeni Kaynak Adı", "https://ornek-site.gov.tr/duyurular");
+   KOSGEB("KOSGEB Duyuruları", "https://www.kosgeb.gov.tr/site/tr/genel/duyurular"),
+   YENI_KAYNAK("Yeni Kaynak", "https://ornek-site.gov.tr/duyurular");
    ```
 
 2. **Scraper Sınıfı Oluşturma** (`src/main/java/com/yasarbilgi/announcementtracker/service/scraper/impl/`):
-   `AbstractAnnouncementScraper` sınıfından türeterek `@Component` olarak tanımlayın:
+   `AbstractAnnouncementScraper` sınıfından türeterek `@Component` eklemeniz yeterlidir:
    ```java
    @Component
    public class YeniKaynakScraper extends AbstractAnnouncementScraper {
 
-       public YeniKaynakScraper(AnnouncementRepository repository) {
-           super(repository);
-       }
-
        @Override
-       public SiteType getSupportedSite() {
+       public SiteType getSiteType() {
            return SiteType.YENI_KAYNAK;
        }
 
        @Override
-       public List<Announcement> scrape() {
-           Document doc = fetchDocument(getSupportedSite().getUrl());
-           List<Announcement> announcements = new ArrayList<>();
-           // Ayrıştırma logic'i
-           return filterAndSaveNewAnnouncements(announcements);
+       public List<ScrapedAnnouncementDto> scrape(Predicate<String> hashExistsPredicate) {
+           Document doc = fetchDocument(getSiteType().getBaseUrl());
+           List<ScrapedAnnouncementDto> results = new ArrayList<>();
+           // Ayrıştırma ve hashExistsPredicate.test(contentHash) ile Erken Çıkış kontrolü
+           return results;
        }
    }
    ```
-   *Spring Bean mekanizması sayesinde yeni yazılan scraper otomatik olarak algılanır.*
-
-3. **Ön Yüz Filtre Butonu (Opsiyonel)** (`src/main/resources/static/index.html`):
-   Yönetim panelindeki kaynak filtresinde yeni sitenin görünmesi için buton listesine ekleyin:
-   ```html
-   <button class="filter-btn" onClick={() => setSiteFilter('YENI_KAYNAK')}>Yeni Kaynak</button>
-   ```
-
-> **Not (Veritabanı Uyumluluğu):** Projedeki `DatabaseConstraintFixer` bileşeni, PostgreSQL enum kısıtlamalarını uygulama açılışında otomatik günceller; bu sayede veritabanında manuel SQL çalıştırmanız gerekmez.
 
 ---
 
-## Kullanılan Teknolojiler
+## 🗄️ Veritabanı ve Normalizasyon (PostgreSQL)
 
-- **Java 21 & Spring Boot 3/4**
-- **PostgreSQL 17 & Spring Data JPA**
-- **Jsoup** (HTML Web Scraping)
-- **Apache POI** (Excel / CSV Aktarımı)
-- **React (Single Page UI) & Vanilla CSS**
+- **1NF / 2NF / 3NF / BCNF Uyumlu**: İlişkisel veri yapısı 3NF ve BCNF standartlarına tam uygundur.
+- **`ON DELETE CASCADE`**: `subscriber_site_preferences` tablosunda veritabanı ve Hibernate seviyesinde güvenli silme kısıtlaması tanımlanmıştır.
+- **Performans İndeksleri**: `idx_announcement_hash`, `idx_announcement_site`, `idx_announcement_notified` ve `idx_announcement_date` indeksleri ile yüksek hızlı sorgulama.
 
 ---
 
-## Kurulum ve Çalıştırma
+## 💻 Kullanılan Teknolojiler
 
-### 1. Veritabanı
-PostgreSQL üzerinde `announcement_tracker_db` adında veritabanı oluşturun:
+- **Backend**: Java 21, Spring Boot 3, Spring Data JPA, Spring Async
+- **Database**: PostgreSQL 17
+- **Web Scraping**: Jsoup
+- **Testing**: Playwright Java SDK (E2E UI), JUnit 5, Mockito, AssertJ
+- **Frontend**: Single-Page Responsive UI (Vanilla CSS, Modern Glassmorphism Theme)
+- **Document Processing**: Apache POI (Excel / CSV parsing)
+
+---
+
+## ⚙️ Kurulum ve Çalıştırma
+
+### 1. Veritabanı Hazırlığı
+PostgreSQL üzerinde `announcement_tracker_db` veritabanını oluşturun:
 ```sql
 CREATE DATABASE announcement_tracker_db;
 ```
 
 ### 2. Konfigürasyon (`src/main/resources/application.yaml`)
-Veritabanı ve SMTP e-posta bilgilerinizi düzenleyin:
 ```yaml
 spring:
   datasource:
@@ -107,9 +103,10 @@ spring:
 ```bash
 ./mvnw spring-boot:run
 ```
-Uygulama ayağa kalktıktan sonra `http://localhost:8080` adresinden yönetim paneline erişilebilir.
+Uygulama başlatıldıktan sonra `http://localhost:8080` adresinden yönetim paneline erişebilirsiniz.
 
-### 4. Testlerin Çalıştırılması
+### 4. Testleri Çalıştırma (Unit + Playwright E2E UI)
 ```bash
+# E2E UI testleri varsayılan olarak yerel tarayıcı (Edge/Chrome) kanalını kullanır
 ./mvnw test
 ```

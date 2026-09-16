@@ -57,7 +57,7 @@ class AnnouncementControllerTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().isSuccess()).isTrue();
         assertThat(response.getBody().getData().getContent()).hasSize(1);
-        assertThat(response.getBody().getData().getContent().get(0).getTitle()).isEqualTo("Test Duyuru");
+        assertThat(response.getBody().getData().getContent().get(0).getTitle()).isEqualTo("Test Duyuru");// Bunu bu şekilde uzun yazmaya gerek var mı araştır
     }
 
     @Test

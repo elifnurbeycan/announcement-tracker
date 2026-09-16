@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AnnouncementServiceImpl implements AnnouncementService {
 
     private final AnnouncementRepository announcementRepository;
@@ -47,7 +48,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
      * Sistemde kayıtlı tüm duyuru kaynaklarını (scrapers) paralel olarak tarar ve yeni duyuruları kaydeder.
      */
     @Override
-    @Transactional
     public List<AnnouncementResponseDto> triggerScrapeAll() {
         log.info("Kayıtlı tüm duyuru kaynakları için eş zamanlı (paralel) web kazıma başlatılıyor...");
 
@@ -142,7 +142,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
      * Veritabanındaki duyuruları sayfalama (pagination) desteği ile listeler.
      */
     @Override
-    @Transactional(readOnly = true)
     public Page<AnnouncementResponseDto> getAllAnnouncements(SiteType siteType, Pageable pageable) {
         if (siteType != null) {
             return announcementRepository.findBySourceSite(siteType, pageable).map(this::mapToResponseDto);
@@ -154,7 +153,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
      * ID değerine göre duyuru detayını getirir.
      */
     @Override
-    @Transactional(readOnly = true)
     public AnnouncementResponseDto getAnnouncementById(Long id) {
         Announcement entity = announcementRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Duyuru bulunamadı, ID: " + id));
@@ -213,7 +211,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
 
     @Override
-    @Transactional(readOnly = true)
     public void sendTestEmail() {
         List<String> recipients = getRecipientEmails();
         var latest = announcementRepository.findAll().stream().findFirst();
