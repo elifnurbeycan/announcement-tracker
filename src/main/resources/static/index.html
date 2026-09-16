@@ -2,12 +2,227 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=/dashboard.html">
-    <title>Yönlendiriliyor...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duyuru Takip Sistemi - Resmi Yayın Takibi</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.85);
+            --border: rgba(255, 255, 255, 0.08);
+            --primary: #3b82f6;
+            --accent-purple: #8b5cf6;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --success: #10b981;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.12) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+        }
+
+        .header {
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 800;
+            background: linear-gradient(to right, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-links { display: flex; gap: 16px; }
+
+        .btn-nav {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .btn-user {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-admin {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-sub);
+            border: 1px solid var(--border);
+        }
+
+        .hero {
+            max-width: 800px;
+            margin: 60px auto 40px;
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        .hero h1 {
+            font-size: 40px;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 16px;
+            background: linear-gradient(to right, #f8fafc, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            font-size: 16px;
+            color: var(--text-sub);
+            line-height: 1.6;
+            margin-bottom: 36px;
+        }
+
+        .sub-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 36px;
+            max-width: 500px;
+            margin: 0 auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            text-align: left;
+        }
+
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-sub); margin-bottom: 6px; }
+
+        .input-field {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--accent-purple));
+            color: white;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .msg-box {
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .msg-success { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .msg-error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    </style>
 </head>
 <body>
+
+    <header class="header">
+        <div class="logo">
+            <i data-lucide="bell"></i>
+            Duyuru Takip Sistemi
+        </div>
+        <div class="nav-links">
+            <a href="/user-login.html" class="btn-nav btn-user">Kullanıcı Girişi</a>
+        </div>
+    </header>
+
+    <main class="hero">
+        <h1>Resmi Kurum Duyurularını Anında E-Posta ile Alın</h1>
+        <p>e-Belge GİB, KOSGEB ve diğer resmi kurumlarda yayımlanan güncel duyurulardan anında haberdar olun. Ücretsiz e-posta abonesi olun veya kullanıcı panelinize giriş yapın.</p>
+
+        <div class="sub-card">
+            <div id="msg"></div>
+
+            <form id="subForm">
+                <div class="form-group">
+                    <label class="form-label">E-POSTA ADRESİNİZ</label>
+                    <input type="email" id="email" class="input-field" placeholder="ornek@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">AD SOYAD (OPSİYONEL)</label>
+                    <input type="text" id="fullName" class="input-field" placeholder="Ad Soyad">
+                </div>
+                <button type="submit" class="btn-submit" id="submitBtn">E-Posta Abonesi Ol &rarr;</button>
+            </form>
+        </div>
+    </main>
+
     <script>
-        window.location.href = '/dashboard.html';
+        lucide.createIcons();
+
+        document.getElementById('subForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const fullName = document.getElementById('fullName').value;
+            const msgDiv = document.getElementById('msg');
+            const submitBtn = document.getElementById('submitBtn');
+
+            msgDiv.innerHTML = '';
+            submitBtn.disabled = true;
+            submitBtn.innerText = 'Kaydediliyor...';
+
+            try {
+                const res = await fetch('/api/v1/subscribers/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, fullName, subscribedSites: ['EBELGE_GIB', 'KOSGEB'] })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    msgDiv.className = 'msg-box msg-success';
+                    msgDiv.innerHTML = 'Aboneliğiniz oluşturuldu! E-postanıza gönderilen aktivasyon linkiyle şifre belirleyip kullanıcı panelinize giriş yapabilirsiniz.';
+                    document.getElementById('subForm').reset();
+                } else {
+                    msgDiv.className = 'msg-box msg-error';
+                    msgDiv.innerHTML = data.message || 'Bir hata oluştu.';
+                }
+            } catch (err) {
+                msgDiv.className = 'msg-box msg-error';
+                msgDiv.innerHTML = 'Sunucuya bağlanırken bir hata oluştu.';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = 'E-Posta Abonesi Ol →';
+            }
+        });
     </script>
 </body>
 </html>

@@ -84,7 +84,7 @@ class AuthInterceptorTest {
     }
 
     @Test
-    @DisplayName("Token bulunmayan sayfa (dashboard.html) isteği login.html sayfasına yönlendirmeli")
+    @DisplayName("Token bulunmayan sayfa (dashboard.html) isteği admin-login.html sayfasına yönlendirmeli")
     void preHandle_MissingTokenHtmlUri_ShouldRedirectToLogin() throws Exception {
         request.setMethod("GET");
         request.setRequestURI("/dashboard.html");
@@ -94,6 +94,6 @@ class AuthInterceptorTest {
         boolean result = authInterceptor.preHandle(request, response, new Object());
 
         assertThat(result).isFalse();
-        assertThat(response.getRedirectedUrl()).isEqualTo("/login.html");
+        assertThat(response.getRedirectedUrl()).isEqualTo("/admin-login.html");
     }
 }

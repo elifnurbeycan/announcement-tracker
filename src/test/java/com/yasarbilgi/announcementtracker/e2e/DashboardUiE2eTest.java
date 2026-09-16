@@ -61,7 +61,7 @@ class DashboardUiE2eTest {
     }
 
     private void performSuperAdminLogin() {
-        page.navigate(baseUrl() + "/login.html");
+        page.navigate(baseUrl() + "/admin-login.html");
         page.fill("input[type='text']", "admin");
         page.fill("input[type='password']", "admin123");
         page.click("button[type='submit']");
@@ -71,7 +71,7 @@ class DashboardUiE2eTest {
     @Test
     @DisplayName("Playwright UI: Giriş sayfasının temiz görünümü ve hatalı giriş senaryosu")
     void testLoginPageAndErrorHandling() {
-        page.navigate(baseUrl() + "/login.html");
+        page.navigate(baseUrl() + "/admin-login.html");
 
         assertThat(page.title()).contains("Super Admin Giriş Paneli");
         assertThat(page.locator("h2").innerText()).contains("Super Admin Giriş Paneli");
@@ -155,7 +155,7 @@ class DashboardUiE2eTest {
         logoutBtn.waitFor();
         logoutBtn.click();
 
-        page.waitForURL("**/login.html");
-        assertThat(page.url()).endsWith("/login.html");
+        page.waitForURL("**/admin-login.html");
+        assertThat(page.url()).endsWith("/admin-login.html");
     }
 }

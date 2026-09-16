@@ -6,21 +6,17 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 import java.util.Set;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SubscriberResponseDto {
+public class UserLoginResponseDto {
 
+    private String token;
     private Long id;
     private String email;
     private String fullName;
-    private boolean active;
-    private boolean hasPasswordSet;
-    private String activationToken;
     private Set<SiteType> subscribedSites;
-    private LocalDateTime createdAt;
 }

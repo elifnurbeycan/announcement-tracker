@@ -17,7 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import com.yasarbilgi.announcementtracker.dto.request.SetPasswordRequestDto;
+import com.yasarbilgi.announcementtracker.dto.request.UserLoginRequestDto;
+import com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto;
+import com.yasarbilgi.announcementtracker.exception.ScrapingException;
+import com.yasarbilgi.announcementtracker.util.PasswordEncoderHelper;
+
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -28,6 +36,11 @@ public class SubscriberServiceImpl implements SubscriberService {
     private final SubscriberRepository subscriberRepository;
     private final AnnouncementRepository announcementRepository;
     private final EmailService emailService;
+    private final PasswordEncoderHelper passwordEncoderHelper;
+
+    private final Map<String, UserSessionInfo> activeUserSessions = new ConcurrentHashMap<>();
+
+    private record UserSessionInfo(Long subscriberId, LocalDateTime expiresAt) {}
 
     @Override
     @Transactional
@@ -44,20 +57,30 @@ public class SubscriberServiceImpl implements SubscriberService {
             if (!saved.isActive()) {
                 saved.setActive(true);
             }
+            if (saved.getActivationToken() == null) {
+                saved.setActivationToken(UUID.randomUUID().toString());
+                saved.setTokenExpiry(LocalDateTime.now().plusDays(7));
+            }
             subscriberRepository.save(saved);
         } else {
+            String token = UUID.randomUUID().toString();
             Subscriber subscriber = Subscriber.builder()
                     .email(dto.getEmail())
                     .fullName(dto.getFullName())
                     .subscribedSites(preferredSites)
+                    .activationToken(token)
+                    .tokenExpiry(LocalDateTime.now().plusDays(7))
                     .active(true)
                     .build();
             saved = subscriberRepository.save(subscriber);
             log.info("New subscriber registered: {} with preferences: {}", saved.getEmail(), preferredSites);
         }
 
-        // Instantly dispatch the latest announcement to the new subscriber as a welcome notification if subscribed to its site
+        // Send welcome email with activation token for setting user portal password
         try {
+            if (saved.getActivationToken() != null) {
+                emailService.sendWelcomeAndActivationEmail(saved.getEmail(), saved.getFullName(), saved.getActivationToken());
+            }
             var latest = announcementRepository.findAll().stream().findFirst();
             latest.ifPresent(announcement -> {
                 if (saved.getSubscribedSites().contains(announcement.getSourceSite())) {
@@ -204,6 +227,76 @@ public class SubscriberServiceImpl implements SubscriberService {
         return importedList.size();
     }
 
+    @Override
+    @Transactional
+    public SubscriberResponseDto setPasswordWithToken(SetPasswordRequestDto dto) {
+        if (dto.getToken() == null || dto.getToken().isBlank()) {
+            throw new ScrapingException("Aktivasyon jetonu gereklidir.");
+        }
+        Subscriber subscriber = subscriberRepository.findByActivationToken(dto.getToken().trim())
+                .orElseThrow(() -> new ScrapingException("Geçersiz veya süresi dolmuş aktivasyon jetonu."));
+
+        if (subscriber.getTokenExpiry() != null && subscriber.getTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new ScrapingException("Aktivasyon jetonunun süresi dolmuş. Lütfen yeni şifre sıfırlama talep edin.");
+        }
+
+        subscriber.setPasswordHash(passwordEncoderHelper.encode(dto.getPassword()));
+        subscriber.setActivationToken(null);
+        subscriber.setTokenExpiry(null);
+        Subscriber updated = subscriberRepository.save(subscriber);
+        log.info("User portal password successfully set for subscriber: {}", updated.getEmail());
+        return mapToDto(updated);
+    }
+
+    @Override
+    public UserLoginResponseDto loginUser(UserLoginRequestDto dto) {
+        String cleanEmail = dto.getEmail().trim().toLowerCase();
+        Subscriber subscriber = subscriberRepository.findByEmail(cleanEmail)
+                .orElseThrow(() -> new ScrapingException("Geçersiz e-posta veya şifre."));
+
+        if (subscriber.getPasswordHash() == null || !passwordEncoderHelper.matches(dto.getPassword(), subscriber.getPasswordHash())) {
+            throw new ScrapingException("Geçersiz e-posta veya şifre.");
+        }
+
+        if (!subscriber.isActive()) {
+            throw new ScrapingException("Aboneliğiniz pasif durumdadır. Lütfen müşteri hizmetleri ile iletişime geçin.");
+        }
+
+        String userToken = "USER-TOKEN-" + UUID.randomUUID();
+        activeUserSessions.put(userToken, new UserSessionInfo(subscriber.getId(), LocalDateTime.now().plusDays(7)));
+
+        log.info("User portal login successful for: {}", cleanEmail);
+
+        return UserLoginResponseDto.builder()
+                .token(userToken)
+                .id(subscriber.getId())
+                .email(subscriber.getEmail())
+                .fullName(subscriber.getFullName())
+                .subscribedSites(subscriber.getSubscribedSites())
+                .build();
+    }
+
+    @Override
+    public SubscriberResponseDto validateUserToken(String userToken) {
+        if (userToken == null || userToken.isBlank()) {
+            throw new ScrapingException("Oturum jetonu bulunamadı.");
+        }
+        if (userToken.startsWith("Bearer ")) {
+            userToken = userToken.substring(7);
+        }
+
+        UserSessionInfo session = activeUserSessions.get(userToken);
+        if (session == null || session.expiresAt().isBefore(LocalDateTime.now())) {
+            if (session != null) activeUserSessions.remove(userToken);
+            throw new ScrapingException("Oturum süreniz doldu. Lütfen tekrar giriş yapın.");
+        }
+
+        Subscriber subscriber = subscriberRepository.findById(session.subscriberId())
+                .orElseThrow(() -> new ScrapingException("Kullanıcı bulunamadı."));
+
+        return mapToDto(subscriber);
+    }
+
     private void processAndAddSubscriber(String email, String fullName, Set<SiteType> sitesToAssign, List<Subscriber> importedList) {
         if (email == null || !email.contains("@") || email.length() < 5) {
             return;
@@ -217,12 +310,18 @@ public class SubscriberServiceImpl implements SubscriberService {
             if (!existing.isActive()) {
                 existing.setActive(true);
             }
+            if (existing.getActivationToken() == null && existing.getPasswordHash() == null) {
+                existing.setActivationToken(UUID.randomUUID().toString());
+                existing.setTokenExpiry(LocalDateTime.now().plusDays(7));
+            }
             importedList.add(existing);
         } else {
             Subscriber newSub = Subscriber.builder()
                     .email(cleanEmail)
                     .fullName(fullName.isBlank() ? cleanEmail.split("@")[0] : fullName)
                     .subscribedSites(new HashSet<>(sitesToAssign))
+                    .activationToken(UUID.randomUUID().toString())
+                    .tokenExpiry(LocalDateTime.now().plusDays(7))
                     .active(true)
                     .build();
             importedList.add(newSub);
@@ -235,6 +334,8 @@ public class SubscriberServiceImpl implements SubscriberService {
                 .email(entity.getEmail())
                 .fullName(entity.getFullName())
                 .active(entity.isActive())
+                .hasPasswordSet(entity.getPasswordHash() != null)
+                .activationToken(entity.getActivationToken())
                 .subscribedSites(entity.getSubscribedSites())
                 .createdAt(entity.getCreatedAt())
                 .build();

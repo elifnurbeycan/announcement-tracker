@@ -37,7 +37,20 @@ class WebSecurityInterceptorConfigTest {
         webSecurityInterceptorConfig.addInterceptors(registry);
 
         verify(registry).addInterceptor(authInterceptor);
-        verify(registration).addPathPatterns("/", "/dashboard", "/dashboard.html", "/index.html", "/api/v1/**");
-        verify(registration).excludePathPatterns("/login", "/login.html", "/api/v1/auth/login", "/api/v1/subscribers/unsubscribe");
+        verify(registration).addPathPatterns("/dashboard", "/dashboard.html", "/api/v1/settings/**");
+        verify(registration).excludePathPatterns(
+                "/login",
+                "/login.html",
+                "/admin-login",
+                "/admin-login.html",
+                "/user-login.html",
+                "/set-password.html",
+                "/user-dashboard.html",
+                "/index.html",
+                "/",
+                "/api/v1/auth/login",
+                "/api/v1/subscribers/unsubscribe",
+                "/api/v1/user/**"
+        );
     }
 }

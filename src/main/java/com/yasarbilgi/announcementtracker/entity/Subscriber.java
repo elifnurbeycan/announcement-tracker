@@ -30,6 +30,12 @@ public class Subscriber {
 
     private String fullName;
 
+    private String passwordHash;
+
+    private String activationToken;
+
+    private LocalDateTime tokenExpiry;
+
     @Builder.Default
     private boolean active = true;
 

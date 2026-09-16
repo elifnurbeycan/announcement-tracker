@@ -207,6 +207,52 @@ public class EmailServiceImpl implements EmailService {
                    .replace(">", "&gt;")
                    .replace("\"", "&quot;");
     }
+
+    @Override
+    @org.springframework.scheduling.annotation.Async("emailExecutor")
+    public void sendWelcomeAndActivationEmail(String email, String fullName, String activationToken) {
+        if (email == null || email.isBlank()) return;
+
+        try {
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            helper.setFrom(mailFrom);
+            helper.setTo(email);
+            helper.setSubject("Aboneliğiniz Başlatıldı - Kullanıcı Paneli Şifrenizi Belirleyin");
+
+            String setPasswordUrl = appBaseUrl + "/set-password.html?token=" + activationToken;
+            String name = (fullName != null && !fullName.isBlank()) ? fullName : email.split("@")[0];
+
+            String content = """
+                <!DOCTYPE html>
+                <html>
+                <head><meta charset='UTF-8'></head>
+                <body style='font-family: Arial, sans-serif; background-color: #f8fafc; padding: 20px;'>
+                  <div style='max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);'>
+                    <div style='background: linear-gradient(135deg, #1e293b, #0f172a); color: white; padding: 24px; text-align: center;'>
+                      <h2 style='margin: 0; font-size: 20px;'>Duyuru Takip Sistemine Hoş Geldiniz!</h2>
+                    </div>
+                    <div style='padding: 24px; color: #334155; line-height: 1.6;'>
+                      <p>Merhaba <strong>%s</strong>,</p>
+                      <p>Duyuru takip sistemimize aboneliğiniz başarıyla oluşturulmuştur. Artık seçtiğiniz resmi kaynaklardan yayımlanan yeni duyuruları e-posta olarak alacaksınız.</p>
+                      <p>Ayrıca dilerseniz <strong>Kullanıcı Panelinize</strong> giriş yaparak takip ettiğiniz siteleri değiştirebilir, bildirim tercihlerinizi yönetebilirsiniz.</p>
+                      <div style='text-align: center; margin: 30px 0;'>
+                        <a href='%s' style='background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;'>Şifrenizi Belirleyin &amp; Panele Giriş Yapın &rarr;</a>
+                      </div>
+                      <p style='font-size: 13px; color: #64748b;'>E-posta bildirimlerinizi şifre oluşturmadan da almaya devam edebilirsiniz.</p>
+                    </div>
+                  </div>
+                </body>
+                </html>
+                """.formatted(escapeHtml(name), setPasswordUrl);
+
+            helper.setText(content, true);
+            mailSender.send(mimeMessage);
+            log.info("Welcome & activation email sent to: {}", email);
+        } catch (Exception e) {
+            log.error("Failed to send welcome activation email to {}: {}", email, e.getMessage());
+        }
+    }
 }
 
 

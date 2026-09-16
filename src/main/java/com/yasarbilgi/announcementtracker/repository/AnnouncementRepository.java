@@ -20,4 +20,6 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
     List<Announcement> findByIsNotifiedFalse();
 
     Page<Announcement> findBySourceSite(SiteType sourceSite, Pageable pageable);
+
+    Page<Announcement> findBySourceSiteIn(java.util.Collection<SiteType> sourceSites, Pageable pageable);
 }
