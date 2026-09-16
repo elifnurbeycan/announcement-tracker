@@ -687,13 +687,18 @@
                 ...getAuthHeader(),
                 ...(options.headers || {})
             };
-            const res = await fetch(url, { ...options, headers });
-            if (res.status === 401) {
-                localStorage.removeItem('adminToken');
-                localStorage.removeItem('adminUser');
-                window.location.href = '/login.html';
+            try {
+                const res = await fetch(url, { ...options, headers });
+                if (res.status === 401) {
+                    localStorage.removeItem('adminToken');
+                    localStorage.removeItem('adminUser');
+                    window.location.href = '/admin-login.html';
+                }
+                return res;
+            } catch (err) {
+                console.error("Fetch error:", err);
+                return { ok: false, status: 500, json: async () => ({ success: false, message: 'Sunucu ile bağlantı kurulamadı.' }) };
             }
-            return res;
         };
 
         // --- Modular React Component Definitions ---
@@ -744,8 +749,12 @@
         }
 
         function SubscriberItem({ sub, availableSites, onToggleStatus, onDelete, onEditPreferences }) {
-            // Find display names for subscribed sites
             const prefSiteNames = (sub.subscribedSites || []).map(siteKey => {
+                const found = availableSites.find(s => s.name === siteKey);
+                return found ? found.displayName : siteKey;
+            });
+
+            const effectiveSiteNames = (sub.effectiveSites || []).map(siteKey => {
                 const found = availableSites.find(s => s.name === siteKey);
                 return found ? found.displayName : siteKey;
             });
@@ -771,26 +780,48 @@
                         </div>
                     </div>
 
+                    {/* Department Badges */}
+                    <div style={{display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '6px', marginBottom: '6px'}}>
+                        {sub.isGeneralEmployee || !sub.departments || sub.departments.length === 0 ? (
+                            <span style={{fontSize: '10.5px', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '2px 8px', borderRadius: '8px', fontWeight: '700', border: '1px solid rgba(56,189,248,0.35)'}}>
+                                🌐 Genel Çalışan (Tüm Kaynaklar)
+                            </span>
+                        ) : (
+                            sub.departments.map(dept => (
+                                <span key={dept.id} style={{fontSize: '10.5px', background: 'rgba(139,92,246,0.18)', color: '#c084fc', padding: '2px 8px', borderRadius: '8px', fontWeight: '700', border: '1px solid rgba(139,92,246,0.35)'}}>
+                                    🏢 {dept.name}
+                                </span>
+                            ))
+                        )}
+                    </div>
+
                     {/* Preferred Site Badges */}
                     <div class="sub-site-badges">
-                        <span style={{fontSize: '10.5px', color: 'var(--text-sub)', marginRight: '4px'}}>Siteler:</span>
+                        <span style={{fontSize: '10.5px', color: 'var(--text-sub)', marginRight: '4px'}}>Kişisel Tercihler:</span>
                         {prefSiteNames.length > 0 ? (
                             prefSiteNames.map(name => (
                                 <span key={name} class="sub-site-pill">{name}</span>
                             ))
                         ) : (
-                            <span style={{fontSize: '10px', color: '#ef4444'}}>Hiçbiri Seçili Değil</span>
+                            <span style={{fontSize: '10px', color: '#94a3b8'}}>Yok</span>
                         )}
                     </div>
 
-                    <div class="sub-actions">
+                    {/* Dynamic Effective Scope Display */}
+                    {!sub.isGeneralEmployee && (
+                        <div style={{fontSize: '11px', color: '#38bdf8', background: 'rgba(15, 23, 42, 0.6)', padding: '5px 9px', borderRadius: '6px', marginTop: '6px', border: '1px solid rgba(56, 189, 248, 0.2)'}}>
+                            <b>Duyuru Kapsamı:</b> {effectiveSiteNames.length > 0 ? effectiveSiteNames.join(', ') : 'Hiçbiri (0 site)'}
+                        </div>
+                    )}
+
+                    <div class="sub-actions" style={{marginTop: '10px'}}>
                         <button 
                             class="btn-sub-action btn-sub-pref"
                             onClick={() => onEditPreferences(sub)}
-                            title="Abone Tercih Ettiği Siteleri Düzenle"
+                            title="Abone Tercih ve Departmanlarını Düzenle"
                         >
                             <i data-lucide="sliders" style={{width: '13px', height: '13px'}}></i>
-                            Siteler
+                            Düzenle
                         </button>
                         <button 
                             class={`btn-sub-action ${sub.active ? 'btn-sub-unsub' : 'btn-sub-activate'}`} 
@@ -836,8 +867,8 @@
                             <i data-lucide="bell" style={{color: 'white', width: '22px', height: '22px'}}></i>
                         </div>
                         <div class="brand-text">
-                            <h1>e-Belge Duyuru Takip Sistemi</h1>
-                            <p>Kurumsal Duyuru İzleme & Bildirim Yönetimi</p>
+                            <h1>Duyuru Takip Sistemi</h1>
+                            <p>Kurumsal Duyuru İzleme Paneli</p>
                         </div>
                     </div>
 
@@ -861,7 +892,7 @@
                                     <option value="360">6 Saat</option>
                                     <option value="720">12 Saat</option>
                                     <option value="1440">24 Saat</option>
-                                    <option value="custom">Özel Süre (dk)...</option>
+                                    <option value="custom">Özel Süre...</option>
                                 </select>
                             ) : (
                                 <form onSubmit={onCustomInputSubmit} style={{display: 'inline-flex', alignItems: 'center', gap: '6px'}}>
@@ -869,7 +900,7 @@
                                         type="number" 
                                         min="1" 
                                         max="10000"
-                                        placeholder="Örn: 20"
+                                        placeholder="20"
                                         value={customMinutesInput}
                                         onChange={onCustomInputChange}
                                         style={{width: '65px', background: 'rgba(30, 41, 59, 0.95)', color: '#f9fafb', border: '1px solid #38bdf8', borderRadius: '6px', padding: '3px 6px', fontSize: '12px', fontWeight: '700', outline: 'none'}}
@@ -884,12 +915,12 @@
 
                         <div class="status-tag">
                             <div class="pulse-dot"></div>
-                            PostgreSQL Aktif
+                            Sistem Aktif
                         </div>
 
                         <button class="btn-scrape" onClick={onScrape} disabled={scraping}>
                             <i data-lucide={scraping ? "loader" : "refresh-cw"} class={scraping ? "spin" : ""}></i>
-                            {scraping ? 'Web Taranıyor...' : 'Duyuruları Tara & Güncelle'}
+                            {scraping ? 'Taranıyor...' : 'Tarama Başlat'}
                         </button>
 
                         <div class="admin-profile">
@@ -934,13 +965,24 @@
             // Preferences Modal Editing State
             const [editingSub, setEditingSub] = useState(null);
             const [editingSites, setEditingSites] = useState([]);
+            const [editingSubDepts, setEditingSubDepts] = useState([]);
             const [deletingSub, setDeletingSub] = useState(null);
 
+            // Department Management State
+            const [departments, setDepartments] = useState([]);
+            const [selectedNewSubDepts, setSelectedNewSubDepts] = useState([]);
+            const [deptName, setDeptName] = useState('');
+            const [deptDescription, setDeptDescription] = useState('');
+            const [selectedDeptSites, setSelectedDeptSites] = useState([]);
+            const [editingDept, setEditingDept] = useState(null);
+            const [viewingDeptSubscribers, setViewingDeptSubscribers] = useState(null);
+            const [deptSubscribersList, setDeptSubscribersList] = useState([]);
+
             useEffect(() => {
-                if (deletingSub || editingSub) {
+                if (deletingSub || editingSub || editingDept || viewingDeptSubscribers) {
                     setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 50);
                 }
-            }, [deletingSub, editingSub]);
+            }, [deletingSub, editingSub, editingDept, viewingDeptSubscribers]);
 
             // Settings & Toasts state
             const [scrapeMinutes, setScrapeMinutes] = useState(60);
@@ -954,6 +996,98 @@
                 setTimeout(() => {
                     setToasts(prev => prev.filter(t => t.id !== id));
                 }, 4000);
+            };
+
+            const fetchDepartments = async () => {
+                try {
+                    const res = await authFetch('/api/v1/departments');
+                    const data = await res.json();
+                    if (data.success) {
+                        setDepartments(data.data || []);
+                    }
+                } catch (err) {
+                    console.error("Fetch departments error:", err);
+                }
+            };
+
+            const handleCreateDepartment = async (e) => {
+                e.preventDefault();
+                if (!deptName.trim()) return;
+                try {
+                    const res = await authFetch('/api/v1/departments', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            name: deptName,
+                            description: deptDescription,
+                            siteTypes: selectedDeptSites
+                        })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        showToast('Departman oluşturuldu.');
+                        setDeptName('');
+                        setDeptDescription('');
+                        setSelectedDeptSites([]);
+                        fetchDepartments();
+                    } else {
+                        showToast(data.message || 'Departman oluşturulamadı.', 'danger');
+                    }
+                } catch (err) {
+                    showToast('İşlem gerçekleştirilemedi.', 'danger');
+                }
+            };
+
+            const handleUpdateDepartment = async (e) => {
+                e.preventDefault();
+                if (!editingDept) return;
+                try {
+                    const res = await authFetch(`/api/v1/departments/${editingDept.id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            name: editingDept.name,
+                            description: editingDept.description,
+                            siteTypes: editingDept.sites || []
+                        })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        showToast('Departman güncellendi.');
+                        setEditingDept(null);
+                        fetchDepartments();
+                        fetchSubscribers();
+                    } else {
+                        showToast(data.message || 'Güncelleme yapılamadı.', 'danger');
+                    }
+                } catch (err) {
+                    showToast('İşlem gerçekleştirilemedi.', 'danger');
+                }
+            };
+
+            const handleDeleteDepartment = async (id, name) => {
+                if (!confirm(`'${name}' departmanını silmek istediğinize emin misiniz?`)) return;
+                try {
+                    const res = await authFetch(`/api/v1/departments/${id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        showToast('Departman silindi.');
+                        fetchDepartments();
+                        fetchSubscribers();
+                    }
+                } catch (err) {
+                    showToast('Silme işlemi başarısız.', 'danger');
+                }
+            };
+
+            const handleViewDeptSubscribers = async (dept) => {
+                setViewingDeptSubscribers(dept);
+                try {
+                    const res = await authFetch(`/api/v1/departments/${dept.id}/subscribers`);
+                    const data = await res.json();
+                    if (data.success) {
+                        setDeptSubscribersList(data.data || []);
+                    }
+                } catch (err) {
+                    console.error(err);
+                }
             };
 
             // Fetch dynamic site list from API on mount
@@ -1054,13 +1188,12 @@
                     const res = await authFetch(`/api/v1/settings/scrape?intervalMinutes=${newMins}`, { method: 'POST' });
                     const data = await res.json();
                     if (res.ok && data.success) {
-                        const timeText = newMins >= 60 && newMins % 60 === 0 ? `${newMins / 60} saat` : `${newMins} dakika`;
-                        showToast(`Otomatik tarama sıklığı ${timeText} (${newMins} dk) olarak güncellendi!`);
+                        showToast('Tarama periyodu güncellendi.');
                     } else {
-                        showToast('Ayar güncellenirken hata: ' + (data.message || ''), 'danger');
+                        showToast(data.message || 'Ayar güncellenemedi.', 'danger');
                     }
                 } catch (err) {
-                    showToast('Hata: ' + err.message, 'danger');
+                    showToast('İşlem gerçekleştirilemedi.', 'danger');
                 }
             };
 
@@ -1070,15 +1203,21 @@
             };
 
             useEffect(() => {
+                const token = localStorage.getItem('adminToken');
+                if (!token) {
+                    window.location.href = '/admin-login.html';
+                    return;
+                }
                 fetchSites();
                 fetchAnnouncements();
                 fetchSubscribers();
+                fetchDepartments();
                 fetchSettings();
             }, []);
 
             useEffect(() => {
                 setTimeout(() => { if (window.lucide) lucide.createIcons(); }, 100);
-            }, [subscribers, announcements, loading, subPage, subSearch, sites, editingSub]);
+            }, [subscribers, announcements, loading, subPage, subSearch, sites, departments, editingSub, editingDept, viewingDeptSubscribers]);
 
             const handleScrape = async () => {
                 setScraping(true);
@@ -1087,11 +1226,15 @@
                     const data = await res.json();
                     if (data.success) {
                         const count = data.data ? data.data.length : 0;
-                        showToast(`Tarama tamamlandı! ${count} yeni duyuru bulundu ve veritabanına eklendi.`);
+                        if (count > 0) {
+                            showToast(`Tarama tamamlandı. ${count} yeni duyuru bulundu.`);
+                        } else {
+                            showToast('Tarama tamamlandı.');
+                        }
                         fetchAnnouncements(0);
                     }
                 } catch (err) {
-                    showToast('Tarama hatası oluştu: ' + err.message, 'danger');
+                    showToast('Tarama tamamlanamadı.', 'danger');
                 } finally {
                     setScraping(false);
                 }
@@ -1106,21 +1249,24 @@
                         body: JSON.stringify({ 
                             fullName, 
                             email, 
-                            subscribedSites: selectedNewSubSites 
+                            subscribedSites: selectedNewSubSites,
+                            departmentIds: selectedNewSubDepts
                         })
                     });
                     const data = await res.json();
                     if (res.ok && data.success) {
-                        showToast(`'${email}' başarıyla e-posta abonesi yapıldı!`);
+                        showToast('Abone oluşturuldu.');
                         setFullName('');
                         setEmail('');
                         setSelectedNewSubSites(sites.map(s => s.name)); // Reset to all
+                        setSelectedNewSubDepts([]); // Reset departments
                         fetchSubscribers();
+                        fetchDepartments();
                     } else {
-                        showToast('Abone eklenirken hata: ' + (data.message || ''), 'danger');
+                        showToast(data.message || 'Abone oluşturulamadı.', 'danger');
                     }
                 } catch (err) {
-                    showToast('Hata: ' + err.message, 'danger');
+                    showToast('İşlem gerçekleştirilemedi.', 'danger');
                 }
             };
 
@@ -1131,11 +1277,12 @@
             const confirmDeleteSubscriber = async (id) => {
                 try {
                     await authFetch(`/api/v1/subscribers/${id}`, { method: 'DELETE' });
-                    showToast('Abone listeden silindi.');
+                    showToast('Abone silindi.');
                     setDeletingSub(null);
                     fetchSubscribers();
+                    fetchDepartments();
                 } catch (err) {
-                    showToast('Silinirken hata oluştu.', 'danger');
+                    showToast('Silme işlemi başarısız.', 'danger');
                 }
             };
 
@@ -1144,36 +1291,43 @@
                 try {
                     const res = await authFetch(`/api/v1/subscribers/${id}/status?active=${newActive}`, { method: 'PATCH' });
                     if (res.ok) {
-                        showToast(newActive ? 'Abone aktif edildi.' : 'Abonelik pasife alındı (İptal edildi).');
+                        showToast(newActive ? 'Abone aktifleştirildi.' : 'Abone pasifleştirildi.');
                         fetchSubscribers();
                     }
                 } catch (err) {
-                    showToast('Durum güncellenirken hata oluştu.', 'danger');
+                    showToast('Durum güncellenemedi.', 'danger');
                 }
             };
 
             const handleOpenEditPreferences = (sub) => {
                 setEditingSub(sub);
                 setEditingSites(sub.subscribedSites || []);
+                setEditingSubDepts(sub.departments ? sub.departments.map(d => d.id) : []);
             };
 
             const handleSavePreferences = async () => {
                 if (!editingSub) return;
                 try {
-                    const res = await authFetch(`/api/v1/subscribers/${editingSub.id}/sites`, {
+                    const resSites = await authFetch(`/api/v1/subscribers/${editingSub.id}/sites`, {
                         method: 'PATCH',
                         body: JSON.stringify(editingSites)
                     });
-                    const data = await res.json();
-                    if (res.ok && data.success) {
-                        showToast(`'${editingSub.email}' site bildirim tercihleri güncellendi!`);
+                    
+                    const resDepts = await authFetch(`/api/v1/subscribers/${editingSub.id}/departments`, {
+                        method: 'PATCH',
+                        body: JSON.stringify(editingSubDepts)
+                    });
+
+                    if (resSites.ok && resDepts.ok) {
+                        showToast('Abone güncellendi.');
                         setEditingSub(null);
                         fetchSubscribers();
+                        fetchDepartments();
                     } else {
-                        showToast('Tercihler güncellenirken hata: ' + (data.message || ''), 'danger');
+                        showToast('Güncelleme başarısız.', 'danger');
                     }
                 } catch (err) {
-                    showToast('Hata: ' + err.message, 'danger');
+                    showToast('İşlem gerçekleştirilemedi.', 'danger');
                 }
             };
 
@@ -1188,7 +1342,6 @@
                 const uploadUrl = '/api/v1/subscribers/upload-excel' + (sitesQuery ? `?${sitesQuery}` : '');
 
                 try {
-                    showToast('Excel/CSV dosyası işleniyor...', 'info');
                     const token = localStorage.getItem('adminToken');
                     const res = await fetch(uploadUrl, {
                         method: 'POST',
@@ -1197,13 +1350,13 @@
                     });
                     const data = await res.json();
                     if (res.ok && data.success) {
-                        showToast(data.message || 'Toplu aboneler başarıyla içe aktarıldı!');
+                        showToast('Aboneler içe aktarıldı.');
                         fetchSubscribers();
                     } else {
-                        showToast('Excel yükleme hatası: ' + (data.message || ''), 'danger');
+                        showToast(data.message || 'İçe aktarma başarısız.', 'danger');
                     }
                 } catch (err) {
-                    showToast('Hata: ' + err.message, 'danger');
+                    showToast('İşlem gerçekleştirilemedi.', 'danger');
                 }
                 e.target.value = '';
             };
@@ -1263,24 +1416,24 @@
                     {/* Modular Stats Grid */}
                     <div class="stats-grid">
                         <StatCard 
-                            title="Toplam Taranan Duyuru" 
+                            title="Toplam Duyuru" 
                             value={totalElements} 
                             icon="file-text" 
                             color="#3b82f6" 
                             bg="rgba(59, 130, 246, 0.15)" 
                         />
                         <StatCard 
-                            title="Aktif E-Posta Aboneleri" 
+                            title="Aktif Aboneler" 
                             value={subscribers.filter(s => s.active).length} 
                             icon="users" 
                             color="#10b981" 
                             bg="rgba(16, 185, 129, 0.15)" 
                         />
                         <StatCard 
-                            title="Taranan Kaynak Sayısı" 
-                            value={`${sites.length} Aktif Kaynak`}
-                            subtext={sites.map(s => s.displayName).join(' • ')} 
-                            icon="globe" 
+                            title="Departmanlar" 
+                            value={`${departments.length} Departman`}
+                            subtext={departments.map(d => d.name).join(' • ') || ''} 
+                            icon="building" 
                             color="#8b5cf6" 
                             bg="rgba(139, 92, 246, 0.15)" 
                         />
@@ -1297,14 +1450,14 @@
                                     <input 
                                         type="text" 
                                         class="search-input" 
-                                        placeholder="Duyuru başlığı veya içerikte ara..." 
+                                        placeholder="Duyurularda ara..." 
                                         value={search}
                                         onChange={(e) => setSearch(e.target.value)}
                                     />
                                 </div>
 
                                 <div class="filter-pills">
-                                    <button class={`pill ${filter === 'ALL' ? 'active' : ''}`} onClick={() => setFilter('ALL')}>Tüm Duyurular</button>
+                                    <button class={`pill ${filter === 'ALL' ? 'active' : ''}`} onClick={() => setFilter('ALL')}>Tümü</button>
                                     
                                     {/* Dynamically generated site pills */}
                                     {sites.map(site => (
@@ -1317,18 +1470,18 @@
                                         </button>
                                     ))}
 
-                                    <button class={`pill ${filter === 'HAS_PDF' ? 'active' : ''}`} onClick={() => setFilter('HAS_PDF')}>Ek Dosyası Olanlar</button>
+                                    <button class={`pill ${filter === 'HAS_PDF' ? 'active' : ''}`} onClick={() => setFilter('HAS_PDF')}>Ek Dosyalı</button>
                                 </div>
                             </div>
 
                             {/* Modular Cards List */}
                             {loading ? (
                                 <div style={{textAlign: 'center', padding: '60px', color: '#9ca3af'}}>
-                                    Duyurular PostgreSQL veritabanından yükleniyor...
+                                    Duyurular yükleniyor...
                                 </div>
                             ) : filteredAnnouncements.length === 0 ? (
                                 <div style={{textAlign: 'center', padding: '60px', background: 'var(--card-bg)', borderRadius: '16px', border: '1px dashed var(--border-color)', color: '#9ca3af'}}>
-                                    Aramanıza uygun duyuru bulunamadı.
+                                    Duyuru bulunamadı.
                                 </div>
                             ) : (
                                 filteredAnnouncements.map(item => (
@@ -1346,19 +1499,19 @@
 
                         {/* Right Sidebar */}
                         <div class="sidebar">
-                            {/* Add Subscriber Form with Dynamic Site Preference Checkboxes */}
+                            {/* Add Subscriber Form with Dynamic Site & Department Checkboxes */}
                             <div class="side-card">
                                 <div class="side-title">
                                     <i data-lucide="user-plus" style={{color: '#38bdf8'}}></i>
-                                    E-Posta Abonesi Ekle
+                                    Abone Ekle
                                 </div>
                                 <form onSubmit={handleAddSubscriber}>
                                     <div class="form-group">
-                                        <label class="form-label">AD SOYAD</label>
+                                        <label class="form-label">Ad Soyad</label>
                                         <input 
                                             type="text" 
                                             class="input-field" 
-                                            placeholder="Ad Soyad giriniz" 
+                                            placeholder="Ad Soyad" 
                                             value={fullName}
                                             onChange={(e) => setFullName(e.target.value)}
                                             required
@@ -1366,20 +1519,62 @@
                                     </div>
 
                                     <div class="form-group">
-                                        <label class="form-label">E-POSTA ADRESİ</label>
+                                        <label class="form-label">E-Posta Adresi</label>
                                         <input 
                                             type="email" 
                                             class="input-field" 
-                                            placeholder="E-posta adresi giriniz" 
+                                            placeholder="ornek@kurum.com" 
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
                                             required
                                         />
                                     </div>
 
-                                    {/* Dynamic Site Checkboxes */}
+                                    {/* Department Multi-Select / Checkboxes */}
                                     <div class="form-group">
-                                        <label class="form-label">BİLDİRİM ALINACAK SİTELER</label>
+                                        <label class="form-label">Departman Seçimi</label>
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', background: 'rgba(15, 23, 42, 0.6)', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)'}}>
+                                            {departments.length === 0 ? (
+                                                <span style={{fontSize: '11.5px', color: 'var(--text-sub)'}}>Henüz tanımlı departman yok.</span>
+                                            ) : (
+                                                departments.map(d => (
+                                                    <label key={d.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px', cursor: 'pointer', color: '#e2e8f0', userSelect: 'none'}}>
+                                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={selectedNewSubDepts.includes(d.id)}
+                                                                onChange={(e) => {
+                                                                    if (e.target.checked) {
+                                                                        setSelectedNewSubDepts(prev => [...prev, d.id]);
+                                                                    } else {
+                                                                        setSelectedNewSubDepts(prev => prev.filter(id => id !== d.id));
+                                                                    }
+                                                                }}
+                                                                style={{width: '15px', height: '15px', accentColor: 'var(--accent-purple)', cursor: 'pointer'}}
+                                                            />
+                                                            <span style={{fontWeight: '600'}}>{d.name}</span>
+                                                        </div>
+                                                        <span style={{fontSize: '10px', color: '#c084fc', background: 'rgba(139,92,246,0.15)', padding: '2px 6px', borderRadius: '6px'}}>
+                                                            {(d.sites || []).length} Site
+                                                        </span>
+                                                    </label>
+                                                ))
+                                            )}
+                                        </div>
+                                        {selectedNewSubDepts.length === 0 ? (
+                                            <div style={{fontSize: '11px', color: '#38bdf8', marginTop: '6px', fontWeight: '500'}}>
+                                                Departman seçilmediğinde tüm kaynaklar takip edilir.
+                                            </div>
+                                        ) : (
+                                            <div style={{fontSize: '11px', color: '#c084fc', marginTop: '6px'}}>
+                                                Kapsam: Departman kaynakları ve kişisel tercihler
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Dynamic Personal Site Checkboxes */}
+                                    <div class="form-group">
+                                        <label class="form-label">Kaynak Seçimi</label>
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', background: 'rgba(15, 23, 42, 0.6)', padding: '10px 12px', borderRadius: '10px', border: '1px solid var(--border-color)'}}>
                                             {sites.map(s => (
                                                 <label key={s.name} style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12.5px', cursor: 'pointer', color: '#e2e8f0', userSelect: 'none'}}>
@@ -1403,21 +1598,143 @@
 
                                     <button type="submit" class="btn-submit">
                                         <i data-lucide="user-plus" style={{width: '15px', height: '15px'}}></i>
-                                        Abone Yap & Mail Gönder
+                                        Abone Oluştur
                                     </button>
                                 </form>
+                            </div>
+
+                            {/* Department Management Card */}
+                            <div class="side-card">
+                                <div class="side-title" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <i data-lucide="building" style={{color: '#c084fc'}}></i>
+                                        Departmanlar
+                                    </div>
+                                    <span style={{fontSize: '11px', background: 'rgba(139,92,246,0.15)', color: '#c084fc', padding: '3px 9px', borderRadius: '10px', fontWeight: '700'}}>
+                                        {departments.length}
+                                    </span>
+                                </div>
+
+                                {/* Create Department Form */}
+                                <form onSubmit={handleCreateDepartment} style={{marginBottom: '16px', background: 'rgba(15, 23, 42, 0.6)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)'}}>
+                                    <div class="form-group">
+                                        <label class="form-label">Departman Adı</label>
+                                        <input 
+                                            type="text" 
+                                            class="input-field" 
+                                            placeholder="Örn: Java, Backend" 
+                                            value={deptName}
+                                            onChange={(e) => setDeptName(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Açıklama</label>
+                                        <input 
+                                            type="text" 
+                                            class="input-field" 
+                                            placeholder="Açıklama" 
+                                            value={deptDescription}
+                                            onChange={(e) => setDeptDescription(e.target.value)}
+                                        />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">İlişkili Kaynaklar</label>
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px'}}>
+                                            {sites.map(s => (
+                                                <label key={s.name} style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', color: '#e2e8f0', userSelect: 'none'}}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={selectedDeptSites.includes(s.name)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setSelectedDeptSites(prev => [...prev, s.name]);
+                                                            } else {
+                                                                setSelectedDeptSites(prev => prev.filter(n => n !== s.name));
+                                                            }
+                                                        }}
+                                                        style={{width: '14px', height: '14px', accentColor: 'var(--accent-purple)', cursor: 'pointer'}}
+                                                    />
+                                                    <span>{s.displayName}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn-submit" style={{background: 'linear-gradient(135deg, var(--accent-purple), #7c3aed)'}}>
+                                        <i data-lucide="plus-circle" style={{width: '14px', height: '14px'}}></i> Oluştur
+                                    </button>
+                                </form>
+
+                                {/* Department List */}
+                                <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                                    {departments.length === 0 ? (
+                                        <div style={{fontSize: '12.5px', color: '#9ca3af', textAlign: 'center', padding: '12px 0'}}>
+                                            Departman bulunmuyor.
+                                        </div>
+                                    ) : (
+                                        departments.map(d => (
+                                            <div key={d.id} style={{background: 'rgba(15, 23, 42, 0.7)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px'}}>
+                                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                                                    <div>
+                                                        <div style={{fontWeight: '700', fontSize: '13.5px', color: 'white', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                                            <span>🏢 {d.name}</span>
+                                                            <button 
+                                                                onClick={() => handleViewDeptSubscribers(d)}
+                                                                style={{fontSize: '10px', background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)', padding: '2px 7px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700'}}
+                                                            >
+                                                                {d.subscriberCount || 0} Abone
+                                                            </button>
+                                                        </div>
+                                                        {d.description && <div style={{fontSize: '11.5px', color: 'var(--text-sub)', marginTop: '2px'}}>{d.description}</div>}
+                                                    </div>
+                                                    <div style={{display: 'flex', gap: '4px'}}>
+                                                        <button 
+                                                            onClick={() => setEditingDept({ ...d })}
+                                                            style={{background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: 'none', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: '600'}}
+                                                            title="Düzenle"
+                                                        >
+                                                            Düzenle
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleDeleteDepartment(d.id, d.name)}
+                                                            style={{background: 'rgba(239,68,68,0.15)', color: '#f87171', border: 'none', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: '600'}}
+                                                            title="Sil"
+                                                        >
+                                                            Sil
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px'}}>
+                                                    {(d.sites || []).length === 0 ? (
+                                                        <span style={{fontSize: '10.5px', color: '#94a3b8', fontStyle: 'italic'}}>Kaynak yok</span>
+                                                    ) : (
+                                                        (d.sites || []).map(siteKey => {
+                                                            const found = sites.find(s => s.name === siteKey);
+                                                            return (
+                                                                <span key={siteKey} style={{fontSize: '10px', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '1px 6px', borderRadius: '5px', fontWeight: '600'}}>
+                                                                    {found ? found.displayName : siteKey}
+                                                                </span>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             </div>
 
                             {/* Excel Import Card */}
                             <div class="side-card">
                                 <div class="side-title">
                                     <i data-lucide="file-spreadsheet" style={{color: '#10b981'}}></i>
-                                    Excel / CSV İle Toplu Abone Ekle
+                                    Toplu Abone Yükle
                                 </div>
                                 <div style={{border: '1px dashed #334155', borderRadius: '12px', padding: '16px', textAlign: 'center', background: '#0f172a'}}>
                                     {/* Target sites checkboxes for Excel import */}
                                     <div style={{marginBottom: '14px', textAlign: 'left'}}>
-                                        <label class="form-label" style={{fontSize: '11px'}}>BİLDİRİM ALINACAK SİTELER</label>
+                                        <label class="form-label" style={{fontSize: '11px'}}>Kaynak Seçimi</label>
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px', background: 'rgba(15, 23, 42, 0.6)', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)'}}>
                                             {sites.map(s => (
                                                 <label key={s.name} style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer', color: '#e2e8f0', userSelect: 'none'}}>
@@ -1442,17 +1759,17 @@
                                     <div style={{display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center'}}>
                                         <a href="/api/v1/subscribers/template-excel" download="Abone_Yukleme_Taslak_Sablonu.xlsx" style={{display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', color: '#38bdf8', textDecoration: 'none', fontWeight: '600', padding: '8px 14px', background: 'rgba(56,189,248,0.1)', borderRadius: '8px', border: '1px solid rgba(56,189,248,0.3)'}}>
                                             <i data-lucide="download" style={{width: '14px', height: '14px'}}></i>
-                                            Örnek Taslak Excel İndir (.xlsx)
+                                            Örnek Şablonu İndir (.xlsx)
                                         </a>
 
                                         <label class="btn-submit" style={{cursor: 'pointer', background: 'linear-gradient(135deg, #059669, #10b981)', width: '100%'}}>
                                             <i data-lucide="upload" style={{width: '15px', height: '15px'}}></i>
-                                            Doldurulan Excel / CSV'yi Yükle
+                                            Dosya Yükle
                                             <input type="file" accept=".xlsx,.xls,.csv,.txt" onChange={handleExcelUpload} style={{display: 'none'}} />
                                         </label>
                                     </div>
                                     <div style={{fontSize: '11px', color: '#94a3b8', marginTop: '10px'}}>
-                                        Sütunlar: <b>E-Posta</b>, <b>Ad Soyad</b> (.xlsx, .csv desteklenir)
+                                        Desteklenen formatlar: .xlsx, .csv (Sütunlar: E-Posta, Ad Soyad, Departman)
                                     </div>
                                 </div>
                             </div>
@@ -1462,7 +1779,7 @@
                                 <div class="side-title" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                                     <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                                         <i data-lucide="users" style={{color: '#10b981'}}></i>
-                                        E-Posta Aboneleri
+                                        Aboneler
                                     </div>
                                     <span style={{fontSize: '11px', background: 'rgba(16,185,129,0.15)', color: '#34d399', padding: '3px 9px', borderRadius: '10px', fontWeight: '700'}}>
                                         {filteredSubscribers.length} / {subscribers.length}
@@ -1475,7 +1792,7 @@
                                         type="text" 
                                         class="search-input" 
                                         style={{fontSize: '12px', padding: '7px 12px 7px 30px', height: '34px'}}
-                                        placeholder="Abone adı veya e-posta ara..." 
+                                        placeholder="Abonelerde ara..." 
                                         value={subSearch}
                                         onChange={(e) => { setSubSearch(e.target.value); setSubPage(0); }}
                                     />
@@ -1484,7 +1801,7 @@
                                 <div class="sub-list">
                                     {filteredSubscribers.length === 0 ? (
                                         <div style={{fontSize: '13px', color: '#9ca3af', textAlign: 'center', padding: '16px 0'}}>
-                                            {subSearch ? 'Aramanıza uygun abone bulunamadı.' : 'Henüz kayıtlı bildirim abonesi bulunmuyor.'}
+                                            {subSearch ? 'Aramanıza uygun abone bulunamadı.' : 'Abone bulunamadı.'}
                                         </div>
                                     ) : (
                                         paginatedSubscribers.map(sub => (
@@ -1510,36 +1827,73 @@
                         </div>
                     </div>
 
-                    {/* Site Preference Editing Modal */}
+                    {/* Site Preference & Department Editing Modal */}
                     {editingSub && (
                         <div class="modal-overlay" onClick={() => setEditingSub(null)}>
-                            <div class="modal-card" onClick={(e) => e.stopPropagation()}>
+                            <div class="modal-card" onClick={(e) => e.stopPropagation()} style={{maxWidth: '460px'}}>
                                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px'}}>
-                                    <h3 style={{fontSize: '16px', fontWeight: '700', color: 'white'}}>Site Bildirim Tercihleri</h3>
+                                    <h3 style={{fontSize: '16px', fontWeight: '700', color: 'white'}}>Abone Tercihlerini Düzenle</h3>
                                     <button onClick={() => setEditingSub(null)} style={{background: 'none', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer'}}>✕</button>
                                 </div>
-                                <div style={{fontSize: '13px', color: '#94a3b8', marginBottom: '14px'}}>
-                                    <b>{editingSub.fullName || editingSub.email}</b> abonesinin duyuru bildirimi alacağı web sitelerini seçin:
+
+                                {/* Department Selection */}
+                                <div style={{marginBottom: '16px'}}>
+                                    <label class="form-label" style={{color: '#c084fc'}}>Departmanlar</label>
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(15, 23, 42, 0.7)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)'}}>
+                                        {departments.length === 0 ? (
+                                            <span style={{fontSize: '12px', color: '#94a3b8'}}>Henüz departman bulunmuyor.</span>
+                                        ) : (
+                                            departments.map(d => (
+                                                <label key={d.id} style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px', cursor: 'pointer', color: '#f1f5f9'}}>
+                                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                                        <input 
+                                                            type="checkbox" 
+                                                            checked={editingSubDepts.includes(d.id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setEditingSubDepts(prev => [...prev, d.id]);
+                                                                } else {
+                                                                    setEditingSubDepts(prev => prev.filter(id => id !== d.id));
+                                                                }
+                                                            }}
+                                                            style={{width: '15px', height: '15px', accentColor: 'var(--accent-purple)', cursor: 'pointer'}}
+                                                        />
+                                                        <span>🏢 <b>{d.name}</b></span>
+                                                    </div>
+                                                    <span style={{fontSize: '10.5px', color: '#c084fc'}}>{(d.sites || []).length} Site</span>
+                                                </label>
+                                            ))
+                                        )}
+                                    </div>
+                                    {editingSubDepts.length === 0 && (
+                                        <div style={{fontSize: '11px', color: '#38bdf8', marginTop: '6px'}}>
+                                            Departman seçilmediğinde tüm kaynaklar takip edilir.
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div style={{display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '22px', background: 'rgba(15, 23, 42, 0.7)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)'}}>
-                                    {sites.map(s => (
-                                        <label key={s.name} style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13.5px', cursor: 'pointer', color: '#f1f5f9', userSelect: 'none'}}>
-                                            <input 
-                                                type="checkbox" 
-                                                checked={editingSites.includes(s.name)}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setEditingSites(prev => [...prev, s.name]);
-                                                    } else {
-                                                        setEditingSites(prev => prev.filter(n => n !== s.name));
-                                                    }
-                                                }}
-                                                style={{width: '16px', height: '16px', accentColor: 'var(--primary)', cursor: 'pointer'}}
-                                            />
-                                            <span>{s.displayName}</span>
-                                        </label>
-                                    ))}
+                                {/* Personal Site Preferences */}
+                                <div style={{marginBottom: '20px'}}>
+                                    <label class="form-label" style={{color: '#38bdf8'}}>Kaynak Tercihleri</label>
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(15, 23, 42, 0.7)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)'}}>
+                                        {sites.map(s => (
+                                            <label key={s.name} style={{display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', cursor: 'pointer', color: '#f1f5f9', userSelect: 'none'}}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={editingSites.includes(s.name)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setEditingSites(prev => [...prev, s.name]);
+                                                        } else {
+                                                            setEditingSites(prev => prev.filter(n => n !== s.name));
+                                                        }
+                                                    }}
+                                                    style={{width: '15px', height: '15px', accentColor: 'var(--primary)', cursor: 'pointer'}}
+                                                />
+                                                <span>{s.displayName}</span>
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end'}}>
@@ -1553,7 +1907,122 @@
                                         onClick={handleSavePreferences}
                                         style={{background: 'linear-gradient(135deg, var(--primary), var(--accent-cyan))', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: '700'}}
                                     >
-                                        Tercihleri Kaydet
+                                        Kaydet
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Edit Department Modal */}
+                    {editingDept && (
+                        <div class="modal-overlay" onClick={() => setEditingDept(null)}>
+                            <div class="modal-card" onClick={(e) => e.stopPropagation()} style={{maxWidth: '440px'}}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px'}}>
+                                    <h3 style={{fontSize: '16px', fontWeight: '700', color: 'white'}}>Departman Düzenle</h3>
+                                    <button onClick={() => setEditingDept(null)} style={{background: 'none', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer'}}>✕</button>
+                                </div>
+                                <form onSubmit={handleUpdateDepartment}>
+                                    <div class="form-group">
+                                        <label class="form-label">Departman Adı</label>
+                                        <input 
+                                            type="text" 
+                                            class="input-field" 
+                                            value={editingDept.name}
+                                            onChange={(e) => setEditingDept({ ...editingDept, name: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">Açıklama</label>
+                                        <input 
+                                            type="text" 
+                                            class="input-field" 
+                                            value={editingDept.description || ''}
+                                            onChange={(e) => setEditingDept({ ...editingDept, description: e.target.value })}
+                                        />
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label">İlişkili Kaynaklar</label>
+                                        <div style={{display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(15, 23, 42, 0.7)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)'}}>
+                                            {sites.map(s => (
+                                                <label key={s.name} style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', color: '#e2e8f0', userSelect: 'none'}}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={(editingDept.sites || []).includes(s.name)}
+                                                        onChange={(e) => {
+                                                            const current = editingDept.sites || [];
+                                                            if (e.target.checked) {
+                                                                setEditingDept({ ...editingDept, sites: [...current, s.name] });
+                                                            } else {
+                                                                setEditingDept({ ...editingDept, sites: current.filter(n => n !== s.name) });
+                                                            }
+                                                        }}
+                                                        style={{width: '15px', height: '15px', accentColor: 'var(--accent-purple)', cursor: 'pointer'}}
+                                                    />
+                                                    <span>{s.displayName}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px'}}>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setEditingDept(null)}
+                                            style={{background: 'rgba(255,255,255,0.05)', color: '#94a3b8', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: '600'}}
+                                        >
+                                            İptal
+                                        </button>
+                                        <button 
+                                            type="submit"
+                                            style={{background: 'linear-gradient(135deg, var(--accent-purple), #7c3aed)', color: 'white', border: 'none', padding: '8px 18px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: '700'}}
+                                        >
+                                            Kaydet
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Department Subscribers View Modal */}
+                    {viewingDeptSubscribers && (
+                        <div class="modal-overlay" onClick={() => setViewingDeptSubscribers(null)}>
+                            <div class="modal-card" onClick={(e) => e.stopPropagation()} style={{maxWidth: '480px'}}>
+                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px'}}>
+                                    <h3 style={{fontSize: '16px', fontWeight: '700', color: 'white', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        🏢 {viewingDeptSubscribers.name} Abone Listesi
+                                    </h3>
+                                    <button onClick={() => setViewingDeptSubscribers(null)} style={{background: 'none', border: 'none', color: '#94a3b8', fontSize: '18px', cursor: 'pointer'}}>✕</button>
+                                </div>
+
+                                <div style={{maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px'}}>
+                                    {deptSubscribersList.length === 0 ? (
+                                        <div style={{fontSize: '12.5px', color: '#94a3b8', textAlign: 'center', padding: '20px'}}>
+                                            Abone bulunmuyor.
+                                        </div>
+                                    ) : (
+                                        deptSubscribersList.map(s => (
+                                            <div key={s.id} style={{background: 'rgba(15, 23, 42, 0.6)', padding: '10px 14px', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                                                <div>
+                                                    <div style={{fontSize: '13px', fontWeight: '700', color: 'white'}}>{s.fullName || s.email}</div>
+                                                    <div style={{fontSize: '11.5px', color: '#94a3b8'}}>{s.email}</div>
+                                                </div>
+                                                <span style={{fontSize: '10px', background: s.active ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)', color: s.active ? '#34d399' : '#f87171', padding: '2px 8px', borderRadius: '6px', fontWeight: '700'}}>
+                                                    {s.active ? 'Aktif' : 'Pasif'}
+                                                </span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+
+                                <div style={{display: 'flex', justifyContent: 'flex-end'}}>
+                                    <button 
+                                        onClick={() => setViewingDeptSubscribers(null)}
+                                        style={{background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid var(--border-color)', padding: '8px 18px', borderRadius: '8px', cursor: 'pointer', fontSize: '12.5px', fontWeight: '600'}}
+                                    >
+                                        Kapat
                                     </button>
                                 </div>
                             </div>
@@ -1580,11 +2049,11 @@
                                 </div>
                                 
                                 <h3 style={{fontSize: '18px', fontWeight: '700', color: 'white', marginBottom: '8px'}}>
-                                    Aboneyi Sil
+                                    Abone Sil
                                 </h3>
                                 
                                 <p style={{fontSize: '13.5px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '24px'}}>
-                                    <strong style={{color: '#f3f4f6'}}>{deletingSub.fullName || deletingSub.email}</strong> abonesini listeden tamamen silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
+                                    <strong style={{color: '#f3f4f6'}}>{deletingSub.fullName || deletingSub.email}</strong> abonesini silmek istediğinize emin misiniz?
                                 </p>
 
                                 <div style={{display: 'flex', gap: '12px', justifyContent: 'center'}}>
@@ -1619,7 +2088,7 @@
                                             boxShadow: '0 4px 12px rgba(239, 68, 68, 0.35)'
                                         }}
                                     >
-                                        Evet, Sil
+                                        Sil
                                     </button>
                                 </div>
                             </div>

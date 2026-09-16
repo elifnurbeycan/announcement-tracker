@@ -185,10 +185,10 @@
                         // Redirect to User Dashboard
                         window.location.href = '/user-dashboard.html';
                     } else {
-                        setError(data.message || 'Giriş başarısız! E-posta veya şifre hatalı.');
+                        setError(data.message || 'E-posta adresi veya şifre hatalı.');
                     }
                 } catch (err) {
-                    setError('Sunucuya bağlanırken bir hata oluştu.');
+                    setError('Giriş yapılırken bir hata oluştu.');
                 } finally {
                     setLoading(false);
                 }
@@ -200,19 +200,19 @@
                         <div class="login-icon-box">
                             <i data-lucide="user-check" style={{width: '32px', height: '32px', color: 'white'}}></i>
                         </div>
-                        <h2>Kullanıcı Paneli Girişi</h2>
-                        <p>Duyurularınızı ve Tercihlerinizi Yönetin</p>
+                        <h2>Kullanıcı Girişi</h2>
+                        <p>Duyuru Takip Paneli</p>
                     </div>
 
                     {error && <div class="login-error">{error}</div>}
 
                     <form onSubmit={handleLogin}>
                         <div class="form-group">
-                            <label class="form-label">E-POSTA ADRESİ</label>
+                            <label class="form-label">E-Posta Adresi</label>
                             <input 
                                 type="email" 
                                 class="input-field" 
-                                placeholder="ornek@email.com" 
+                                placeholder="ornek@kurum.com" 
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required 
@@ -221,7 +221,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">ŞİFRE</label>
+                            <label class="form-label">Şifre</label>
                             <input 
                                 type="password" 
                                 class="input-field" 
@@ -233,7 +233,7 @@
                         </div>
 
                         <button type="submit" class="btn-submit" disabled={loading}>
-                            {loading ? 'Giriş Yapılıyor...' : 'Panele Giriş Yap'}
+                            {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
                         </button>
                     </form>
 

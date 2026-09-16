@@ -547,8 +547,9 @@
                     });
                     const data = await res.json();
                     if (res.ok && data.success) {
-                        setSavingMsg('Tercihler kaydedildi!');
+                        setSavingMsg('Tercihler güncellendi.');
                         setTimeout(() => setSavingMsg(''), 3000);
+                        fetchUserProfile(token);
                         fetchAnnouncements(token, siteFilter);
                     }
                 } catch (e) {
@@ -581,7 +582,7 @@
             if (loading && allAnnouncements.length === 0) {
                 return (
                     <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh'}}>
-                        <p style={{color: '#94a3b8'}}>Duyurular Yükleniyor...</p>
+                        <p style={{color: '#94a3b8'}}>Duyurular yükleniyor...</p>
                     </div>
                 );
             }
@@ -601,15 +602,103 @@
 
                     <div class="container">
                         <div class="grid-layout">
-                            {/* Sol Panel: Takip Tercihleri */}
-                            <div>
+                            {/* Sol Panel: Kullanıcı Profili & Takip Tercihleri */}
+                            <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+                                {/* Profile Card */}
+                                <div class="panel-card">
+                                    <div class="card-title" style={{marginBottom: '16px'}}>
+                                        <i data-lucide="user" style={{width: '20px', height: '20px', color: '#38bdf8'}}></i>
+                                        Profil Bilgileri
+                                    </div>
+                                    
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                                        <div>
+                                            <div style={{fontSize: '11px', color: 'var(--text-sub)', fontWeight: '700', letterSpacing: '0.5px'}}>Ad Soyad</div>
+                                            <div style={{fontSize: '14.5px', fontWeight: '700', color: 'white', marginTop: '2px'}}>
+                                                {user ? (user.fullName || 'Belirtilmemiş') : '...'}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div style={{fontSize: '11px', color: 'var(--text-sub)', fontWeight: '700', letterSpacing: '0.5px'}}>E-Posta Adresi</div>
+                                            <div style={{fontSize: '13.5px', color: '#cbd5e1', marginTop: '2px'}}>
+                                                {user ? user.email : '...'}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div style={{fontSize: '11px', color: 'var(--text-sub)', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '6px'}}>Departmanlar</div>
+                                            <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px'}}>
+                                                {user?.isGeneralEmployee || !user?.departments || user.departments.length === 0 ? (
+                                                    <span style={{fontSize: '11px', background: 'rgba(56,189,248,0.15)', color: '#38bdf8', padding: '3px 10px', borderRadius: '8px', fontWeight: '700', border: '1px solid rgba(56,189,248,0.35)'}}>
+                                                        Genel Çalışan
+                                                    </span>
+                                                ) : (
+                                                    user.departments.map(d => (
+                                                        <span key={d.id} style={{fontSize: '11px', background: 'rgba(139,92,246,0.18)', color: '#c084fc', padding: '3px 10px', borderRadius: '8px', fontWeight: '700', border: '1px solid rgba(139,92,246,0.35)'}}>
+                                                            🏢 {d.name}
+                                                        </span>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div style={{fontSize: '11px', color: 'var(--text-sub)', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '6px'}}>Kişisel Kaynaklar</div>
+                                            <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px'}}>
+                                                {(user?.subscribedSites || []).length === 0 ? (
+                                                    <span style={{fontSize: '11.5px', color: '#94a3b8', fontStyle: 'italic'}}>Seçili kaynak yok</span>
+                                                ) : (
+                                                    (user?.subscribedSites || []).map(site => (
+                                                        <span key={site} style={{fontSize: '10.5px', background: 'rgba(59,130,246,0.15)', color: '#60a5fa', padding: '2px 8px', borderRadius: '6px', fontWeight: '700', border: '1px solid rgba(59,130,246,0.3)'}}>
+                                                            {site === 'EBELGE_GIB' ? 'e-Belge GİB' : site === 'KOSGEB' ? 'KOSGEB Duyuruları' : site}
+                                                        </span>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <div style={{fontSize: '11px', color: 'var(--text-sub)', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '6px'}}>Departman Kaynakları</div>
+                                            <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px'}}>
+                                                {user?.isGeneralEmployee ? (
+                                                    <span style={{fontSize: '11px', color: '#38bdf8', fontStyle: 'italic'}}>Tüm kaynaklar (Genel Çalışan)</span>
+                                                ) : (user?.departmentSites || []).length === 0 ? (
+                                                    <span style={{fontSize: '11.5px', color: '#94a3b8', fontStyle: 'italic'}}>Departman kaynağı yok</span>
+                                                ) : (
+                                                    (user?.departmentSites || []).map(site => (
+                                                        <span key={site} style={{fontSize: '10.5px', background: 'rgba(139,92,246,0.15)', color: '#c084fc', padding: '2px 8px', borderRadius: '6px', fontWeight: '700', border: '1px solid rgba(139,92,246,0.3)'}}>
+                                                            {site === 'EBELGE_GIB' ? 'e-Belge GİB' : site === 'KOSGEB' ? 'KOSGEB Duyuruları' : site}
+                                                        </span>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div style={{marginTop: '4px', paddingTop: '10px', borderTop: '1px solid var(--border)'}}>
+                                            <div style={{fontSize: '11px', color: '#34d399', fontWeight: '700', letterSpacing: '0.5px', marginBottom: '6px'}}>Efektif Kapsam</div>
+                                            <div style={{display: 'flex', flexWrap: 'wrap', gap: '6px'}}>
+                                                {(user?.effectiveSites || []).length === 0 ? (
+                                                    <span style={{fontSize: '11.5px', color: '#ef4444', fontWeight: '600'}}>Tanımlı kaynak yok</span>
+                                                ) : (
+                                                    (user?.effectiveSites || []).map(site => (
+                                                        <span key={site} style={{fontSize: '11px', background: 'rgba(16,185,129,0.18)', color: '#34d399', padding: '3px 9px', borderRadius: '7px', fontWeight: '700', border: '1px solid rgba(16,185,129,0.35)'}}>
+                                                            ✓ {site === 'EBELGE_GIB' ? 'e-Belge GİB' : site === 'KOSGEB' ? 'KOSGEB Duyuruları' : site}
+                                                        </span>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="panel-card">
                                     <div class="card-title">
                                         <i data-lucide="sliders" style={{width: '20px', height: '20px', color: '#60a5fa'}}></i>
                                         Takip Edilen Kaynaklar
                                     </div>
                                     <p style={{fontSize: '13px', color: '#94a3b8', marginBottom: '18px'}}>
-                                        E-posta ile bildirim almak istediğiniz resmi kaynakları seçin.
+                                        Bildirim almak istediğiniz resmi kaynakları seçin.
                                     </p>
 
                                     <div class="pref-item">
@@ -646,10 +735,10 @@
                                     <div class="card-header-flex">
                                         <div class="card-title">
                                             <i data-lucide="newspaper" style={{width: '20px', height: '20px', color: '#c084fc'}}></i>
-                                            Size Özel Takip Edilen Duyurular ({totalElements})
+                                            Duyurular ({totalElements})
                                             {totalUnreadCount > 0 && (
                                                 <span style={{fontSize: '12px', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 8px', borderRadius: '12px'}}>
-                                                    {totalUnreadCount} Okunmamış Duyuru
+                                                    {totalUnreadCount} Okunmamış
                                                 </span>
                                             )}
                                         </div>

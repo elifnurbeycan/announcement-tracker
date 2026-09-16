@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 @Data
@@ -22,5 +23,9 @@ public class SubscriberResponseDto {
     private boolean hasPasswordSet;
     private String activationToken;
     private Set<SiteType> subscribedSites;
+    private List<DepartmentSummaryDto> departments;
+    private boolean isGeneralEmployee;
+    private Set<SiteType> departmentSites;
+    private Set<SiteType> effectiveSites;
     private LocalDateTime createdAt;
 }

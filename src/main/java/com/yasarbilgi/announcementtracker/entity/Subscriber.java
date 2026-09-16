@@ -19,10 +19,12 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Subscriber {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(nullable = false, unique = true)
@@ -47,14 +49,46 @@ public class Subscriber {
     @Builder.Default
     private Set<SiteType> subscribedSites = new HashSet<>();
 
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "subscriber_departments",
+        joinColumns = @JoinColumn(name = "subscriber_id"),
+        inverseJoinColumns = @JoinColumn(name = "department_id")
+    )
+    @Builder.Default
+    private Set<Department> departments = new HashSet<>();
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
-        if (this.subscribedSites == null || this.subscribedSites.isEmpty()) {
+        if (this.subscribedSites == null) {
             this.subscribedSites = new HashSet<>(Arrays.asList(SiteType.values()));
         }
+        if (this.departments == null) {
+            this.departments = new HashSet<>();
+        }
+    }
+
+    public boolean isGeneralEmployee() {
+        return this.departments == null || this.departments.isEmpty();
+    }
+
+    public Set<SiteType> getEffectiveSites(Set<SiteType> allAvailableSites) {
+        if (isGeneralEmployee()) {
+            return new HashSet<>(allAvailableSites != null ? allAvailableSites : Arrays.asList(SiteType.values()));
+        }
+        Set<SiteType> effective = new HashSet<>();
+        if (this.subscribedSites != null) {
+            effective.addAll(this.subscribedSites);
+        }
+        for (Department dept : this.departments) {
+            if (dept != null && dept.getSites() != null) {
+                effective.addAll(dept.getSites());
+            }
+        }
+        return effective;
     }
 }
