@@ -25,22 +25,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponseDto<Void>> handleScrapingException(ScrapingException ex) {
         log.error("Scraping error: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponseDto.error("Scraping error: " + ex.getMessage()));
+                .body(ApiResponseDto.error(ex.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponseDto<Void>> handleValidationException(MethodArgumentNotValidException ex) {
         String errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(err -> err.getField() + ": " + err.getDefaultMessage())
+                .map(err -> err.getDefaultMessage())
                 .collect(Collectors.joining(", "));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponseDto.error("Validation error: " + errors));
+                .body(ApiResponseDto.error(errors));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponseDto<Void>> handleGeneralException(Exception ex) {
         log.error("Unhandled exception occurred: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponseDto.error("An unexpected error occurred: " + ex.getMessage()));
+                .body(ApiResponseDto.error("İşlem gerçekleştirilemedi."));
     }
 }

@@ -252,7 +252,7 @@ class SubscriberServiceImplTest {
     @Test
     @DisplayName("CSV dosyasından aboneleri başarıyla içe aktarma")
     void importSubscribersFromExcel_ValidCsv_ShouldImportSubscribers() {
-        String csvContent = "E-Posta;Ad Soyad\nohan@example.com;Orhan Veli\nahmet@example.com;Ahmet Hamdi";
+        String csvContent = "E-Posta;Ad Soyad\nabone1@kurum.com;Test Abone 1\nabone2@kurum.com;Test Abone 2";
         MockMultipartFile file = new MockMultipartFile("file", "subscribers.csv", "text/csv", csvContent.getBytes());
 
         when(subscriberRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));

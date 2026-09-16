@@ -55,15 +55,18 @@
             gap: 10px;
         }
 
-        .nav-links { display: flex; gap: 16px; }
+        .nav-links { display: flex; gap: 12px; }
 
         .btn-nav {
-            padding: 10px 20px;
+            padding: 10px 18px;
             border-radius: 10px;
             font-size: 13px;
             font-weight: 600;
             text-decoration: none;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .btn-user {
@@ -71,12 +74,14 @@
             color: #60a5fa;
             border: 1px solid rgba(59, 130, 246, 0.4);
         }
+        .btn-user:hover { background: rgba(59, 130, 246, 0.3); }
 
         .btn-admin {
             background: rgba(255, 255, 255, 0.05);
             color: var(--text-sub);
             border: 1px solid var(--border);
         }
+        .btn-admin:hover { background: rgba(255, 255, 255, 0.1); color: white; }
 
         .hero {
             max-width: 800px;
@@ -161,7 +166,14 @@
             Duyuru Takip Sistemi
         </div>
         <div class="nav-links">
-            <a href="/user-login.html" class="btn-nav btn-user">Kullanıcı Girişi</a>
+            <a href="/user-login.html" class="btn-nav btn-user">
+                <i data-lucide="user" style="width: 15px; height: 15px;"></i>
+                Kullanıcı Girişi
+            </a>
+            <a href="/admin-login.html" class="btn-nav btn-admin">
+                <i data-lucide="shield-check" style="width: 15px; height: 15px;"></i>
+                Yönetici Girişi (Super Admin)
+            </a>
         </div>
     </header>
 
@@ -174,14 +186,14 @@
 
             <form id="subForm">
                 <div class="form-group">
-                    <label class="form-label">E-POSTA ADRESİNİZ</label>
-                    <input type="email" id="email" class="input-field" placeholder="ornek@email.com" required>
+                    <label class="form-label">E-Posta Adresi</label>
+                    <input type="email" id="email" class="input-field" placeholder="ornek@kurum.com" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">AD SOYAD (OPSİYONEL)</label>
+                    <label class="form-label">Ad Soyad</label>
                     <input type="text" id="fullName" class="input-field" placeholder="Ad Soyad">
                 </div>
-                <button type="submit" class="btn-submit" id="submitBtn">E-Posta Abonesi Ol &rarr;</button>
+                <button type="submit" class="btn-submit" id="submitBtn">Abone Ol →</button>
             </form>
         </div>
     </main>
@@ -198,7 +210,7 @@
 
             msgDiv.innerHTML = '';
             submitBtn.disabled = true;
-            submitBtn.innerText = 'Kaydediliyor...';
+            submitBtn.innerText = 'İşleniyor...';
 
             try {
                 const res = await fetch('/api/v1/subscribers/register', {
@@ -209,7 +221,7 @@
                 const data = await res.json();
                 if (res.ok && data.success) {
                     msgDiv.className = 'msg-box msg-success';
-                    msgDiv.innerHTML = 'Aboneliğiniz oluşturuldu! E-postanıza gönderilen aktivasyon linkiyle şifre belirleyip kullanıcı panelinize giriş yapabilirsiniz.';
+                    msgDiv.innerHTML = 'Aboneliğiniz oluşturuldu. Aktivasyon bağlantısı e-posta adresinize gönderildi.';
                     document.getElementById('subForm').reset();
                 } else {
                     msgDiv.className = 'msg-box msg-error';
@@ -217,10 +229,10 @@
                 }
             } catch (err) {
                 msgDiv.className = 'msg-box msg-error';
-                msgDiv.innerHTML = 'Sunucuya bağlanırken bir hata oluştu.';
+                msgDiv.innerHTML = 'İşlem gerçekleştirilemedi.';
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.innerText = 'E-Posta Abonesi Ol →';
+                submitBtn.innerText = 'Abone Ol →';
             }
         });
     </script>

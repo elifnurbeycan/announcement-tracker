@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="1.2.0-create-department-schema" author="announcement-tracker">
+
+        <!-- Table: departments -->
+        <createTable tableName="departments">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_departments_name"/>
+            </column>
+            <column name="description" type="VARCHAR(500)"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Table: department_sites -->
+        <createTable tableName="department_sites">
+            <column name="department_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="site_type" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey tableName="department_sites"
+                       columnNames="department_id, site_type"
+                       constraintName="pk_department_sites"/>
+
+        <addForeignKeyConstraint baseTableName="department_sites"
+                                 baseColumnNames="department_id"
+                                 constraintName="fk_department_sites_department"
+                                 referencedTableName="departments"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <!-- Table: subscriber_departments -->
+        <createTable tableName="subscriber_departments">
+            <column name="subscriber_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="department_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey tableName="subscriber_departments"
+                       columnNames="subscriber_id, department_id"
+                       constraintName="pk_subscriber_departments"/>
+
+        <addForeignKeyConstraint baseTableName="subscriber_departments"
+                                 baseColumnNames="subscriber_id"
+                                 constraintName="fk_subscriber_departments_subscriber"
+                                 referencedTableName="subscribers"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint baseTableName="subscriber_departments"
+                                 baseColumnNames="department_id"
+                                 constraintName="fk_subscriber_departments_department"
+                                 referencedTableName="departments"
+                                 referencedColumnNames="id"
+                                 onDelete="CASCADE"/>
+
+    </changeSet>
+
+</databaseChangeLog>

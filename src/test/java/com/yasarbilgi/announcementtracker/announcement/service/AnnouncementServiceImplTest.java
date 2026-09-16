@@ -96,8 +96,11 @@ class AnnouncementServiceImplTest {
 
         when(announcementRepository.findByIsNotifiedFalse()).thenReturn(List.of(savedEntity));
 
-        Subscriber sub1 = Subscriber.builder().email("sub1@gib.com").active(true).subscribedSites(Set.of(SiteType.EBELGE_GIB)).build();
-        Subscriber sub2 = Subscriber.builder().email("sub2@kosgeb.com").active(true).subscribedSites(Set.of(SiteType.KOSGEB)).build();
+        com.yasarbilgi.announcementtracker.entity.Department gibDept = com.yasarbilgi.announcementtracker.entity.Department.builder().id(10L).name("GIB").sites(Set.of(SiteType.EBELGE_GIB)).build();
+        com.yasarbilgi.announcementtracker.entity.Department kosgebDept = com.yasarbilgi.announcementtracker.entity.Department.builder().id(20L).name("KOSGEB").sites(Set.of(SiteType.KOSGEB)).build();
+
+        Subscriber sub1 = Subscriber.builder().email("sub1@gib.com").active(true).departments(Set.of(gibDept)).subscribedSites(Set.of(SiteType.EBELGE_GIB)).build();
+        Subscriber sub2 = Subscriber.builder().email("sub2@kosgeb.com").active(true).departments(Set.of(kosgebDept)).subscribedSites(Set.of(SiteType.KOSGEB)).build();
         when(subscriberRepository.findByActiveTrue()).thenReturn(List.of(sub1, sub2));
 
         List<AnnouncementResponseDto> results = announcementService.triggerScrapeAll();

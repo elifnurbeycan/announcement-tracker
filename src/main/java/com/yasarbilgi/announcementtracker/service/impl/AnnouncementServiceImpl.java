@@ -23,7 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -195,12 +198,14 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 : pending.stream().limit(3).toList();
 
         List<Subscriber> activeSubscribers = subscriberRepository.findByActiveTrue();
+        Set<SiteType> allAvailableSites = new HashSet<>(Arrays.asList(SiteType.values()));
 
         for (Announcement a : toNotify) {
-            // Her duyuru için yalnızca o sitenin tercihini açmış abonelere mail gönderir
+            // Her duyuru için dinamik efektif kaynakları kapsayan abonelere mail gönderir
             List<String> recipients = activeSubscribers.stream()
-                    .filter(sub -> sub.getSubscribedSites() != null && sub.getSubscribedSites().contains(a.getSourceSite()))
+                    .filter(sub -> sub.getEffectiveSites(allAvailableSites).contains(a.getSourceSite()))
                     .map(Subscriber::getEmail)
+                    .distinct()
                     .toList();
 
             if (recipients.isEmpty() && activeSubscribers.isEmpty()) {

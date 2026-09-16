@@ -115,13 +115,15 @@ class SubscriberControllerTest {
     @DisplayName("POST /api/v1/subscribers/upload-excel - Excel yükleme HTTP 200")
     void uploadExcelSubscribers_ShouldReturnImportCount() {
         MockMultipartFile file = new MockMultipartFile("file", "subscribers.csv", "text/csv", "test".getBytes());
-        when(subscriberService.importSubscribersFromExcel(eq(file), any())).thenReturn(5);
+        com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto resultDto = com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto.builder()
+                .totalRows(5).successCount(5).errorCount(0).errors(List.of()).build();
+        when(subscriberService.importSubscribersFromExcelDetailed(eq(file), any())).thenReturn(resultDto);
 
-        ResponseEntity<ApiResponseDto<Integer>> response = subscriberController.uploadExcelSubscribers(file, List.of(SiteType.EBELGE_GIB));
+        ResponseEntity<ApiResponseDto<com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto>> response = subscriberController.uploadExcelSubscribers(file, List.of(SiteType.EBELGE_GIB));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getData()).isEqualTo(5);
+        assertThat(response.getBody().getData().getSuccessCount()).isEqualTo(5);
     }
 
     @Test

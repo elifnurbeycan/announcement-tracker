@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -27,6 +28,10 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.yasarbilgi.announcementtracker.dto.response.DepartmentSummaryDto;
+import com.yasarbilgi.announcementtracker.entity.Department;
+import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -34,6 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SubscriberServiceImpl implements SubscriberService {
 
     private final SubscriberRepository subscriberRepository;
+    private final DepartmentRepository departmentRepository;
     private final AnnouncementRepository announcementRepository;
     private final EmailService emailService;
     private final PasswordEncoderHelper passwordEncoderHelper;
@@ -61,10 +67,16 @@ public class SubscriberServiceImpl implements SubscriberService {
                 ? dto.getSubscribedSites()
                 : new HashSet<>(Arrays.asList(SiteType.values()));
 
+        Set<Department> assignedDepts = new HashSet<>();
+        if (dto.getDepartmentIds() != null && !dto.getDepartmentIds().isEmpty()) {
+            assignedDepts = new HashSet<>(departmentRepository.findAllById(dto.getDepartmentIds()));
+        }
+
         if (subscriberRepository.existsByEmail(dto.getEmail())) {
             log.info("Subscriber email already exists: {}", dto.getEmail());
             saved = subscriberRepository.findByEmail(dto.getEmail()).orElseThrow();
             saved.setSubscribedSites(preferredSites);
+            saved.setDepartments(assignedDepts);
             if (!saved.isActive()) {
                 saved.setActive(true);
             }
@@ -79,6 +91,7 @@ public class SubscriberServiceImpl implements SubscriberService {
                     .email(dto.getEmail())
                     .fullName(dto.getFullName())
                     .subscribedSites(preferredSites)
+                    .departments(assignedDepts)
                     .activationToken(token)
                     .tokenExpiry(LocalDateTime.now().plusDays(7))
                     .active(true)
@@ -157,6 +170,23 @@ public class SubscriberServiceImpl implements SubscriberService {
 
     @Override
     @Transactional
+    public SubscriberResponseDto updateSubscriberDepartments(Long id, Set<Long> departmentIds) {
+        Subscriber subscriber = subscriberRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
+
+        Set<Department> newDepts = new HashSet<>();
+        if (departmentIds != null && !departmentIds.isEmpty()) {
+            newDepts = new HashSet<>(departmentRepository.findAllById(departmentIds));
+        }
+
+        subscriber.setDepartments(newDepts);
+        Subscriber updated = subscriberRepository.save(subscriber);
+        log.info("Updated departments for subscriber ID: {} -> {}", id, newDepts.stream().map(Department::getName).toList());
+        return mapToDto(updated);
+    }
+
+    @Override
+    @Transactional
     public boolean unsubscribeByEmail(String email) {
         if (email == null || email.isBlank()) {
             return false;
@@ -176,13 +206,19 @@ public class SubscriberServiceImpl implements SubscriberService {
 
     @Override
     @Transactional
-    public int importSubscribersFromExcel(org.springframework.web.multipart.MultipartFile file) {
-        return importSubscribersFromExcel(file, null);
+    public int importSubscribersFromExcel(MultipartFile file) {
+        return importSubscribersFromExcelDetailed(file, null).getSuccessCount();
     }
 
     @Override
     @Transactional
-    public int importSubscribersFromExcel(org.springframework.web.multipart.MultipartFile file, Set<SiteType> targetSites) {
+    public int importSubscribersFromExcel(MultipartFile file, Set<SiteType> targetSites) {
+        return importSubscribersFromExcelDetailed(file, targetSites).getSuccessCount();
+    }
+
+    @Override
+    @Transactional
+    public com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto importSubscribersFromExcelDetailed(MultipartFile file, Set<SiteType> targetSites) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Yüklenen dosya boş olamaz.");
         }
@@ -192,46 +228,67 @@ public class SubscriberServiceImpl implements SubscriberService {
                 : new HashSet<>(Arrays.asList(SiteType.values()));
 
         String originalFilename = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
-        List<Subscriber> importedList = new java.util.ArrayList<>();
+        List<Subscriber> importedList = new ArrayList<>();
+        List<String> errorsList = new ArrayList<>();
+        int totalRows = 0;
 
         try {
             if (originalFilename.endsWith(".csv") || originalFilename.endsWith(".txt")) {
                 try (java.io.BufferedReader reader = new java.io.BufferedReader(
                         new java.io.InputStreamReader(file.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
                     String line;
+                    int rowNum = 0;
                     while ((line = reader.readLine()) != null) {
+                        rowNum++;
                         if (line.isBlank()) continue;
+                        if (line.toLowerCase().contains("email") || line.toLowerCase().contains("e-posta") || line.toLowerCase().contains("posta")) {
+                            continue;
+                        }
+                        totalRows++;
                         String[] parts = line.split("[,;\t]");
                         if (parts.length > 0) {
                             String email = parts[0].trim();
                             String fullName = parts.length > 1 ? parts[1].trim() : "";
-                            processAndAddSubscriber(email, fullName, sitesToAssign, importedList);
+                            String rawDepts = parts.length > 2 ? String.join(",", Arrays.copyOfRange(parts, 2, parts.length)).trim() : "";
+                            processExcelRow(rowNum, email, fullName, rawDepts, sitesToAssign, importedList, errorsList);
                         }
                     }
                 }
             } else {
                 try (org.apache.poi.ss.usermodel.Workbook workbook = org.apache.poi.ss.usermodel.WorkbookFactory.create(file.getInputStream())) {
                     org.apache.poi.ss.usermodel.Sheet sheet = workbook.getSheetAt(0);
+                    int rowNum = 0;
                     for (org.apache.poi.ss.usermodel.Row row : sheet) {
+                        rowNum++;
                         if (row == null) continue;
                         org.apache.poi.ss.usermodel.Cell cell0 = row.getCell(0);
                         org.apache.poi.ss.usermodel.Cell cell1 = row.getCell(1);
+                        org.apache.poi.ss.usermodel.Cell cell2 = row.getCell(2);
 
                         String val0 = cell0 != null ? cell0.toString().trim() : "";
                         String val1 = cell1 != null ? cell1.toString().trim() : "";
+                        String val2 = cell2 != null ? cell2.toString().trim() : "";
 
                         if (val0.toLowerCase().contains("email") || val0.toLowerCase().contains("e-posta") || val0.toLowerCase().contains("posta")) {
                             continue;
                         }
 
+                        if (val0.isBlank() && val1.isBlank() && val2.isBlank()) {
+                            continue;
+                        }
+
+                        totalRows++;
+
                         String email = val0;
                         String fullName = val1;
+                        String rawDepts = val2;
+
                         if (!email.contains("@") && val1.contains("@")) {
                             email = val1;
                             fullName = val0;
                         }
 
-                        processAndAddSubscriber(email, fullName, sitesToAssign, importedList);
+                        processExcelRow(rowNum, email, fullName, rawDepts, sitesToAssign, importedList, errorsList);
                     }
                 }
             }
@@ -245,7 +302,68 @@ public class SubscriberServiceImpl implements SubscriberService {
             log.info("Toplu yükleme ile {} yeni/güncel abone kaydedildi. Atanan siteler: {}", importedList.size(), sitesToAssign);
         }
 
-        return importedList.size();
+        return com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto.builder()
+                .totalRows(totalRows)
+                .successCount(importedList.size())
+                .errorCount(errorsList.size())
+                .errors(errorsList)
+                .build();
+    }
+
+    private void processExcelRow(int rowNum, String email, String fullName, String rawDepts, Set<SiteType> sitesToAssign, List<Subscriber> importedList, List<String> errorsList) {
+        if (email == null || email.isBlank() || !email.contains("@") || email.length() < 5) {
+            errorsList.add("Satır " + rowNum + ": Geçersiz veya eksik e-posta adresi ('" + email + "').");
+            return;
+        }
+        String cleanEmail = email.trim().toLowerCase();
+
+        Set<Department> departments = new HashSet<>();
+        if (rawDepts != null && !rawDepts.isBlank()) {
+            String[] deptTokens = rawDepts.split("[,;]");
+            Set<String> cleanNames = new HashSet<>();
+            for (String t : deptTokens) {
+                String name = t.trim();
+                if (!name.isEmpty()) {
+                    cleanNames.add(name);
+                }
+            }
+
+            for (String deptName : cleanNames) {
+                Optional<Department> deptOpt = departmentRepository.findByNameIgnoreCase(deptName);
+                if (deptOpt.isEmpty()) {
+                    errorsList.add("Satır " + rowNum + ": '" + deptName + "' isimli departman sistemde bulunamadı.");
+                    return;
+                } else {
+                    departments.add(deptOpt.get());
+                }
+            }
+        }
+
+        var existingOpt = subscriberRepository.findByEmail(cleanEmail);
+        if (existingOpt.isPresent()) {
+            Subscriber existing = existingOpt.get();
+            existing.setSubscribedSites(new HashSet<>(sitesToAssign));
+            existing.setDepartments(departments);
+            if (!existing.isActive()) {
+                existing.setActive(true);
+            }
+            if (existing.getActivationToken() == null && existing.getPasswordHash() == null) {
+                existing.setActivationToken(UUID.randomUUID().toString());
+                existing.setTokenExpiry(LocalDateTime.now().plusDays(7));
+            }
+            importedList.add(existing);
+        } else {
+            Subscriber newSub = Subscriber.builder()
+                    .email(cleanEmail)
+                    .fullName(fullName.isBlank() ? cleanEmail.split("@")[0] : fullName)
+                    .subscribedSites(new HashSet<>(sitesToAssign))
+                    .departments(departments)
+                    .activationToken(UUID.randomUUID().toString())
+                    .tokenExpiry(LocalDateTime.now().plusDays(7))
+                    .active(true)
+                    .build();
+            importedList.add(newSub);
+        }
     }
 
     @Override
@@ -395,38 +513,25 @@ public class SubscriberServiceImpl implements SubscriberService {
         throw new ScrapingException("Oturum süreniz doldu. Lütfen tekrar giriş yapın.");
     }
 
-    private void processAndAddSubscriber(String email, String fullName, Set<SiteType> sitesToAssign, List<Subscriber> importedList) {
-        if (email == null || !email.contains("@") || email.length() < 5) {
-            return;
-        }
-        String cleanEmail = email.trim().toLowerCase();
-
-        var existingOpt = subscriberRepository.findByEmail(cleanEmail);
-        if (existingOpt.isPresent()) {
-            Subscriber existing = existingOpt.get();
-            existing.setSubscribedSites(new HashSet<>(sitesToAssign));
-            if (!existing.isActive()) {
-                existing.setActive(true);
-            }
-            if (existing.getActivationToken() == null && existing.getPasswordHash() == null) {
-                existing.setActivationToken(UUID.randomUUID().toString());
-                existing.setTokenExpiry(LocalDateTime.now().plusDays(7));
-            }
-            importedList.add(existing);
-        } else {
-            Subscriber newSub = Subscriber.builder()
-                    .email(cleanEmail)
-                    .fullName(fullName.isBlank() ? cleanEmail.split("@")[0] : fullName)
-                    .subscribedSites(new HashSet<>(sitesToAssign))
-                    .activationToken(UUID.randomUUID().toString())
-                    .tokenExpiry(LocalDateTime.now().plusDays(7))
-                    .active(true)
-                    .build();
-            importedList.add(newSub);
-        }
-    }
-
     private SubscriberResponseDto mapToDto(Subscriber entity) {
+        Set<SiteType> allSites = new HashSet<>(Arrays.asList(SiteType.values()));
+        List<DepartmentSummaryDto> deptSummaries = entity.getDepartments() != null
+                ? entity.getDepartments().stream()
+                .map(d -> DepartmentSummaryDto.builder()
+                        .id(d.getId())
+                        .name(d.getName())
+                        .sites(d.getSites() != null ? new HashSet<>(d.getSites()) : new HashSet<>())
+                        .build())
+                .toList()
+                : List.of();
+
+        Set<SiteType> deptSites = entity.getDepartments() != null
+                ? entity.getDepartments().stream()
+                .filter(d -> d.getSites() != null)
+                .flatMap(d -> d.getSites().stream())
+                .collect(java.util.stream.Collectors.toSet())
+                : Set.of();
+
         return SubscriberResponseDto.builder()
                 .id(entity.getId())
                 .email(entity.getEmail())
@@ -435,6 +540,10 @@ public class SubscriberServiceImpl implements SubscriberService {
                 .hasPasswordSet(entity.getPasswordHash() != null)
                 .activationToken(entity.getActivationToken())
                 .subscribedSites(entity.getSubscribedSites())
+                .departments(deptSummaries)
+                .isGeneralEmployee(entity.isGeneralEmployee())
+                .departmentSites(deptSites)
+                .effectiveSites(entity.getEffectiveSites(allSites))
                 .createdAt(entity.getCreatedAt())
                 .build();
     }

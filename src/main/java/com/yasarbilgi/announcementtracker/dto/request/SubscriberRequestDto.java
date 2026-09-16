@@ -26,4 +26,6 @@ public class SubscriberRequestDto {
     private String fullName;
 
     private Set<SiteType> subscribedSites;
+
+    private Set<Long> departmentIds;
 }

@@ -57,13 +57,29 @@ public class SubscriberController {
         return ResponseEntity.ok(ApiResponseDto.ok("Abone site tercihleri güncellendi.", response));
     }
 
+    @PatchMapping("/{id}/departments")
+    public ResponseEntity<ApiResponseDto<SubscriberResponseDto>> updateSubscriberDepartments(
+            @PathVariable Long id,
+            @RequestBody Set<Long> departmentIds) {
+        SubscriberResponseDto response = subscriberService.updateSubscriberDepartments(id, departmentIds);
+        return ResponseEntity.ok(ApiResponseDto.ok("Abone departman tercihleri güncellendi.", response));
+    }
+
     @PostMapping("/upload-excel")
-    public ResponseEntity<ApiResponseDto<Integer>> uploadExcelSubscribers(
+    public ResponseEntity<ApiResponseDto<com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto>> uploadExcelSubscribers(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             @RequestParam(value = "sites", required = false) List<SiteType> sites) {
         Set<SiteType> targetSites = (sites != null && !sites.isEmpty()) ? new java.util.HashSet<>(sites) : null;
-        int count = subscriberService.importSubscribersFromExcel(file, targetSites);
-        return ResponseEntity.ok(ApiResponseDto.ok(count + " adet e-posta abonesi başarıyla içe aktarıldı.", count));
+        com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto result = subscriberService.importSubscribersFromExcelDetailed(file, targetSites);
+        
+        String message;
+        if (result.getErrorCount() == 0) {
+            message = result.getSuccessCount() + " adet e-posta abonesi başarıyla içe aktarıldı.";
+        } else {
+            message = result.getSuccessCount() + " abone içe aktarıldı. " + result.getErrorCount() + " satırda doğrulama hatası oluştu.";
+        }
+        
+        return ResponseEntity.ok(ApiResponseDto.ok(message, result));
     }
 
     @GetMapping("/template-excel")
@@ -74,17 +90,26 @@ public class SubscriberController {
             org.apache.poi.ss.usermodel.Row header = sheet.createRow(0);
             header.createCell(0).setCellValue("E-Posta");
             header.createCell(1).setCellValue("Ad Soyad");
+            header.createCell(2).setCellValue("Departmanlar (Opsiyonel, Örn: Java, Backend)");
 
             org.apache.poi.ss.usermodel.Row row1 = sheet.createRow(1);
-            row1.createCell(0).setCellValue("ornek.abone1@firma.com");
-            row1.createCell(1).setCellValue("Örnek Ad Soyad 1");
+            row1.createCell(0).setCellValue("ornek.abone1@kurum.com");
+            row1.createCell(1).setCellValue("Abone 1");
+            row1.createCell(2).setCellValue("Java");
 
             org.apache.poi.ss.usermodel.Row row2 = sheet.createRow(2);
-            row2.createCell(0).setCellValue("ornek.abone2@firma.com");
-            row2.createCell(1).setCellValue("Örnek Ad Soyad 2");
+            row2.createCell(0).setCellValue("ornek.abone2@kurum.com");
+            row2.createCell(1).setCellValue("Abone 2");
+            row2.createCell(2).setCellValue("Java, Backend");
+
+            org.apache.poi.ss.usermodel.Row row3 = sheet.createRow(3);
+            row3.createCell(0).setCellValue("ornek.abone3@kurum.com");
+            row3.createCell(1).setCellValue("Abone 3");
+            row3.createCell(2).setCellValue(""); // Empty for Genel Çalışan
 
             sheet.autoSizeColumn(0);
             sheet.autoSizeColumn(1);
+            sheet.autoSizeColumn(2);
 
             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
             workbook.write(out);
