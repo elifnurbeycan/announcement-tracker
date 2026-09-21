@@ -27,7 +27,7 @@ public class SubscriberController {
         return ResponseEntity.ok(ApiResponseDto.ok("Subscribers retrieved", list));
     }
 
-    @PostMapping
+    @PostMapping({"", "/register"})
     public ResponseEntity<ApiResponseDto<SubscriberResponseDto>> addSubscriber(
             @Valid @RequestBody SubscriberRequestDto dto) {
         SubscriberResponseDto response = subscriberService.addSubscriber(dto);

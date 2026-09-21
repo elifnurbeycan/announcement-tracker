@@ -207,9 +207,11 @@ public class SubscriberServiceImpl implements SubscriberService {
         Subscriber subscriber = subscriberRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
 
-        Set<SiteType> newPreferences = (siteTypes != null && !siteTypes.isEmpty())
-                ? siteTypes
-                : new HashSet<>(Arrays.asList(SiteType.values()));
+        // Kişisel tercihler boş olabilir. Departman siteleri getEffectiveSites içinde
+        // her zaman birleştirildiği için kullanıcı zorunlu departman kapsamını kaldıramaz.
+        Set<SiteType> newPreferences = siteTypes != null
+                ? new HashSet<>(siteTypes)
+                : new HashSet<>();
 
         subscriber.setSubscribedSites(newPreferences);
         Subscriber updated = subscriberRepository.save(subscriber);
@@ -540,22 +542,6 @@ public class SubscriberServiceImpl implements SubscriberService {
             }
         }
 
-        // If it's a JWT token (e.g. from Keycloak)
-        if (userToken.contains(".")) {
-            Subscriber subscriber = subscriberRepository.findAll().stream().findFirst().orElse(null);
-            if (subscriber != null) {
-                return mapToDto(subscriber);
-            }
-            return SubscriberResponseDto.builder()
-                    .id(1L)
-                    .email("user@example.com")
-                    .fullName("Portal User")
-                    .active(true)
-                    .hasPasswordSet(true)
-                    .subscribedSites(new HashSet<>(Arrays.asList(SiteType.values())))
-                    .build();
-        }
-
         if (session != null) {
             activeUserSessions.remove(userToken);
         }
@@ -587,7 +573,6 @@ public class SubscriberServiceImpl implements SubscriberService {
                 .fullName(entity.getFullName())
                 .active(entity.isActive())
                 .hasPasswordSet(entity.getPasswordHash() != null)
-                .activationToken(entity.getActivationToken())
                 .subscribedSites(entity.getSubscribedSites())
                 .departments(deptSummaries)
                 .isGeneralEmployee(entity.isGeneralEmployee())

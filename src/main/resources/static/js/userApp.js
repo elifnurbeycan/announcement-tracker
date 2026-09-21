@@ -31,6 +31,23 @@ function UserDashboardApp() {
         const userData = window.AuthService.getUserData();
         setUser(userData);
 
+        const loadProfileAndSites = async () => {
+            try {
+                const [profile, sites] = await Promise.all([
+                    window.AuthService.getUserProfile(),
+                    window.AnnouncementService.getSites()
+                ]);
+                setUser(profile);
+                localStorage.setItem('userData', JSON.stringify(profile));
+                if (Array.isArray(sites)) {
+                    setAvailableSites(sites.map(site => typeof site === 'string' ? site : site.name));
+                }
+            } catch (error) {
+                console.error('Kullanıcı profili yüklenemedi:', error);
+            }
+        };
+        loadProfileAndSites();
+
         const hash = window.location.hash.replace('#/', '');
         if (hash && ['announcements', 'profile'].includes(hash)) {
             setActiveTab(hash);
@@ -71,6 +88,13 @@ function UserDashboardApp() {
     React.useEffect(() => {
         loadUserAnnouncements();
     }, [loadUserAnnouncements]);
+
+    const updatePreferences = async (siteTypes) => {
+        const updatedUser = await window.AuthService.updateUserPreferences(siteTypes);
+        setUser(updatedUser);
+        await loadUserAnnouncements();
+        return updatedUser;
+    };
 
     return (
         <div className="dashboard-container">
@@ -119,6 +143,7 @@ function UserDashboardApp() {
                             user={user}
                             role="ROLE_USER"
                             availableSites={availableSites}
+                            onUpdatePreferences={updatePreferences}
                         />
                     )}
                 </main>

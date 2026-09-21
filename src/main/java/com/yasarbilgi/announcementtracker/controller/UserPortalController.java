@@ -63,7 +63,7 @@ public class UserPortalController {
             @RequestParam(required = false) SiteType siteType,
             @org.springframework.data.web.PageableDefault(size = 10, sort = {"announcementDate", "id"}, direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
         SubscriberResponseDto user = subscriberService.validateUserToken(token);
-        Page<AnnouncementResponseDto> announcements = announcementService.getAnnouncementsForSites(user.getSubscribedSites(), siteType, pageable);
+        Page<AnnouncementResponseDto> announcements = announcementService.getAnnouncementsForSites(user.getEffectiveSites(), siteType, pageable);
         return ResponseEntity.ok(ApiResponseDto.ok("Duyurular listelendi.", announcements));
     }
 }

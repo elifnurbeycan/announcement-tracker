@@ -149,15 +149,6 @@ public class AuthServiceImpl implements AuthService {
             return session.userDto();
         }
 
-        // If it's a JWT token (e.g. from Keycloak)
-        if (token.contains(".")) {
-            return AdminUserDto.builder()
-                    .username("admin")
-                    .fullName("Super Admin")
-                    .lastLoginAt(LocalDateTime.now())
-                    .build();
-        }
-
         if (session != null) {
             activeSessions.remove(token);
         }

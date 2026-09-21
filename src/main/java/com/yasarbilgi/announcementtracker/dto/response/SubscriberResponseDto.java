@@ -21,7 +21,6 @@ public class SubscriberResponseDto {
     private String fullName;
     private boolean active;
     private boolean hasPasswordSet;
-    private String activationToken;
     private Set<SiteType> subscribedSites;
     private List<DepartmentSummaryDto> departments;
     private boolean isGeneralEmployee;

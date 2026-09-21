@@ -4,36 +4,68 @@
 window.ProfilePage = function ProfilePage({
     user = {},
     role = 'ROLE_ADMIN',
-    availableSites = []
+    availableSites = [],
+    onUpdatePreferences = null
 }) {
     React.useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-    }, [user, role, availableSites]);
+    }, []);
 
     const isAdmin = role === 'ROLE_ADMIN';
     const name = user.fullName || user.username || user.email || (isAdmin ? 'Süper Admin' : 'Kullanıcı');
     const email = user.email || (user.username ? `${user.username}@kurum.com` : 'admin@kurum.com');
     const roleText = isAdmin ? 'Süper Admin (Yönetici)' : 'Normal Çalışan (Abone)';
+    const normalizedSites = availableSites.map(site => typeof site === 'string' ? site : site.name);
+    const isGeneralEmployee = user.isGeneralEmployee ?? user.generalEmployee ?? ((user.departments || []).length === 0);
+    const departmentSites = new Set(
+        isGeneralEmployee
+            ? normalizedSites
+            : (user.departmentSites || (user.departments || []).flatMap(department => department.sites || []))
+    );
+    const [selectedAdditionalSites, setSelectedAdditionalSites] = React.useState(new Set());
+    const [saving, setSaving] = React.useState(false);
+    const [saveMessage, setSaveMessage] = React.useState('');
+
+    React.useEffect(() => {
+        const personalSites = user.subscribedSites || [];
+        setSelectedAdditionalSites(new Set(personalSites.filter(site => !departmentSites.has(site))));
+    }, [user, availableSites]);
 
     // Compute Effective Sources
     let effectiveSources = [];
     if (isAdmin) {
-        effectiveSources = availableSites.length > 0 ? availableSites : ['EBELGE_GIB', 'KOSGEB'];
+        effectiveSources = normalizedSites.length > 0 ? normalizedSites : ['EBELGE_GIB', 'KOSGEB'];
     } else {
-        const userDepts = user.departments || (user.departmentName ? [{ name: user.departmentName }] : []);
-        const isGeneralEmployee = userDepts.length === 0;
-
-        if (isGeneralEmployee) {
-            effectiveSources = availableSites.length > 0 ? availableSites : ['EBELGE_GIB', 'KOSGEB'];
-        } else {
-            const deptSites = userDepts.flatMap(d => d.assignedSites || []);
-            const personalSites = user.preferredSites || [];
-            effectiveSources = Array.from(new Set([...deptSites, ...personalSites]));
-            if (effectiveSources.length === 0) {
-                effectiveSources = availableSites;
-            }
-        }
+        effectiveSources = user.effectiveSites || Array.from(new Set([
+            ...departmentSites,
+            ...(user.subscribedSites || [])
+        ]));
     }
+
+    const toggleAdditionalSite = (site) => {
+        if (departmentSites.has(site)) return;
+        setSelectedAdditionalSites(current => {
+            const next = new Set(current);
+            if (next.has(site)) next.delete(site);
+            else next.add(site);
+            return next;
+        });
+        setSaveMessage('');
+    };
+
+    const savePreferences = async () => {
+        if (!onUpdatePreferences) return;
+        setSaving(true);
+        setSaveMessage('');
+        try {
+            await onUpdatePreferences(Array.from(selectedAdditionalSites));
+            setSaveMessage('Ek kaynak tercihleriniz kaydedildi.');
+        } catch (error) {
+            setSaveMessage(error.message || 'Tercihler kaydedilemedi.');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     return (
         <div style={{ maxWidth: '780px' }}>
@@ -107,6 +139,75 @@ window.ProfilePage = function ProfilePage({
                         </span>
                     ))}
                 </div>
+
+                {!isAdmin && (
+                    <div style={{ marginTop: '28px', paddingTop: '24px', borderTop: '1px solid var(--border-color)' }}>
+                        <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'white', marginBottom: '8px' }}>
+                            Ek Duyuru Kaynakları
+                        </h3>
+                        <p style={{ fontSize: '13px', color: 'var(--text-sub)', marginBottom: '16px', lineHeight: '1.6' }}>
+                            {isGeneralEmployee
+                                ? 'Genel çalışan olduğunuz için tüm kaynaklar zorunlu olarak aktiftir.'
+                                : 'Departmanınızın kaynakları zorunludur ve kapatılamaz. Bunlara ek olarak diğer kaynakları seçebilirsiniz.'}
+                        </p>
+
+                        <div className="preference-options">
+                            {normalizedSites.map(site => {
+                                const mandatory = departmentSites.has(site);
+                                const checked = mandatory || selectedAdditionalSites.has(site);
+                                return (
+                                    <label
+                                        key={site}
+                                        className={`preference-option ${mandatory ? 'is-mandatory' : ''} ${checked ? 'is-selected' : ''}`}
+                                    >
+                                        <span className="preference-option-main">
+                                            <input
+                                                className="preference-native-checkbox"
+                                                type="checkbox"
+                                                checked={checked}
+                                                disabled={mandatory}
+                                                onChange={() => toggleAdditionalSite(site)}
+                                            />
+                                            <span className="preference-checkbox" aria-hidden="true">
+                                                {checked && <span className="preference-check-mark">✓</span>}
+                                            </span>
+                                            <span className="preference-option-copy">
+                                                <strong>{site}</strong>
+                                                <small>{mandatory ? 'Departman kapsamınızdan gelir' : 'Kişisel ek bildirim tercihi'}</small>
+                                            </span>
+                                        </span>
+                                        {mandatory && (
+                                            <span className="preference-required-badge">
+                                                <span className="preference-lock-mark" aria-hidden="true">●</span>
+                                                {isGeneralEmployee ? 'GENEL ÇALIŞAN' : 'DEPARTMAN ZORUNLULUĞU'}
+                                            </span>
+                                        )}
+                                    </label>
+                                );
+                            })}
+                        </div>
+
+                        {!isGeneralEmployee && (
+                            <div className="preference-actions">
+                                <span className="preference-actions-hint">Değişiklikler yalnızca ek kaynaklarınızı etkiler.</span>
+                                <button className="btn-action-primary preference-save-button" onClick={savePreferences} disabled={saving}>
+                                    <span className={`preference-button-icon ${saving ? 'is-spinning' : ''}`} aria-hidden="true">
+                                        {saving ? '↻' : '✓'}
+                                    </span>
+                                    {saving ? 'Tercihler Kaydediliyor...' : 'Ek Tercihleri Kaydet'}
+                                </button>
+                            </div>
+                        )}
+                        {saveMessage && (
+                            <p className={`preference-feedback ${saveMessage.includes('kaydedildi') ? 'is-success' : 'is-error'}`}>
+                                <span className="preference-feedback-icon" aria-hidden="true">
+                                    {saveMessage.includes('kaydedildi') ? '✓' : '!'}
+                                </span>
+                                {saveMessage}
+                            </p>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

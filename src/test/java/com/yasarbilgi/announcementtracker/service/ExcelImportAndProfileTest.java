@@ -165,4 +165,11 @@ class ExcelImportAndProfileTest {
     void security_InvalidToken_ThrowsScrapingException() {
         assertThrows(ScrapingException.class, () -> subscriberService.validateUserToken("INVALID_TOKEN"));
     }
+
+    @Test
+    @DisplayName("Güvenlik: İmzası doğrulanmamış JWT benzeri token kullanıcı oturumu sayılmaz")
+    void security_ForgedJwtLikeToken_ThrowsScrapingException() {
+        assertThrows(ScrapingException.class,
+                () -> subscriberService.validateUserToken("Bearer forged.header.payload"));
+    }
 }

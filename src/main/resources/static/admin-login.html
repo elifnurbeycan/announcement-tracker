@@ -39,6 +39,11 @@
 
             useEffect(() => {
                 setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 50);
+                const sessionMessage = sessionStorage.getItem('sessionExpiredMessage');
+                if (sessionMessage) {
+                    setError(sessionMessage);
+                    sessionStorage.removeItem('sessionExpiredMessage');
+                }
             }, []);
 
             const handleLogin = async (e) => {
