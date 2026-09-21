@@ -1,26 +1,24 @@
 # e-Belge & KOSGEB Duyuru Takip Servisi 🔔
 
-Bu proje, Gelir İdaresi Başkanlığı (GİB) e-Belge portalı ve KOSGEB resmi duyurularını otomatik olarak izleyen, veritabanına kaydeden, performans odaklı **Spring Boot (Java 21)** ve **Modern Web Paneli** tabanlı kurumsal bir izleme ve e-posta bildirim sistemidir.
-
----
-
-## 📸 Ekran Görüntüleri
-
-### Kurumsal Yönetim Paneli
-![Yönetim Paneli](docs/images/dashboard-ui.png)
+Bu proje, Gelir İdaresi Başkanlığı (GİB) e-Belge portalı ve KOSGEB resmi duyurularını otomatik olarak izleyen, veritabanına kaydeden, performans odaklı **Spring Boot (Java 21)**, **Spring Security**, **PostgreSQL** ve **Modern Single-Page Dashboard** tabanlı kurumsal bir izleme ve e-posta bildirim sistemidir.
 
 ---
 
 ## 🚀 Temel Özellikler
 
 - **🌐 Çoklu Kaynak Web Kazıma (Multi-Source Scraping)**: GİB e-Belge ve KOSGEB portalı duyuruları, ek dosyaları (.pdf, .zip vb.) ve görselleri otomatik taranır.
-- **⚡ Akıllı Erken Çıkış (Early Exit)**: Taramalar esnasında veritabanında daha önce taranmış olan ilk duyuruya ulaşıldığı an **1 milisaniye** içinde tarama sonlandırılır.
+- **⚡ Akıllı Erken Çıkış (3 Üst Üste Var Olan Duyuru Kuralı)**: Taramalar esnasında veritabanında daha önce kaydedilmiş 3 üst üste duyuruya rastlandığında tarama anında sonlandırılır.
 - **🔀 Paralel Eş Zamanlı Kazıma**: `CompletableFuture` mimarisi ile tüm resmi siteler eş zamanlı (paralel) olarak taranır.
-- **✉️ Asenkron E-Posta Bildirimleri (`@Async`)**: Yeni duyurular oluştuğunda e-postalar arka planda ayrı thread pool (`emailExecutor`) üzerinde asenkron olarak gönderilir, kullanıcıyı bekletmez.
+- **🔐 Hibrit Güvenlik Altyapısı (`CustomTokenAuthenticationFilter`)**: Hem Keycloak OAuth2 hem de yerel token (`SA-TOKEN-...`, `USER-TOKEN-...`) ve Cookie tabanlı kimlik doğrulama.
+- **🏢 Departman ve Abone Portalı**:
+  - **Super Admin Paneli (`dashboard.html`)**: Duyuruları, aboneleri, departmanları, tarama sıklığını ve kaynakları yönetme.
+  - **Abone Portalı (`user-dashboard.html`)**: Çalışanların kendi takip tercihlerini ve ilgili duyuruları görüntüleyebildiği özel portal.
+- **🗑️ Toplu Seçim ve Silme (Bulk Delete)**: "Toplu Seç" düğmeli modüler arayüz ve koyu temalı `ConfirmModal` onay pop-up'ı ile toplu abone ve departman silme.
+- **✉️ Asenkron E-Posta Bildirimleri (`@Async`)**: Yeni duyurular oluştuğunda e-postalar arka planda ayrı thread pool (`emailExecutor`) üzerinde abonelerin tercih edilen site ve departmanlarına özel olarak asenkron iletilir.
 - **📦 Hibernate JDBC Batching**: Toplu duyuru eklemeleri `batch_size: 50` ile tek bir SQL paketinde iletilerek veritabanı yükü %90 azaltılır.
-- **📊 Dinamik Tarama Periyodu**: Tarama sıklığı (ör. 15 dk, 20 dk, 1 saat) yönetim panelinden anlık değiştirilebilir ve ayarlar saklanır.
-- **📁 Toplu Abone Aktarımı**: Excel (.xlsx, .xls) ve CSV dosyalarından toplu abone içe aktarma ve site bazlı tercih atama desteklenir.
-- **🧪 Otomatik E2E UI ve Unit Test Kapsamı**: Playwright Java SDK ile uçtan uca UI testleri ve 98 adet unit/entegrasyon testi ile %100 yeşil test altyapısı.
+- **📊 Dinamik Tarama Periyodu**: Tarama sıklığı (ör. 15 dk, 30 dk, 1 saat) yönetim panelinden anlık değiştirilebilir.
+- **📁 Toplu Abone Aktarımı**: Excel (.xlsx, .xls) ve CSV dosyalarından toplu abone içe aktarma ve şablon indirme desteği.
+- **🧪 Otomatik E2E UI ve Unit Test Kapsamı**: Playwright Java SDK ile uçtan uca UI testleri ve 98 adet unit/entegrasyon testi.
 
 ---
 
@@ -50,7 +48,7 @@ Proje **Strategy Pattern** ve **Spring Bean Auto-Registration** mimarisinde kurg
        public List<ScrapedAnnouncementDto> scrape(Predicate<String> hashExistsPredicate) {
            Document doc = fetchDocument(getSiteType().getBaseUrl());
            List<ScrapedAnnouncementDto> results = new ArrayList<>();
-           // Ayrıştırma ve hashExistsPredicate.test(contentHash) ile Erken Çıkış kontrolü
+           // Ayrıştırma ve hashExistsPredicate.test(contentHash) ile 3 üst üste Erken Çıkış kontrolü
            return results;
        }
    }
@@ -58,21 +56,22 @@ Proje **Strategy Pattern** ve **Spring Bean Auto-Registration** mimarisinde kurg
 
 ---
 
-## 🗄️ Veritabanı ve Normalizasyon (PostgreSQL)
+## 🗄️ Veritabanı ve Güvenlik Altyapısı
 
-- **1NF / 2NF / 3NF / BCNF Uyumlu**: İlişkisel veri yapısı 3NF ve BCNF standartlarına tam uygundur.
-- **`ON DELETE CASCADE`**: `subscriber_site_preferences` tablosunda veritabanı ve Hibernate seviyesinde güvenli silme kısıtlaması tanımlanmıştır.
+- **PostgreSQL 17**: 3NF ve BCNF standartlarında ilişkisel veri modeli.
+- **`ON DELETE CASCADE`**: İlişkili tablolarda (`subscriber_site_preferences`, `subscriber_departments`) güvenli silme kısıtlaması.
 - **Performans İndeksleri**: `idx_announcement_hash`, `idx_announcement_site`, `idx_announcement_notified` ve `idx_announcement_date` indeksleri ile yüksek hızlı sorgulama.
+- **Kimlik Doğrulama**: `CustomTokenAuthenticationFilter` ile Admin ve Abone rolleri için güvenli JWT/Token doğrulaması.
 
 ---
 
 ## 💻 Kullanılan Teknolojiler
 
-- **Backend**: Java 21, Spring Boot 3, Spring Data JPA, Spring Async
+- **Backend**: Java 21, Spring Boot 3, Spring Security, Spring Data JPA, Spring Async
 - **Database**: PostgreSQL 17
 - **Web Scraping**: Jsoup
 - **Testing**: Playwright Java SDK (E2E UI), JUnit 5, Mockito, AssertJ
-- **Frontend**: Single-Page Responsive UI (Vanilla CSS, Modern Glassmorphism Theme)
+- **Frontend**: Modular Single-Page Application (Vanilla JS / React Standalone, Custom Glassmorphism Dark Theme)
 - **Document Processing**: Apache POI (Excel / CSV parsing)
 
 ---
@@ -103,10 +102,11 @@ spring:
 ```bash
 ./mvnw spring-boot:run
 ```
-Uygulama başlatıldıktan sonra `http://localhost:8080` adresinden yönetim paneline erişebilirsiniz.
+Uygulama başlatıldıktan sonra panellere erişebilirsiniz:
+- **Yönetim Paneli (Super Admin)**: `http://localhost:8080/admin-login.html` (Varsayılan Kullanıcı: `admin` / Şifre: `admin123`)
+- **Abone Portalı**: `http://localhost:8080/user-login.html`
 
 ### 4. Testleri Çalıştırma (Unit + Playwright E2E UI)
 ```bash
-# E2E UI testleri varsayılan olarak yerel tarayıcı (Edge/Chrome) kanalını kullanır
 ./mvnw test
 ```
