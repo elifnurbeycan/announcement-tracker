@@ -6,6 +6,7 @@ import com.yasarbilgi.announcementtracker.service.SettingsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * Dinamik sistem ve tarama ayarları için REST denetleyici sınıfı.
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/settings")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
 public class SettingsController {
 
     private final SettingsService settingsService;

@@ -3,7 +3,7 @@
   "displayName": "Announcement Tracker Realm",
   "enabled": true,
   "sslRequired": "external",
-  "registrationAllowed": true,
+  "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
@@ -31,12 +31,27 @@
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false,
       "redirectUris": [
-        "http://localhost:8080/*",
-        "http://localhost:8180/*",
-        "*"
+        "http://localhost:8080/login/oauth2/code/keycloak"
       ],
       "webOrigins": [
-        "*"
+        "http://localhost:8080"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "announcement-tracker-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "announcement-tracker-app",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
       ],
       "defaultClientScopes": [
         "web-origins",
@@ -44,44 +59,35 @@
         "roles",
         "email"
       ]
+    },
+    {
+      "clientId": "announcement-tracker-admin",
+      "name": "Announcement Tracker User Provisioning Client",
+      "description": "Backend-only service account for subscriber lifecycle synchronization",
+      "enabled": true,
+      "secret": "${KEYCLOAK_ADMIN_CLIENT_SECRET}",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true,
+      "protocol": "openid-connect"
     }
   ],
   "users": [
     {
-      "username": "admin",
+      "username": "service-account-announcement-tracker-admin",
       "enabled": true,
-      "emailVerified": true,
-      "firstName": "Super",
-      "lastName": "Admin",
-      "email": "admin@announcementtracker.com",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "admin123",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "ROLE_SUPER_ADMIN"
-      ]
-    },
-    {
-      "username": "user@example.com",
-      "enabled": true,
-      "emailVerified": true,
-      "firstName": "Portal",
-      "lastName": "User",
-      "email": "user@example.com",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "user123",
-          "temporary": false
-        }
-      ],
-      "realmRoles": [
-        "ROLE_SUBSCRIBER"
-      ]
+      "serviceAccountClientId": "announcement-tracker-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "query-users",
+          "view-users"
+        ]
+      }
     }
   ]
 }

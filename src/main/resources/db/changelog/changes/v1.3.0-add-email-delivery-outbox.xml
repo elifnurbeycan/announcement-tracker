@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="1.3.0-create-email-delivery-outbox" author="announcement-tracker">
+        <createTable tableName="email_deliveries">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="announcement_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_email" type="VARCHAR(320)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(32)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attempt_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="next_attempt_at" type="TIMESTAMP"/>
+            <column name="processing_started_at" type="TIMESTAMP"/>
+            <column name="last_error" type="VARCHAR(1000)"/>
+            <column name="sent_at" type="TIMESTAMP"/>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="email_deliveries"
+                baseColumnNames="announcement_id"
+                constraintName="fk_email_delivery_announcement"
+                referencedTableName="announcements"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+
+        <addUniqueConstraint
+                tableName="email_deliveries"
+                columnNames="announcement_id, recipient_email"
+                constraintName="uk_email_delivery_announcement_recipient"/>
+
+        <createIndex indexName="idx_email_delivery_due" tableName="email_deliveries">
+            <column name="status"/>
+            <column name="next_attempt_at"/>
+        </createIndex>
+        <createIndex indexName="idx_email_delivery_announcement" tableName="email_deliveries">
+            <column name="announcement_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

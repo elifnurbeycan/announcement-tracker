@@ -64,6 +64,20 @@ window.SubscriberModal = function SubscriberModal({
                 </div>
 
                 <form onSubmit={handleSubmit}>
+                    {!editSubscriber && (
+                        <div style={{
+                            marginBottom: '16px',
+                            padding: '10px 12px',
+                            borderRadius: '9px',
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.25)',
+                            color: '#93c5fd',
+                            fontSize: '12px',
+                            lineHeight: '1.5'
+                        }}>
+                            Kurumsal giriş hesabı kaydetme sırasında güvenli biçimde arka planda oluşturulur.
+                        </div>
+                    )}
                     <div className="form-group">
                         <label className="form-label">Ad Soyad</label>
                         <input 
@@ -439,4 +453,3 @@ window.ConfirmModal = function ConfirmModal({
         </div>
     );
 };
-

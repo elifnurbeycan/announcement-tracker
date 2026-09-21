@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.Set;
 @RestController
 @RequestMapping(value = "/api/v1/departments", produces = "application/json;charset=UTF-8")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
 public class DepartmentController {
 
     private final DepartmentService departmentService;

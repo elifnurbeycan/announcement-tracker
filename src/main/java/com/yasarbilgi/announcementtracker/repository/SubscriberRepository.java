@@ -14,6 +14,8 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, Long> {
 
     Optional<Subscriber> findByActivationToken(String activationToken);
 
+    List<Subscriber> findByActivationTokenIsNotNull();
+
     boolean existsByEmail(String email);
 
     List<Subscriber> findByActiveTrue();

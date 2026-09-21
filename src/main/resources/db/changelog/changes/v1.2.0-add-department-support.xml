@@ -7,6 +7,16 @@
 
     <changeSet id="1.2.0-create-department-schema" author="announcement-tracker">
 
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <and>
+                    <tableExists tableName="departments"/>
+                    <tableExists tableName="department_sites"/>
+                    <tableExists tableName="subscriber_departments"/>
+                </and>
+            </not>
+        </preConditions>
+
         <!-- Table: departments -->
         <createTable tableName="departments">
             <column name="id" type="BIGINT" autoIncrement="true">

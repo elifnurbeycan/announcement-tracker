@@ -6,10 +6,13 @@ import com.yasarbilgi.announcementtracker.entity.Announcement;
 import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
+import com.yasarbilgi.announcementtracker.enums.SiteType;
 import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
 import com.yasarbilgi.announcementtracker.repository.AnnouncementRepository;
+import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.EmailService;
+import com.yasarbilgi.announcementtracker.service.KeycloakAdminService;
 import com.yasarbilgi.announcementtracker.service.impl.SubscriberServiceImpl;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +47,12 @@ class SubscriberServiceImplTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private DepartmentRepository departmentRepository;
+
+    @Mock
+    private KeycloakAdminService keycloakAdminService;
+
     @InjectMocks
     private SubscriberServiceImpl subscriberService;
 
@@ -72,20 +81,14 @@ class SubscriberServiceImplTest {
         when(subscriberRepository.existsByEmail("test@example.com")).thenReturn(false);
         when(subscriberRepository.save(any(Subscriber.class))).thenReturn(subscriber);
 
-        Announcement announcement = Announcement.builder()
-                .id(100L)
-                .title("Duyuru")
-                .sourceSite(SiteType.EBELGE_GIB)
-                .build();
-        when(announcementRepository.findAll()).thenReturn(List.of(announcement));
-
         SubscriberResponseDto response = subscriberService.addSubscriber(dto);
 
         assertThat(response).isNotNull();
         assertThat(response.getEmail()).isEqualTo("test@example.com");
 
         verify(subscriberRepository, times(1)).save(any(Subscriber.class));
-        verify(emailService, times(1)).sendSingleAnnouncementNotification(eq(announcement), anyList());
+        verify(keycloakAdminService).provisionSubscriber("test@example.com", "Test User", true);
+        verify(emailService).sendWelcomeAndActivationEmail(eq("test@example.com"), eq("Test User"), anyString());
     }
 
     @Test
@@ -116,15 +119,8 @@ class SubscriberServiceImplTest {
 
         when(subscriberRepository.existsByEmail("test@example.com")).thenReturn(false);
         when(subscriberRepository.save(any(Subscriber.class))).thenReturn(subscriber);
-
-        Announcement announcement = Announcement.builder()
-                .id(100L)
-                .title("Duyuru")
-                .sourceSite(SiteType.EBELGE_GIB)
-                .build();
-        when(announcementRepository.findAll()).thenReturn(List.of(announcement));
         doThrow(new RuntimeException("Mail server down"))
-                .when(emailService).sendSingleAnnouncementNotification(any(), anyList());
+                .when(emailService).sendWelcomeAndActivationEmail(anyString(), anyString(), anyString());
 
         SubscriberResponseDto response = subscriberService.addSubscriber(dto);
 
@@ -218,6 +214,7 @@ class SubscriberServiceImplTest {
 
         assertThat(subscriber.isActive()).isFalse();
         verify(subscriberRepository).save(subscriber);
+        verify(keycloakAdminService).provisionSubscriber("test@example.com", "Test User", false);
     }
 
     @Test
@@ -236,6 +233,7 @@ class SubscriberServiceImplTest {
 
         subscriberService.deleteSubscriber(1L);
 
+        verify(keycloakAdminService).deleteUserInKeycloak("test@example.com");
         verify(subscriberRepository).delete(subscriber);
     }
 

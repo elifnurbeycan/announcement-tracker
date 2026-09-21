@@ -11,7 +11,14 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {
+                "keycloak.admin.enabled=false",
+                "app.security.sso-enabled=false",
+                "app.security.local-login-enabled=true",
+                "announcement.tracker.enabled=false"
+        })
 class DashboardUiE2eTest {
 
     @LocalServerPort
@@ -211,7 +218,7 @@ class DashboardUiE2eTest {
         // Toast verification
         Locator toast = page.locator(".toast");
         toast.waitFor();
-        assertThat(toast.innerText()).contains("Abone oluşturuldu");
+        assertThat(toast.innerText()).contains("Abone ve kurumsal giriş hesabı oluşturuldu");
 
         // Verify subscriber appears in table
         page.fill("input[placeholder*='filtrele']", uniqueEmail);

@@ -16,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.csrf.DefaultCsrfToken;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.util.List;
@@ -149,13 +150,26 @@ class SubscriberControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/v1/subscribers/unsubscribe - HTML abonelik iptal sayfası")
-    void unsubscribeHtml_ShouldReturnHtmlString() {
+    @DisplayName("GET /api/v1/subscribers/unsubscribe - Yalnızca güvenli onay sayfasını gösterir")
+    void unsubscribeHtml_ShouldNotChangeSubscription() {
+        DefaultCsrfToken csrfToken = new DefaultCsrfToken("X-XSRF-TOKEN", "_csrf", "csrf-value");
+
+        ResponseEntity<String> response = subscriberController.unsubscribeHtml("test@example.com", csrfToken);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).contains("Abonelikten Çık", "csrf-value", "method='post'");
+        verify(subscriberService, never()).unsubscribeByEmail(anyString());
+    }
+
+    @Test
+    @DisplayName("POST /api/v1/subscribers/unsubscribe/confirm - Onay sonrası aboneliği iptal eder")
+    void unsubscribeConfirm_ShouldDeactivateSubscriber() {
         when(subscriberService.unsubscribeByEmail("test@example.com")).thenReturn(true);
 
-        ResponseEntity<String> response = subscriberController.unsubscribeHtml("test@example.com");
+        ResponseEntity<String> response = subscriberController.unsubscribeConfirm("test@example.com");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("Abonelik İptal Edildi");
+        verify(subscriberService).unsubscribeByEmail("test@example.com");
     }
 }

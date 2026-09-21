@@ -8,6 +8,8 @@ public interface AuthService {
 
     LoginResponseDto login(LoginRequestDto request);
 
+    LoginResponseDto createOidcSession(String username);
+
     void logout(String token);
 
     AdminUserDto validateToken(String token);

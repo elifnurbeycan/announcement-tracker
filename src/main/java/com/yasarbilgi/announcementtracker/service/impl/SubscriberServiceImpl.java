@@ -1,13 +1,22 @@
 package com.yasarbilgi.announcementtracker.service.impl;
 
+import com.yasarbilgi.announcementtracker.dto.request.SetPasswordRequestDto;
 import com.yasarbilgi.announcementtracker.dto.request.SubscriberRequestDto;
+import com.yasarbilgi.announcementtracker.dto.request.UserLoginRequestDto;
+import com.yasarbilgi.announcementtracker.dto.response.DepartmentSummaryDto;
+import com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto;
 import com.yasarbilgi.announcementtracker.dto.response.SubscriberResponseDto;
+import com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto;
+import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
 import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
+import com.yasarbilgi.announcementtracker.exception.ScrapingException;
 import com.yasarbilgi.announcementtracker.repository.AnnouncementRepository;
+import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.EmailService;
+import com.yasarbilgi.announcementtracker.service.KeycloakAdminService;
 import com.yasarbilgi.announcementtracker.service.SubscriberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,22 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import com.yasarbilgi.announcementtracker.dto.request.SetPasswordRequestDto;
-import com.yasarbilgi.announcementtracker.dto.request.UserLoginRequestDto;
-import com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto;
-import com.yasarbilgi.announcementtracker.exception.ScrapingException;
-import com.yasarbilgi.announcementtracker.util.PasswordEncoderHelper;
-
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-
-import com.yasarbilgi.announcementtracker.dto.response.DepartmentSummaryDto;
-import com.yasarbilgi.announcementtracker.entity.Department;
-import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -42,18 +39,10 @@ public class SubscriberServiceImpl implements SubscriberService {
     private final DepartmentRepository departmentRepository;
     private final AnnouncementRepository announcementRepository;
     private final EmailService emailService;
-    private final PasswordEncoderHelper passwordEncoderHelper;
-    private final com.yasarbilgi.announcementtracker.service.KeycloakAdminService keycloakAdminService;
-    private final org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+    private final KeycloakAdminService keycloakAdminService;
 
-    @org.springframework.beans.factory.annotation.Value("${keycloak.auth-server-url:http://localhost:8180}")
-    private String keycloakServerUrl;
-
-    @org.springframework.beans.factory.annotation.Value("${keycloak.realm:announcement-tracker-realm}")
-    private String keycloakRealm;
-
-    @org.springframework.beans.factory.annotation.Value("${keycloak.client-id:announcement-tracker-app}")
-    private String keycloakClientId;
+    @org.springframework.beans.factory.annotation.Value("${announcement.tracker.app-base-url:http://localhost:8080}")
+    private String appBaseUrl = "http://localhost:8080";
 
     private final Map<String, UserSessionInfo> activeUserSessions = new ConcurrentHashMap<>();
 
@@ -62,6 +51,8 @@ public class SubscriberServiceImpl implements SubscriberService {
     @Override
     @Transactional
     public SubscriberResponseDto addSubscriber(SubscriberRequestDto dto) {
+        String normalizedEmail = dto.getEmail().trim().toLowerCase(Locale.ROOT);
+        dto.setEmail(normalizedEmail);
         Subscriber saved;
         Set<SiteType> preferredSites = (dto.getSubscribedSites() != null && !dto.getSubscribedSites().isEmpty())
                 ? dto.getSubscribedSites()
@@ -72,47 +63,35 @@ public class SubscriberServiceImpl implements SubscriberService {
             assignedDepts = new HashSet<>(departmentRepository.findAllById(dto.getDepartmentIds()));
         }
 
-        if (subscriberRepository.existsByEmail(dto.getEmail())) {
-            log.info("Subscriber email already exists: {}", dto.getEmail());
-            saved = subscriberRepository.findByEmail(dto.getEmail()).orElseThrow();
+        if (subscriberRepository.existsByEmail(normalizedEmail)) {
+            log.info("Subscriber email already exists: {}", normalizedEmail);
+            saved = subscriberRepository.findByEmail(normalizedEmail).orElseThrow();
+            saved.setFullName(dto.getFullName() != null ? dto.getFullName().trim() : saved.getFullName());
             saved.setSubscribedSites(preferredSites);
             saved.setDepartments(assignedDepts);
             if (!saved.isActive()) {
                 saved.setActive(true);
             }
-            if (saved.getActivationToken() == null) {
-                saved.setActivationToken(UUID.randomUUID().toString());
-                saved.setTokenExpiry(LocalDateTime.now().plusDays(7));
-            }
             subscriberRepository.save(saved);
         } else {
-            String token = UUID.randomUUID().toString();
             Subscriber subscriber = Subscriber.builder()
                     .email(dto.getEmail())
                     .fullName(dto.getFullName())
                     .subscribedSites(preferredSites)
                     .departments(assignedDepts)
-                    .activationToken(token)
-                    .tokenExpiry(LocalDateTime.now().plusDays(7))
                     .active(true)
                     .build();
             saved = subscriberRepository.save(subscriber);
             log.info("New subscriber registered: {} with preferences: {}", saved.getEmail(), preferredSites);
         }
 
-        // Send welcome email with activation token for setting user portal password
+        keycloakAdminService.provisionSubscriber(saved.getEmail(), saved.getFullName(), saved.isActive());
+
         try {
-            if (saved.getActivationToken() != null) {
-                emailService.sendWelcomeAndActivationEmail(saved.getEmail(), saved.getFullName(), saved.getActivationToken());
-            }
-            var latest = announcementRepository.findAll().stream().findFirst();
-            latest.ifPresent(announcement -> {
-                if (saved.getSubscribedSites().contains(announcement.getSourceSite())) {
-                    emailService.sendSingleAnnouncementNotification(announcement, List.of(saved.getEmail()));
-                }
-            });
+            String customSetPasswordUrl = appBaseUrl + "/set-password.html?email=" + java.net.URLEncoder.encode(saved.getEmail(), java.nio.charset.StandardCharsets.UTF_8);
+            emailService.sendWelcomeAndActivationEmail(saved.getEmail(), saved.getFullName(), customSetPasswordUrl);
         } catch (Exception e) {
-            log.error("Failed to send welcome email notification to {}: {}", saved.getEmail(), e.getMessage());
+            log.error("Failed to send welcome password setup email notification to {}: {}", saved.getEmail(), e.getMessage());
         }
 
         return mapToDto(saved);
@@ -123,6 +102,7 @@ public class SubscriberServiceImpl implements SubscriberService {
     public SubscriberResponseDto updateSubscriber(Long id, SubscriberRequestDto dto) {
         Subscriber subscriber = subscriberRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
+        String previousEmail = subscriber.getEmail();
 
         if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
             String newEmail = dto.getEmail().trim().toLowerCase();
@@ -148,6 +128,8 @@ public class SubscriberServiceImpl implements SubscriberService {
             subscriber.setDepartments(newDepts);
         }
 
+        keycloakAdminService.updateSubscriber(
+                previousEmail, subscriber.getEmail(), subscriber.getFullName(), subscriber.isActive());
         Subscriber updated = subscriberRepository.save(subscriber);
         log.info("Subscriber ID: {} updated successfully.", id);
         return mapToDto(updated);
@@ -164,14 +146,7 @@ public class SubscriberServiceImpl implements SubscriberService {
         Subscriber subscriber = subscriberRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
 
-        try {
-            if (keycloakAdminService != null && subscriber.getEmail() != null) {
-                keycloakAdminService.deleteUserInKeycloak(subscriber.getEmail());
-            }
-        } catch (Exception e) {
-            log.warn("Could not delete user '{}' from Keycloak: {}", subscriber.getEmail(), e.getMessage());
-        }
-
+        keycloakAdminService.deleteUserInKeycloak(subscriber.getEmail());
         subscriberRepository.delete(subscriber);
         log.info("Deleted subscriber with ID: {} and email: {}", id, subscriber.getEmail());
     }
@@ -190,12 +165,13 @@ public class SubscriberServiceImpl implements SubscriberService {
         log.info("Toplu abone silme tamamlandı. Toplam talep edilen: {}", ids.size());
     }
 
-
     @Override
     @Transactional
     public void toggleSubscriberStatus(Long id, boolean active) {
         Subscriber subscriber = subscriberRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
+        keycloakAdminService.provisionSubscriber(
+                subscriber.getEmail(), subscriber.getFullName(), active);
         subscriber.setActive(active);
         subscriberRepository.save(subscriber);
         log.info("Updated subscriber status ID: {} active: {}", id, active);
@@ -207,8 +183,6 @@ public class SubscriberServiceImpl implements SubscriberService {
         Subscriber subscriber = subscriberRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
 
-        // Kişisel tercihler boş olabilir. Departman siteleri getEffectiveSites içinde
-        // her zaman birleştirildiği için kullanıcı zorunlu departman kapsamını kaldıramaz.
         Set<SiteType> newPreferences = siteTypes != null
                 ? new HashSet<>(siteTypes)
                 : new HashSet<>();
@@ -246,6 +220,8 @@ public class SubscriberServiceImpl implements SubscriberService {
         var opt = subscriberRepository.findByEmail(cleaned);
         if (opt.isPresent()) {
             Subscriber sub = opt.get();
+            keycloakAdminService.provisionSubscriber(
+                    sub.getEmail(), sub.getFullName(), false);
             sub.setActive(false);
             subscriberRepository.save(sub);
             log.info("Abonelik başarıyla iptal edildi: {}", cleaned);
@@ -269,7 +245,7 @@ public class SubscriberServiceImpl implements SubscriberService {
 
     @Override
     @Transactional
-    public com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto importSubscribersFromExcelDetailed(MultipartFile file, Set<SiteType> targetSites) {
+    public ExcelImportResultDto importSubscribersFromExcelDetailed(MultipartFile file, Set<SiteType> targetSites) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Yüklenen dosya boş olamaz.");
         }
@@ -308,9 +284,7 @@ public class SubscriberServiceImpl implements SubscriberService {
             } else {
                 try (org.apache.poi.ss.usermodel.Workbook workbook = org.apache.poi.ss.usermodel.WorkbookFactory.create(file.getInputStream())) {
                     org.apache.poi.ss.usermodel.Sheet sheet = workbook.getSheetAt(0);
-                    int rowNum = 0;
                     for (org.apache.poi.ss.usermodel.Row row : sheet) {
-                        rowNum++;
                         if (row == null) continue;
                         org.apache.poi.ss.usermodel.Cell cell0 = row.getCell(0);
                         org.apache.poi.ss.usermodel.Cell cell1 = row.getCell(1);
@@ -339,7 +313,7 @@ public class SubscriberServiceImpl implements SubscriberService {
                             fullName = val0;
                         }
 
-                        processExcelRow(rowNum, email, fullName, rawDepts, sitesToAssign, importedList, errorsList);
+                        processExcelRow(totalRows, email, fullName, rawDepts, sitesToAssign, importedList, errorsList);
                     }
                 }
             }
@@ -350,10 +324,12 @@ public class SubscriberServiceImpl implements SubscriberService {
 
         if (!importedList.isEmpty()) {
             subscriberRepository.saveAll(importedList);
+            importedList.forEach(subscriber -> keycloakAdminService.provisionSubscriber(
+                    subscriber.getEmail(), subscriber.getFullName(), subscriber.isActive()));
             log.info("Toplu yükleme ile {} yeni/güncel abone kaydedildi. Atanan siteler: {}", importedList.size(), sitesToAssign);
         }
 
-        return com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto.builder()
+        return ExcelImportResultDto.builder()
                 .totalRows(totalRows)
                 .successCount(importedList.size())
                 .errorCount(errorsList.size())
@@ -398,10 +374,6 @@ public class SubscriberServiceImpl implements SubscriberService {
             if (!existing.isActive()) {
                 existing.setActive(true);
             }
-            if (existing.getActivationToken() == null && existing.getPasswordHash() == null) {
-                existing.setActivationToken(UUID.randomUUID().toString());
-                existing.setTokenExpiry(LocalDateTime.now().plusDays(7));
-            }
             importedList.add(existing);
         } else {
             Subscriber newSub = Subscriber.builder()
@@ -409,8 +381,6 @@ public class SubscriberServiceImpl implements SubscriberService {
                     .fullName(fullName.isBlank() ? cleanEmail.split("@")[0] : fullName)
                     .subscribedSites(new HashSet<>(sitesToAssign))
                     .departments(departments)
-                    .activationToken(UUID.randomUUID().toString())
-                    .tokenExpiry(LocalDateTime.now().plusDays(7))
                     .active(true)
                     .build();
             importedList.add(newSub);
@@ -420,31 +390,24 @@ public class SubscriberServiceImpl implements SubscriberService {
     @Override
     @Transactional
     public SubscriberResponseDto setPasswordWithToken(SetPasswordRequestDto dto) {
-        if (dto.getToken() == null || dto.getToken().isBlank()) {
-            throw new ScrapingException("Aktivasyon jetonu gereklidir.");
-        }
-        Subscriber subscriber = subscriberRepository.findByActivationToken(dto.getToken().trim())
-                .orElseThrow(() -> new ScrapingException("Geçersiz veya süresi dolmuş aktivasyon jetonu."));
+        String targetEmail = (dto.getEmail() != null && !dto.getEmail().isBlank()) 
+                ? dto.getEmail().trim().toLowerCase() 
+                : (dto.getToken() != null ? dto.getToken().trim().toLowerCase() : "");
 
-        if (subscriber.getTokenExpiry() != null && subscriber.getTokenExpiry().isBefore(LocalDateTime.now())) {
-            throw new ScrapingException("Aktivasyon jetonunun süresi dolmuş. Lütfen yeni şifre sıfırlama talep edin.");
+        if (targetEmail.isBlank()) {
+            throw new ScrapingException("E-posta adresi veya jeton gereklidir.");
         }
 
-        subscriber.setPasswordHash(passwordEncoderHelper.encode(dto.getPassword()));
+        Subscriber subscriber = subscriberRepository.findByEmail(targetEmail)
+                .or(() -> subscriberRepository.findByActivationToken(targetEmail))
+                .orElseThrow(() -> new ScrapingException("Geçersiz veya bulunamayan kullanıcı/jeton."));
+
         subscriber.setActivationToken(null);
         subscriber.setTokenExpiry(null);
         Subscriber updated = subscriberRepository.save(subscriber);
 
-        // Auto-sync user identity and credentials to Keycloak
-        try {
-            if (keycloakAdminService != null) {
-                keycloakAdminService.createOrUpdateUserInKeycloak(updated.getEmail(), dto.getPassword(), updated.getFullName());
-            }
-        } catch (Exception e) {
-            log.warn("Could not auto-sync user '{}' to Keycloak during password set: {}", updated.getEmail(), e.getMessage());
-        }
-
-        log.info("User portal password successfully set and synced to Keycloak for subscriber: {}", updated.getEmail());
+        keycloakAdminService.setSubscriberPassword(updated.getEmail(), dto.getPassword(), updated.getFullName());
+        log.info("User portal password successfully set and stored in Keycloak for subscriber: {}", updated.getEmail());
         return mapToDto(updated);
     }
 
@@ -452,69 +415,22 @@ public class SubscriberServiceImpl implements SubscriberService {
     public UserLoginResponseDto loginUser(UserLoginRequestDto dto) {
         String cleanEmail = dto.getEmail().trim().toLowerCase();
 
-        // 1. Try Keycloak Direct Access Grant Token endpoint if Keycloak is reachable
-        try {
-            String tokenUrl = String.format("%s/realms/%s/protocol/openid-connect/token", keycloakServerUrl, keycloakRealm);
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
-
-            org.springframework.util.MultiValueMap<String, String> params = new org.springframework.util.LinkedMultiValueMap<>();
-            params.add("grant_type", "password");
-            params.add("client_id", keycloakClientId);
-            params.add("username", cleanEmail);
-            params.add("password", dto.getPassword());
-
-            org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> entity = new org.springframework.http.HttpEntity<>(params, headers);
-            org.springframework.http.ResponseEntity<Map> response = restTemplate.postForEntity(tokenUrl, entity, Map.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null && response.getBody().containsKey("access_token")) {
-                String token = (String) response.getBody().get("access_token");
-                log.info("Successfully authenticated Subscriber '{}' via Keycloak OAuth2.", cleanEmail);
-
-                Subscriber subscriber = subscriberRepository.findByEmail(cleanEmail).orElse(null);
-                Long subId = subscriber != null ? subscriber.getId() : 1L;
-                String fullName = subscriber != null ? subscriber.getFullName() : cleanEmail;
-                Set<SiteType> sites = subscriber != null ? subscriber.getSubscribedSites() : new HashSet<>(Arrays.asList(SiteType.values()));
-
-                activeUserSessions.put(token, new UserSessionInfo(subId, LocalDateTime.now().plusDays(7)));
-
-                return UserLoginResponseDto.builder()
-                        .token(token)
-                        .id(subId)
-                        .email(cleanEmail)
-                        .fullName(fullName)
-                        .subscribedSites(sites)
-                        .build();
-            }
-        } catch (Exception e) {
-            log.debug("Keycloak subscriber authentication server unavailable or failed, falling back to local database auth: {}", e.getMessage());
-        }
-
         Subscriber subscriber = subscriberRepository.findByEmail(cleanEmail)
                 .orElseThrow(() -> new ScrapingException("Geçersiz e-posta veya şifre."));
-
-        if (subscriber.getPasswordHash() == null || !passwordEncoderHelper.matches(dto.getPassword(), subscriber.getPasswordHash())) {
-            throw new ScrapingException("Geçersiz e-posta veya şifre.");
-        }
 
         if (!subscriber.isActive()) {
             throw new ScrapingException("Aboneliğiniz pasif durumdadır. Lütfen müşteri hizmetleri ile iletişime geçin.");
         }
 
-        // Auto-migrate existing subscriber to Keycloak upon successful local login
-        try {
-            if (keycloakAdminService != null) {
-                keycloakAdminService.createOrUpdateUserInKeycloak(subscriber.getEmail(), dto.getPassword(), subscriber.getFullName());
-                log.info("Auto-migrated existing subscriber '{}' to Keycloak upon login.", subscriber.getEmail());
-            }
-        } catch (Exception e) {
-            log.warn("Could not auto-migrate user '{}' to Keycloak during login: {}", subscriber.getEmail(), e.getMessage());
+        boolean authenticated = keycloakAdminService.authenticateUser(cleanEmail, dto.getPassword());
+        if (!authenticated) {
+            throw new ScrapingException("Geçersiz e-posta veya şifre.");
         }
 
         String userToken = "USER-TOKEN-" + UUID.randomUUID();
         activeUserSessions.put(userToken, new UserSessionInfo(subscriber.getId(), LocalDateTime.now().plusDays(7)));
 
-        log.info("User portal login successful for: {}", cleanEmail);
+        log.info("User portal login successful for: {} via Keycloak background auth", cleanEmail);
 
         return UserLoginResponseDto.builder()
                 .token(userToken)
@@ -548,6 +464,38 @@ public class SubscriberServiceImpl implements SubscriberService {
         throw new ScrapingException("Oturum süreniz doldu. Lütfen tekrar giriş yapın.");
     }
 
+    @Override
+    public UserLoginResponseDto createOidcSession(String email) {
+        String cleanEmail = email == null ? "" : email.trim().toLowerCase();
+        Subscriber subscriber = subscriberRepository.findByEmail(cleanEmail)
+                .orElseThrow(() -> new ScrapingException("OIDC kullanıcısı yerel çalışan kaydıyla eşleşmiyor."));
+        if (!subscriber.isActive()) {
+            throw new ScrapingException("Aboneliğiniz pasif durumdadır.");
+        }
+
+        String sessionToken = "USER-TOKEN-" + UUID.randomUUID();
+        activeUserSessions.put(sessionToken, new UserSessionInfo(subscriber.getId(), LocalDateTime.now().plusDays(7)));
+
+        return UserLoginResponseDto.builder()
+                .token(sessionToken)
+                .id(subscriber.getId())
+                .email(subscriber.getEmail())
+                .fullName(subscriber.getFullName())
+                .subscribedSites(subscriber.getSubscribedSites())
+                .build();
+    }
+
+    @Override
+    public void logoutUser(String userToken) {
+        if (userToken != null && userToken.startsWith("Bearer ")) {
+            userToken = userToken.substring(7);
+        }
+        if (userToken != null) {
+            activeUserSessions.remove(userToken);
+            log.info("User session token invalidated.");
+        }
+    }
+
     private SubscriberResponseDto mapToDto(Subscriber entity) {
         Set<SiteType> allSites = new HashSet<>(Arrays.asList(SiteType.values()));
         List<DepartmentSummaryDto> deptSummaries = entity.getDepartments() != null
@@ -564,7 +512,7 @@ public class SubscriberServiceImpl implements SubscriberService {
                 ? entity.getDepartments().stream()
                 .filter(d -> d.getSites() != null)
                 .flatMap(d -> d.getSites().stream())
-                .collect(java.util.stream.Collectors.toSet())
+                .collect(Collectors.toSet())
                 : Set.of();
 
         return SubscriberResponseDto.builder()

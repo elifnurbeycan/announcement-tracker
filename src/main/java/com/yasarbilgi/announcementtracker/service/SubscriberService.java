@@ -39,6 +39,10 @@ public interface SubscriberService {
 
     com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto loginUser(com.yasarbilgi.announcementtracker.dto.request.UserLoginRequestDto dto);
 
+    com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto createOidcSession(String email);
+
+    void logoutUser(String token);
+
     SubscriberResponseDto validateUserToken(String userToken);
 
     SubscriberResponseDto updateSubscriberDepartments(Long id, Set<Long> departmentIds);

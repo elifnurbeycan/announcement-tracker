@@ -6,6 +6,15 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <changeSet id="1.1.0-add-subscriber-auth-fields" author="announcement-tracker">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <and>
+                    <columnExists tableName="subscribers" columnName="password_hash"/>
+                    <columnExists tableName="subscribers" columnName="activation_token"/>
+                    <columnExists tableName="subscribers" columnName="token_expiry"/>
+                </and>
+            </not>
+        </preConditions>
         <addColumn tableName="subscribers">
             <column name="password_hash" type="VARCHAR(255)"/>
             <column name="activation_token" type="VARCHAR(255)"/>

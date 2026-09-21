@@ -9,6 +9,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.util.HtmlUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,12 +25,14 @@ public class SubscriberController {
     private final SubscriberService subscriberService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<List<SubscriberResponseDto>>> getAllSubscribers() {
         List<SubscriberResponseDto> list = subscriberService.getAllSubscribers();
         return ResponseEntity.ok(ApiResponseDto.ok("Subscribers retrieved", list));
     }
 
     @PostMapping({"", "/register"})
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<SubscriberResponseDto>> addSubscriber(
             @Valid @RequestBody SubscriberRequestDto dto) {
         SubscriberResponseDto response = subscriberService.addSubscriber(dto);
@@ -36,6 +41,7 @@ public class SubscriberController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<SubscriberResponseDto>> updateSubscriber(
             @PathVariable Long id,
             @Valid @RequestBody SubscriberRequestDto dto) {
@@ -44,18 +50,21 @@ public class SubscriberController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<Void>> deleteSubscriber(@PathVariable Long id) {
         subscriberService.deleteSubscriber(id);
         return ResponseEntity.ok(ApiResponseDto.ok("Subscriber removed successfully"));
     }
 
     @PostMapping("/batch-delete")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<Void>> deleteSubscribersBatch(@RequestBody List<Long> ids) {
         subscriberService.deleteSubscribersBatch(ids);
         return ResponseEntity.ok(ApiResponseDto.ok("Seçilen aboneler başarıyla silindi."));
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<Void>> toggleStatus(
             @PathVariable Long id,
             @RequestParam boolean active) {
@@ -64,6 +73,7 @@ public class SubscriberController {
     }
 
     @PatchMapping("/{id}/sites")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<SubscriberResponseDto>> updateSitePreferences(
             @PathVariable Long id,
             @RequestBody Set<SiteType> sites) {
@@ -72,6 +82,7 @@ public class SubscriberController {
     }
 
     @PatchMapping("/{id}/departments")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<SubscriberResponseDto>> updateSubscriberDepartments(
             @PathVariable Long id,
             @RequestBody Set<Long> departmentIds) {
@@ -80,6 +91,7 @@ public class SubscriberController {
     }
 
     @PostMapping("/upload-excel")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto>> uploadExcelSubscribers(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
             @RequestParam(value = "sites", required = false) List<SiteType> sites) {
@@ -97,6 +109,7 @@ public class SubscriberController {
     }
 
     @GetMapping("/template-excel")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<byte[]> downloadExcelTemplate() {
         try (org.apache.poi.ss.usermodel.Workbook workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook()) {
             org.apache.poi.ss.usermodel.Sheet sheet = workbook.createSheet("Aboneler");
@@ -150,19 +163,41 @@ public class SubscriberController {
     }
 
     @GetMapping(value = "/unsubscribe", produces = org.springframework.http.MediaType.TEXT_HTML_VALUE)
-    public ResponseEntity<String> unsubscribeHtml(@RequestParam String email) {
-        boolean success = subscriberService.unsubscribeByEmail(email);
+    public ResponseEntity<String> unsubscribeHtml(@RequestParam String email, CsrfToken csrfToken) {
+        String safeEmail = HtmlUtils.htmlEscape(email == null ? "" : email);
         String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Abonelik İptali</title>" +
-                "<style>body { font-family: sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }" +
-                ".card { background: #1e293b; padding: 40px; border-radius: 16px; text-align: center; max-width: 450px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }" +
-                "h2 { color: " + (success ? "#10b981" : "#ef4444") + "; margin-bottom: 12px; }" +
-                "p { color: #94a3b8; font-size: 15px; line-height: 1.6; }" +
-                "a { display: inline-block; margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; }</style></head><body>" +
+                unsubscribeStyles() + "</head><body><div class='card'>" +
+                "<h2>Abonelikten Çık</h2>" +
+                "<p><b>" + safeEmail + "</b> adresinin bildirim aboneliğini iptal etmek istediğinizi onaylayın.</p>" +
+                "<form method='post' action='/api/v1/subscribers/unsubscribe/confirm'>" +
+                "<input type='hidden' name='email' value='" + safeEmail + "'>" +
+                "<input type='hidden' name='" + HtmlUtils.htmlEscape(csrfToken.getParameterName()) + "' value='" +
+                HtmlUtils.htmlEscape(csrfToken.getToken()) + "'>" +
+                "<button type='submit'>Aboneliği İptal Et</button></form>" +
+                "<a href='/'>Vazgeç ve Ana Sayfaya Dön</a>" +
+                "</div></body></html>";
+        return ResponseEntity.ok(html);
+    }
+
+    @PostMapping(value = "/unsubscribe/confirm", produces = org.springframework.http.MediaType.TEXT_HTML_VALUE)
+    public ResponseEntity<String> unsubscribeConfirm(@RequestParam String email) {
+        boolean success = subscriberService.unsubscribeByEmail(email);
+        String safeEmail = HtmlUtils.htmlEscape(email == null ? "" : email);
+        String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Abonelik İptali</title>" +
+                unsubscribeStyles() + "</head><body>" +
                 "<div class='card'>" +
-                "<h2>" + (success ? "Abonelik İptal Edildi" : "İşlem Başarısız") + "</h2>" +
-                "<p>" + (success ? "<b>" + email + "</b> adresi e-Belge Duyuru Bildirim listesinden çıkarılmıştır. Artık e-posta bildirimi almayacaksınız." : "<b>" + email + "</b> adresi sistemde bulunamadı veya zaten abonelikten çıkarılmış.") + "</p>" +
+                "<h2 class='" + (success ? "success" : "error") + "'>" + (success ? "Abonelik İptal Edildi" : "İşlem Başarısız") + "</h2>" +
+                "<p>" + (success ? "<b>" + safeEmail + "</b> adresi e-Belge Duyuru Bildirim listesinden çıkarılmıştır. Artık e-posta bildirimi almayacaksınız." : "<b>" + safeEmail + "</b> adresi sistemde bulunamadı veya zaten abonelikten çıkarılmış.") + "</p>" +
                 "<a href='/'>Ana Sayfaya Dön</a>" +
                 "</div></body></html>";
         return ResponseEntity.ok(html);
+    }
+
+    private String unsubscribeStyles() {
+        return "<style>body { font-family: sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }" +
+                ".card { background: #1e293b; padding: 40px; border-radius: 16px; text-align: center; max-width: 450px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }" +
+                "h2 { color: #60a5fa; margin-bottom: 12px; }.success { color: #10b981; }.error { color: #ef4444; }" +
+                "p { color: #94a3b8; font-size: 15px; line-height: 1.6; }" +
+                "a, button { display: inline-block; margin: 20px 6px 0; padding: 10px 20px; border: 0; background: #2563eb; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; cursor: pointer; }</style>";
     }
 }

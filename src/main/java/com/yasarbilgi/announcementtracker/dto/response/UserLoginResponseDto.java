@@ -1,5 +1,6 @@
 package com.yasarbilgi.announcementtracker.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,6 +15,7 @@ import java.util.Set;
 @AllArgsConstructor
 public class UserLoginResponseDto {
 
+    @JsonIgnore
     private String token;
     private Long id;
     private String email;

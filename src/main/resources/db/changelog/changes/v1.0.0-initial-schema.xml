@@ -7,6 +7,21 @@
 
     <changeSet id="1.0.0-create-initial-schema" author="announcement-tracker">
 
+        <!-- Legacy installations were originally created by Hibernate ddl-auto.
+             If the core schema already exists, register this baseline without
+             attempting to recreate production data tables. -->
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <and>
+                    <tableExists tableName="admin_users"/>
+                    <tableExists tableName="subscribers"/>
+                    <tableExists tableName="subscriber_site_preferences"/>
+                    <tableExists tableName="system_settings"/>
+                    <tableExists tableName="announcements"/>
+                </and>
+            </not>
+        </preConditions>
+
         <!-- Table: admin_users -->
         <createTable tableName="admin_users">
             <column name="id" type="BIGINT" autoIncrement="true">

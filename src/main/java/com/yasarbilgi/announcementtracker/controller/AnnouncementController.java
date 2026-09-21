@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,6 +38,7 @@ public class AnnouncementController {
     }
 
     @PostMapping({"/trigger", "/trigger-scrape"})
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<List<AnnouncementResponseDto>>> triggerScrape(
             @RequestParam(required = false) SiteType siteType) {
 
@@ -54,12 +56,15 @@ public class AnnouncementController {
     }
 
     @PostMapping("/notify-pending")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<Integer>> notifyPending() {
         int count = announcementService.notifyPendingAnnouncements();
-        return ResponseEntity.ok(ApiResponseDto.ok("Notified " + count + " pending announcements", count));
+        return ResponseEntity.ok(ApiResponseDto.ok(
+                count + " kalıcı e-posta teslimatı kuyruğa alındı.", count));
     }
 
     @PostMapping("/send-test-email")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<Void>> sendTestEmail() {
         announcementService.sendTestEmail();
         return ResponseEntity.ok(ApiResponseDto.ok("Test email notification dispatched to subscribers"));

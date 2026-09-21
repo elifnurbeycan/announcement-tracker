@@ -31,15 +31,15 @@ window.SubscriberService = {
     },
 
     importExcel: async function(formData) {
-        const token = window.ApiClient.getAuthToken();
-        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const headers = window.ApiClient.getCsrfHeader();
 
         const response = await fetch('/api/v1/subscribers/upload-excel', {
             method: 'POST',
             headers,
-            body: formData
+            body: formData,
+            credentials: 'same-origin'
         });
-        if ((response.status === 401 || response.status === 403) && token) {
+        if (response.status === 401 || response.status === 403) {
             window.ApiClient.redirectToLogin('/api/v1/subscribers/upload-excel');
             throw new Error('Oturumunuz sona erdi. Giriş ekranına yönlendiriliyorsunuz.');
         }

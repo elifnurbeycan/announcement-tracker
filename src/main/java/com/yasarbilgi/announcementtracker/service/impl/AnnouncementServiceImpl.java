@@ -10,6 +10,7 @@ import com.yasarbilgi.announcementtracker.repository.AnnouncementRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.AnnouncementService;
 import com.yasarbilgi.announcementtracker.service.EmailService;
+import com.yasarbilgi.announcementtracker.service.NotificationOutboxService;
 import com.yasarbilgi.announcementtracker.service.scraper.AnnouncementScraper;
 import com.yasarbilgi.announcementtracker.service.scraper.ScraperRegistry;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -43,6 +43,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final SubscriberRepository subscriberRepository;
     private final ScraperRegistry scraperRegistry;
     private final EmailService emailService;
+    private final NotificationOutboxService notificationOutboxService;
 
     @Value("${announcement.tracker.email.default-recipient:admin@example.com}")
     private String defaultRecipient;
@@ -201,6 +202,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         List<Subscriber> activeSubscribers = subscriberRepository.findByActiveTrue();
         Set<SiteType> allAvailableSites = new HashSet<>(Arrays.asList(SiteType.values()));
 
+        int queuedDeliveries = 0;
         if (!activeSubscribers.isEmpty()) {
             for (Subscriber sub : activeSubscribers) {
                 Set<SiteType> subSites = sub.getEffectiveSites(allAvailableSites);
@@ -209,21 +211,22 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                         .toList();
 
                 if (!matchingForSub.isEmpty()) {
-                    emailService.sendAnnouncementNotification(matchingForSub, List.of(sub.getEmail()));
+                    for (Announcement announcement : matchingForSub) {
+                        if (notificationOutboxService.enqueue(announcement, sub.getEmail())) {
+                            queuedDeliveries++;
+                        }
+                    }
                 }
             }
         } else if (defaultRecipient != null && !defaultRecipient.isBlank()) {
-            emailService.sendAnnouncementNotification(toNotify, List.of(defaultRecipient));
+            for (Announcement announcement : toNotify) {
+                if (notificationOutboxService.enqueue(announcement, defaultRecipient)) {
+                    queuedDeliveries++;
+                }
+            }
         }
-
-        LocalDateTime now = LocalDateTime.now();
-        for (Announcement a : toNotify) {
-            a.setNotified(true);
-            a.setNotifiedAt(now);
-        }
-        announcementRepository.saveAllAndFlush(toNotify);
-
-        return toNotify.size();
+        log.info("{} kalıcı e-posta teslimatı outbox kuyruğuna eklendi.", queuedDeliveries);
+        return queuedDeliveries;
     }
 
 

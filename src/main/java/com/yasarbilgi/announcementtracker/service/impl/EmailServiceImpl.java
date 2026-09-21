@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,6 @@ public class EmailServiceImpl implements EmailService {
     @Value("${announcement.tracker.app-base-url:http://localhost:8080}")
     private String appBaseUrl;
 
-
     /**
      * Yeni duyuruları toplu e-posta olarak kayıtlı abonelere asenkron gönderir.
      */
@@ -48,12 +48,26 @@ public class EmailServiceImpl implements EmailService {
             return;
         }
 
-        String subject = "Yeni Duyuru Bildirimi (" + announcements.size() + " Yeni Duyuru)";
-
         for (String recipient : recipientEmails) {
-            String htmlBody = buildHtmlEmailBody(announcements, recipient);
-            sendHtmlEmail(recipient, subject, htmlBody);
+            try {
+                sendAnnouncementNotificationNow(announcements, recipient);
+            } catch (Exception exception) {
+                log.error("Asenkron e-posta bildirimi başarısız oldu ({}): {}", recipient, exception.getMessage());
+            }
         }
+    }
+
+    @Override
+    public void sendAnnouncementNotificationNow(List<Announcement> announcements, String recipientEmail) {
+        if (announcements == null || announcements.isEmpty()) {
+            throw new IllegalArgumentException("Gönderilecek duyuru bulunamadı.");
+        }
+        if (recipientEmail == null || recipientEmail.isBlank()) {
+            throw new IllegalArgumentException("Bildirim alıcısı boş olamaz.");
+        }
+        String subject = "Yeni Duyuru Bildirimi (" + announcements.size() + " Yeni Duyuru)";
+        String htmlBody = buildHtmlEmailBody(announcements, recipientEmail);
+        sendHtmlEmail(recipientEmail, subject, htmlBody);
     }
 
     /**
@@ -86,10 +100,13 @@ public class EmailServiceImpl implements EmailService {
             log.info("E-posta bildirimi başarıyla gönderildi: {}", to);
         } catch (MessagingException e) {
             log.error("E-posta gönderimi başarısız oldu ({}): {}", to, e.getMessage());
-            log.info("=== E-POSTA İÇERİĞİ (Geliştirici İnceleme) [{}] ===\nKonu: {}\nİçerik:\n{}", to, subject, htmlContent);
+            throw new MailSendException("E-posta mesajı oluşturulamadı: " + to, e);
         } catch (Exception e) {
             log.error("E-posta iletim hatası: {}", e.getMessage());
-            log.info("=== E-POSTA İÇERİĞİ (Geliştirici İnceleme) [{}] ===\nKonu: {}\nİçerik:\n{}", to, subject, htmlContent);
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new MailSendException("E-posta iletimi başarısız oldu: " + to, e);
         }
     }
 
@@ -148,7 +165,7 @@ public class EmailServiceImpl implements EmailService {
                 sb.append("</div>");
             }
 
-            // Ek dosya / PDF bağlantısı (E-posta istemcisi uyumlu tablo yerleşimi)
+            // Ek dosya / PDF bağlantısı
             if (a.getAttachmentUrl() != null && !a.getAttachmentUrl().isBlank()) {
                 String attachUrl = a.getAttachmentUrl();
                 boolean isPdf = attachUrl.endsWith(".pdf");
@@ -188,9 +205,7 @@ public class EmailServiceImpl implements EmailService {
             sb.append("</div>");
         }
 
-
         sb.append("</div>"); // content-padding sonu
-
 
         String unsubUrl = appBaseUrl + "/api/v1/subscribers/unsubscribe?email=" + recipientEmail;
 
@@ -214,8 +229,8 @@ public class EmailServiceImpl implements EmailService {
     }
 
     @Override
-    @org.springframework.scheduling.annotation.Async("emailExecutor")
-    public void sendWelcomeAndActivationEmail(String email, String fullName, String activationToken) {
+    @Async("emailExecutor")
+    public void sendWelcomeAndActivationEmail(String email, String fullName, String passwordResetUrlOrToken) {
         if (email == null || email.isBlank()) return;
 
         if (isTestOrDummyEmail(email)) {
@@ -228,9 +243,12 @@ public class EmailServiceImpl implements EmailService {
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
             helper.setFrom(mailFrom);
             helper.setTo(email);
-            helper.setSubject("Aboneliğiniz Başlatıldı - Kullanıcı Paneli Şifrenizi Belirleyin");
+            helper.setSubject("Aboneliğiniz Başlatıldı - Keycloak Şifrenizi Belirleyin");
 
-            String setPasswordUrl = appBaseUrl + "/set-password.html?token=" + activationToken;
+            String setPasswordUrl = (passwordResetUrlOrToken != null && passwordResetUrlOrToken.startsWith("http"))
+                    ? passwordResetUrlOrToken
+                    : appBaseUrl + "/set-password.html?token=" + passwordResetUrlOrToken;
+
             String name = (fullName != null && !fullName.isBlank()) ? fullName : email.split("@")[0];
 
             String content = """
@@ -244,12 +262,12 @@ public class EmailServiceImpl implements EmailService {
                     </div>
                     <div style='padding: 24px; color: #334155; line-height: 1.6;'>
                       <p>Merhaba <strong>%s</strong>,</p>
-                      <p>Duyuru takip sistemimize aboneliğiniz başarıyla oluşturulmuştur. Artık seçtiğiniz resmi kaynaklardan yayımlanan yeni duyuruları e-posta olarak alacaksınız.</p>
-                      <p>Ayrıca dilerseniz <strong>Kullanıcı Panelinize</strong> giriş yaparak takip ettiğiniz siteleri değiştirebilir, bildirim tercihlerinizi yönetebilirsiniz.</p>
+                      <p>Duyuru takip sistemimize aboneliğiniz yönetici tarafından başarıyla oluşturulmuştur. Artık seçtiğiniz resmi kaynaklardan yayımlanan güncel duyuruları e-posta olarak alacaksınız.</p>
+                      <p>Kullanıcı panelinize erişebilmek için Keycloak kimlik doğrulama sunucusu üzerinden şifrenizi oluşturabilirsiniz.</p>
                       <div style='text-align: center; margin: 30px 0;'>
-                        <a href='%s' style='background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;'>Şifrenizi Belirleyin &amp; Panele Giriş Yapın &rarr;</a>
+                        <a href='%s' style='background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;'>Keycloak Şifrenizi Belirleyin &amp; Giriş Yapın &rarr;</a>
                       </div>
-                      <p style='font-size: 13px; color: #64748b;'>E-posta bildirimlerinizi şifre oluşturmadan da almaya devam edebilirsiniz.</p>
+                      <p style='font-size: 13px; color: #64748b;'>Şifreniz doğrudan güvenli Keycloak sunucusunda tutulmaktadır.</p>
                     </div>
                   </div>
                 </body>
@@ -257,18 +275,17 @@ public class EmailServiceImpl implements EmailService {
                 """.formatted(escapeHtml(name), setPasswordUrl);
 
             helper.setText(content, true);
+            log.info("==========================================================");
+            log.info("WELCOME & PASSWORD SETUP LINK FOR {}: {}", email, setPasswordUrl);
+            log.info("==========================================================");
             mailSender.send(mimeMessage);
-            log.info("Welcome & activation email sent to: {}", email);
+            log.info("Welcome & password setup email sent to: {}", email);
         } catch (Exception e) {
-            log.error("Failed to send welcome activation email to {}: {}", email, e.getMessage());
+            log.warn("SMTP email send failed (local SMTP settings may be unconfigured). Use direct link: {}/set-password.html?email={}", appBaseUrl, email);
+            log.error("Failed to send welcome password setup email to {}: {}", email, e.getMessage());
         }
     }
 
-    /**
-     * Alıcı adresinin test veya geçersiz/dummy bir e-posta adresi olup olmadığını denetler.
-     * Bu sayede sahte domainlere (örn: @kurum.com, @example.com vb.) veya test alıcılarına
-     * gerçek SMTP sunucusu üzerinden e-posta gönderimi yapılarak geri seken (bounce) e-postalar önlenir.
-     */
     private boolean isTestOrDummyEmail(String email) {
         if (email == null || email.isBlank()) {
             return true;
@@ -302,5 +319,3 @@ public class EmailServiceImpl implements EmailService {
         return false;
     }
 }
-
-
