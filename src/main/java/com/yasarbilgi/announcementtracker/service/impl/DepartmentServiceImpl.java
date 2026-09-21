@@ -168,7 +168,6 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .fullName(entity.getFullName())
                 .active(entity.isActive())
                 .hasPasswordSet(entity.getPasswordHash() != null)
-                .activationToken(entity.getActivationToken())
                 .subscribedSites(entity.getSubscribedSites())
                 .departments(deptSummaries)
                 .isGeneralEmployee(entity.isGeneralEmployee())

@@ -3,6 +3,7 @@ package com.yasarbilgi.announcementtracker.subscriber.service;
 import com.yasarbilgi.announcementtracker.dto.request.SubscriberRequestDto;
 import com.yasarbilgi.announcementtracker.dto.response.SubscriberResponseDto;
 import com.yasarbilgi.announcementtracker.entity.Announcement;
+import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
 import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
@@ -176,6 +177,26 @@ class SubscriberServiceImplTest {
         assertThat(dto).isNotNull();
         verify(subscriberRepository).save(subscriber);
         assertThat(subscriber.getSubscribedSites()).isEqualTo(newSites);
+    }
+
+    @Test
+    @DisplayName("Kişisel ek tercihler boşaltılsa bile departman siteleri efektif kapsamda kalmalı")
+    void updateSitePreferences_EmptyAdditionalSites_ShouldKeepDepartmentSitesEffective() {
+        Department department = Department.builder()
+                .id(10L)
+                .name("Java")
+                .sites(Set.of(SiteType.EBELGE_GIB))
+                .build();
+        subscriber.setDepartments(Set.of(department));
+
+        when(subscriberRepository.findById(1L)).thenReturn(Optional.of(subscriber));
+        when(subscriberRepository.save(any(Subscriber.class))).thenReturn(subscriber);
+
+        SubscriberResponseDto dto = subscriberService.updateSitePreferences(1L, Set.of());
+
+        assertThat(subscriber.getSubscribedSites()).isEmpty();
+        assertThat(dto.getDepartmentSites()).containsExactly(SiteType.EBELGE_GIB);
+        assertThat(dto.getEffectiveSites()).containsExactly(SiteType.EBELGE_GIB);
     }
 
     @Test

@@ -11,6 +11,22 @@ window.ApiClient = {
         return token ? { 'Authorization': `Bearer ${token}` } : {};
     },
 
+    redirectToLogin: function(url) {
+        const hasUserSession = Boolean(localStorage.getItem('userToken'));
+        const userRequest = url.startsWith('/api/v1/user/');
+        const target = (hasUserSession || userRequest) ? '/user-login.html' : '/admin-login.html';
+
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('userData');
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminUser');
+        sessionStorage.setItem('sessionExpiredMessage', 'Oturumunuz sona erdi. Lütfen tekrar giriş yapın.');
+
+        if (window.location.pathname !== target) {
+            window.location.replace(target);
+        }
+    },
+
     request: async function(url, options = {}) {
         const headers = {
             'Content-Type': 'application/json',
@@ -34,6 +50,11 @@ window.ApiClient = {
                 } catch(parseErr) {
                     console.error('JSON parse error:', parseErr);
                 }
+            }
+
+            if ((response.status === 401 || response.status === 403) && this.getAuthToken()) {
+                this.redirectToLogin(url);
+                throw new Error('Oturumunuz sona erdi. Giriş ekranına yönlendiriliyorsunuz.');
             }
 
             if (!response.ok) {

@@ -113,6 +113,14 @@ class AuthServiceImplTest {
     }
 
     @Test
+    @DisplayName("İmzası doğrulanmamış JWT benzeri token admin oturumu olarak kabul edilmemeli")
+    void validateToken_ForgedJwtLikeToken_ShouldThrowException() {
+        assertThatThrownBy(() -> authService.validateToken("Bearer forged.header.payload"))
+                .isInstanceOf(ScrapingException.class)
+                .hasMessageContaining("Oturum süreniz doldu");
+    }
+
+    @Test
     @DisplayName("Çıkış yapıldığında token geçersiz hale gelmeli")
     void logout_ShouldRemoveSessionToken() {
         LoginRequestDto request = new LoginRequestDto("admin", "admin123");
