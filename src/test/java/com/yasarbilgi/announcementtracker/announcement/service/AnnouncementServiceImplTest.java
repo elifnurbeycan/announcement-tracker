@@ -9,6 +9,7 @@ import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
 import com.yasarbilgi.announcementtracker.repository.AnnouncementRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.EmailService;
+import com.yasarbilgi.announcementtracker.service.NotificationOutboxService;
 import com.yasarbilgi.announcementtracker.service.impl.AnnouncementServiceImpl;
 import com.yasarbilgi.announcementtracker.service.scraper.AnnouncementScraper;
 import com.yasarbilgi.announcementtracker.service.scraper.ScraperRegistry;
@@ -48,6 +49,9 @@ class AnnouncementServiceImplTest {
 
     @Mock
     private EmailService emailService;
+
+    @Mock
+    private NotificationOutboxService notificationOutboxService;
 
     @InjectMocks
     private AnnouncementServiceImpl announcementService;
@@ -102,14 +106,16 @@ class AnnouncementServiceImplTest {
         Subscriber sub1 = Subscriber.builder().email("sub1@gib.com").active(true).departments(Set.of(gibDept)).subscribedSites(Set.of(SiteType.EBELGE_GIB)).build();
         Subscriber sub2 = Subscriber.builder().email("sub2@kosgeb.com").active(true).departments(Set.of(kosgebDept)).subscribedSites(Set.of(SiteType.KOSGEB)).build();
         when(subscriberRepository.findByActiveTrue()).thenReturn(List.of(sub1, sub2));
+        when(notificationOutboxService.enqueue(savedEntity, "sub1@gib.com")).thenReturn(true);
 
         List<AnnouncementResponseDto> results = announcementService.triggerScrapeAll();
 
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getTitle()).isEqualTo("Yeni GİB Duyurusu");
 
-        verify(announcementRepository, times(2)).saveAllAndFlush(anyList());
-        verify(emailService).sendAnnouncementNotification(anyList(), eq(List.of("sub1@gib.com")));
+        verify(announcementRepository).saveAllAndFlush(anyList());
+        verify(notificationOutboxService).enqueue(savedEntity, "sub1@gib.com");
+        verify(notificationOutboxService, never()).enqueue(savedEntity, "sub2@kosgeb.com");
     }
 
     @Test

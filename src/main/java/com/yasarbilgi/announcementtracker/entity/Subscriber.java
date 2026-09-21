@@ -34,6 +34,7 @@ public class Subscriber {
 
     private String passwordHash;
 
+    /** SHA-256 digest only; the raw one-time token is sent by e-mail and never persisted. */
     private String activationToken;
 
     private LocalDateTime tokenExpiry;

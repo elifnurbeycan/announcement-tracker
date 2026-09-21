@@ -1,0 +1,29 @@
+app:
+  security:
+    local-login-enabled: true
+    sso-enabled: false
+    session-cookie:
+      secure: true
+      same-site: Lax
+
+server:
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        secure: true
+        http-only: true
+        same-site: lax
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-secret: ${KEYCLOAK_CLIENT_SECRET}
+            client-authentication-method: client_secret_basic

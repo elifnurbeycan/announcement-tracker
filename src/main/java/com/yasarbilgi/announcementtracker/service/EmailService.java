@@ -16,6 +16,9 @@ public interface EmailService {
      */
     void sendSingleAnnouncementNotification(Announcement announcement, List<String> recipientEmails);
 
+    /** Sends one durable outbox delivery synchronously and propagates SMTP failures. */
+    void sendAnnouncementNotificationNow(List<Announcement> announcements, String recipientEmail);
+
     /**
      * Sends welcome email with activation token link for user portal password creation.
      */

@@ -6,7 +6,7 @@ function DashboardApp() {
     const [activeTab, setActiveTab] = React.useState('overview');
     const [collapsed, setCollapsed] = React.useState(false);
     const [mobileOpen, setMobileOpen] = React.useState(false);
-    const [toast, setToast] = React.useState('');
+    const [toast, setToast] = React.useState(null);
     const [scraping, setScraping] = React.useState(false);
     const [userDropdownOpen, setUserDropdownOpen] = React.useState(false);
 
@@ -40,22 +40,23 @@ function DashboardApp() {
     });
 
     // Toast helper
-    const showToast = (msg) => {
-        setToast(msg);
-        setTimeout(() => setToast(''), 4000);
+    const showToast = (msg, type = 'success') => {
+        setToast({ message: msg, type });
+        setTimeout(() => setToast(null), 4000);
     };
 
     // Initialize & Route Handle
     React.useEffect(() => {
-        // Token check
-        const token = localStorage.getItem('adminToken');
-        if (!token) {
-            window.location.href = '/admin-login.html';
-            return;
-        }
-
-        const adminUser = window.AuthService.getAdminUser();
-        setUser(adminUser);
+        const loadAdminProfile = async () => {
+            try {
+                const adminUser = await window.AuthService.getAdminProfile();
+                sessionStorage.setItem('authRole', 'ADMIN');
+                setUser(adminUser);
+            } catch (error) {
+                console.error('Yönetici profili yüklenemedi:', error);
+            }
+        };
+        loadAdminProfile();
 
         // Hash Route Check
         const hash = window.location.hash.replace('#/', '');
@@ -154,7 +155,7 @@ function DashboardApp() {
             await loadAnnouncements();
         } catch(e) {
             console.error('Tarama hatası:', e);
-            showToast(e.message || 'Tarama sırasında bir hata oluştu.');
+            showToast(e.message || 'Tarama sırasında bir hata oluştu.', 'error');
         } finally {
             setScraping(false);
         }
@@ -164,16 +165,16 @@ function DashboardApp() {
         try {
             if (payload.id) {
                 await window.SubscriberService.updateSubscriber(payload.id, payload);
-                showToast('Abone başarıyla güncellendi.');
+                showToast('Abone ve kurumsal giriş hesabı güncellendi.');
             } else {
                 await window.SubscriberService.createSubscriber(payload);
-                showToast('Abone oluşturuldu.');
+                showToast('Abone ve kurumsal giriş hesabı oluşturuldu.');
             }
             setSubscriberModalOpen(false);
             setEditSubscriber(null);
             await loadSubscribers();
         } catch(e) {
-            showToast(e.message || 'Abone kaydedilirken hata oluştu.');
+            showToast(e.message || 'Abone kaydedilirken hata oluştu.', 'error');
         }
     };
 
@@ -190,7 +191,7 @@ function DashboardApp() {
                     showToast('Abone silindi.');
                     await loadSubscribers();
                 } catch(e) {
-                    showToast(e.message || 'Abone silinemedi.');
+                    showToast(e.message || 'Abone silinemedi.', 'error');
                 }
             }
         });
@@ -202,7 +203,7 @@ function DashboardApp() {
             showToast(`Abone durumu ${!sub.active ? 'Aktif' : 'Pasif'} yapıldı.`);
             await loadSubscribers();
         } catch(e) {
-            showToast(e.message || 'Durum değiştirilemedi.');
+            showToast(e.message || 'Durum değiştirilemedi.', 'error');
         }
     };
 
@@ -234,7 +235,7 @@ function DashboardApp() {
                     await loadDepartments();
                     await loadSubscribers();
                 } catch(e) {
-                    showToast(e.message || 'Departman silinemedi.');
+                    showToast(e.message || 'Departman silinemedi.', 'error');
                 }
             }
         });
@@ -255,7 +256,7 @@ function DashboardApp() {
                     if (clearSelection) clearSelection();
                     await loadSubscribers();
                 } catch(e) {
-                    showToast(e.message || 'Toplu silme işlemi başarısız.');
+                    showToast(e.message || 'Toplu silme işlemi başarısız.', 'error');
                 }
             }
         });
@@ -277,7 +278,7 @@ function DashboardApp() {
                     await loadDepartments();
                     await loadSubscribers();
                 } catch(e) {
-                    showToast(e.message || 'Toplu silme işlemi başarısız.');
+                    showToast(e.message || 'Toplu silme işlemi başarısız.', 'error');
                 }
             }
         });
@@ -289,7 +290,7 @@ function DashboardApp() {
             setScrapePeriod(periodMinutes);
             showToast('Tarama periyodu güncellendi.');
         } catch(e) {
-            showToast(e.message || 'Ayarlar kaydedilemedi.');
+            showToast(e.message || 'Ayarlar kaydedilemedi.', 'error');
         }
     };
 

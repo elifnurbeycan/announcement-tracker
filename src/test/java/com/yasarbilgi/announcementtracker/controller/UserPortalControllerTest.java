@@ -34,7 +34,6 @@ class UserPortalControllerTest {
     @Test
     @DisplayName("Kullanıcı duyuruları kişisel değil efektif site kapsamıyla filtrelenmeli")
     void getMyAnnouncements_UsesDepartmentAndPersonalEffectiveSites() {
-        String token = "Bearer USER-TOKEN-test";
         Set<SiteType> effectiveSites = Set.of(SiteType.EBELGE_GIB, SiteType.KOSGEB);
         SubscriberResponseDto user = SubscriberResponseDto.builder()
                 .subscribedSites(Set.of(SiteType.KOSGEB))
@@ -43,11 +42,10 @@ class UserPortalControllerTest {
                 .build();
         PageRequest pageable = PageRequest.of(0, 10);
 
-        when(subscriberService.validateUserToken(token)).thenReturn(user);
         when(announcementService.getAnnouncementsForSites(effectiveSites, null, pageable))
                 .thenReturn(Page.<AnnouncementResponseDto>empty(pageable));
 
-        controller.getMyAnnouncements(token, null, pageable);
+        controller.getMyAnnouncements(user, null, pageable);
 
         verify(announcementService).getAnnouncementsForSites(effectiveSites, null, pageable);
     }

@@ -1,6 +1,7 @@
 package com.yasarbilgi.announcementtracker.auth.controller;
 
 import com.yasarbilgi.announcementtracker.controller.AuthController;
+import com.yasarbilgi.announcementtracker.config.SessionCookieService;
 import com.yasarbilgi.announcementtracker.dto.request.LoginRequestDto;
 import com.yasarbilgi.announcementtracker.dto.response.AdminUserDto;
 import com.yasarbilgi.announcementtracker.dto.response.ApiResponseDto;
@@ -28,6 +29,9 @@ class AuthControllerTest {
 
     @Mock
     private AuthService authService;
+
+    @Mock
+    private SessionCookieService sessionCookieService;
 
     @InjectMocks
     private AuthController authController;
@@ -58,7 +62,7 @@ class AuthControllerTest {
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).isNotNull();
         assertThat(res.getBody().getData().getToken()).isEqualTo("SA-TOKEN-12345");
-        assertThat(response.getCookie("ADMIN_TOKEN")).isNotNull();
+        org.mockito.Mockito.verify(sessionCookieService).setAdminSession(response, "SA-TOKEN-12345");
     }
 
     @Test
@@ -70,9 +74,7 @@ class AuthControllerTest {
                 .fullName("Super Admin")
                 .build();
 
-        when(authService.validateToken("Bearer SA-TOKEN-12345")).thenReturn(dto);
-
-        ResponseEntity<ApiResponseDto<AdminUserDto>> res = authController.getProfile("Bearer SA-TOKEN-12345", request);
+        ResponseEntity<ApiResponseDto<AdminUserDto>> res = authController.getProfile(dto);
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).isNotNull();
@@ -82,13 +84,13 @@ class AuthControllerTest {
     @Test
     @DisplayName("POST /api/v1/auth/logout - Oturumu sonlandırma HTTP 200")
     void logout_ShouldReturnOk() {
-        doNothing().when(authService).logout("Bearer SA-TOKEN-12345");
+        when(sessionCookieService.resolveAdminSession(request)).thenReturn("SA-TOKEN-12345");
+        doNothing().when(authService).logout("SA-TOKEN-12345");
 
-        ResponseEntity<ApiResponseDto<Void>> res = authController.logout("Bearer SA-TOKEN-12345", request, response);
+        ResponseEntity<ApiResponseDto<Void>> res = authController.logout(request, response);
 
         assertThat(res.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(res.getBody()).isNotNull();
-        assertThat(response.getCookie("ADMIN_TOKEN")).isNotNull();
-        assertThat(response.getCookie("ADMIN_TOKEN").getMaxAge()).isEqualTo(0);
+        org.mockito.Mockito.verify(sessionCookieService).clearAdminSession(response);
     }
 }

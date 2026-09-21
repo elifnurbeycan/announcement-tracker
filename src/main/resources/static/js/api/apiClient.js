@@ -2,20 +2,35 @@
  * Centralized API Client for Announcement Tracker
  */
 window.ApiClient = {
-    getAuthToken: function() {
-        return localStorage.getItem('adminToken') || localStorage.getItem('userToken') || '';
+    getCookie: function(name) {
+        const prefix = `${encodeURIComponent(name)}=`;
+        const cookie = document.cookie.split('; ').find(item => item.startsWith(prefix));
+        return cookie ? decodeURIComponent(cookie.substring(prefix.length)) : '';
     },
 
-    getAuthHeader: function() {
-        const token = this.getAuthToken();
-        return token ? { 'Authorization': `Bearer ${token}` } : {};
+    getCsrfHeader: function() {
+        const token = this.getCookie('XSRF-TOKEN');
+        return token ? { 'X-XSRF-TOKEN': token } : {};
+    },
+
+    isProtectedRequest: function(url, method) {
+        if (url.startsWith('/api/v1/user/')) return !url.endsWith('/login') && !url.endsWith('/set-password');
+        if (url.startsWith('/api/v1/auth/')) return !url.endsWith('/login') && !url.endsWith('/mode');
+        if (url.startsWith('/api/v1/admin/')) return true;
+        if (url.startsWith('/api/v1/settings/')) return true;
+        if (url.startsWith('/api/v1/departments')) return true;
+        if (url.startsWith('/api/v1/subscribers')) {
+            return !url.endsWith('/register') && !url.includes('/unsubscribe');
+        }
+        return method !== 'GET' && url.startsWith('/api/v1/announcements');
     },
 
     redirectToLogin: function(url) {
-        const hasUserSession = Boolean(localStorage.getItem('userToken'));
-        const userRequest = url.startsWith('/api/v1/user/');
-        const target = (hasUserSession || userRequest) ? '/user-login.html' : '/admin-login.html';
+        const savedRole = sessionStorage.getItem('authRole');
+        const userRequest = url.startsWith('/api/v1/user/') || window.location.pathname.includes('user-dashboard');
+        const target = (savedRole === 'USER' || userRequest) ? '/user-login.html' : '/admin-login.html';
 
+        sessionStorage.removeItem('authRole');
         localStorage.removeItem('userToken');
         localStorage.removeItem('userData');
         localStorage.removeItem('adminToken');
@@ -28,15 +43,20 @@ window.ApiClient = {
     },
 
     request: async function(url, options = {}) {
+        const method = (options.method || 'GET').toUpperCase();
+        const csrfHeader = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+            ? this.getCsrfHeader()
+            : {};
         const headers = {
             'Content-Type': 'application/json',
-            ...this.getAuthHeader(),
+            ...csrfHeader,
             ...(options.headers || {})
         };
 
         const config = {
             ...options,
-            headers
+            headers,
+            credentials: 'same-origin'
         };
 
         try {
@@ -52,7 +72,9 @@ window.ApiClient = {
                 }
             }
 
-            if ((response.status === 401 || response.status === 403) && this.getAuthToken()) {
+            const protectedRequest = this.isProtectedRequest(url, method);
+
+            if ((response.status === 401 || response.status === 403) && protectedRequest) {
                 this.redirectToLogin(url);
                 throw new Error('Oturumunuz sona erdi. Giriş ekranına yönlendiriliyorsunuz.');
             }

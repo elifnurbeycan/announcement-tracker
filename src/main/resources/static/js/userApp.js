@@ -22,23 +22,14 @@ function UserDashboardApp() {
 
     // Initialize & Route Handle
     React.useEffect(() => {
-        const token = localStorage.getItem('userToken');
-        if (!token) {
-            window.location.href = '/user-login.html';
-            return;
-        }
-
-        const userData = window.AuthService.getUserData();
-        setUser(userData);
-
         const loadProfileAndSites = async () => {
             try {
                 const [profile, sites] = await Promise.all([
                     window.AuthService.getUserProfile(),
                     window.AnnouncementService.getSites()
                 ]);
+                sessionStorage.setItem('authRole', 'USER');
                 setUser(profile);
-                localStorage.setItem('userData', JSON.stringify(profile));
                 if (Array.isArray(sites)) {
                     setAvailableSites(sites.map(site => typeof site === 'string' ? site : site.name));
                 }

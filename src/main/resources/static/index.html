@@ -179,62 +179,20 @@
 
     <main class="hero">
         <h1>Resmi Kurum Duyurularını Anında E-Posta ile Alın</h1>
-        <p>e-Belge GİB, KOSGEB ve diğer resmi kurumlarda yayımlanan güncel duyurulardan anında haberdar olun. Ücretsiz e-posta abonesi olun veya kullanıcı panelinize giriş yapın.</p>
+        <p>e-Belge GİB, KOSGEB ve diğer resmi kurumlarda yayımlanan güncel duyuruları tek noktadan takip edin. Çalışan hesabınız kurum yöneticiniz tarafından güvenli biçimde oluşturulur.</p>
 
         <div class="sub-card">
-            <div id="msg"></div>
-
-            <form id="subForm">
-                <div class="form-group">
-                    <label class="form-label">E-Posta Adresi</label>
-                    <input type="email" id="email" class="input-field" placeholder="ornek@kurum.com" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Ad Soyad</label>
-                    <input type="text" id="fullName" class="input-field" placeholder="Ad Soyad">
-                </div>
-                <button type="submit" class="btn-submit" id="submitBtn">Abone Ol →</button>
-            </form>
+            <div class="msg-box msg-success">
+                Hesabınız hazırsa kullanıcı panelinden giriş yapabilirsiniz. Yeni hesap talepleri şirket yöneticiniz tarafından yönetilir.
+            </div>
+            <a href="/user-login.html" class="btn-submit" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box;">
+                Kullanıcı Girişine Git →
+            </a>
         </div>
     </main>
 
     <script>
         lucide.createIcons();
-
-        document.getElementById('subForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const fullName = document.getElementById('fullName').value;
-            const msgDiv = document.getElementById('msg');
-            const submitBtn = document.getElementById('submitBtn');
-
-            msgDiv.innerHTML = '';
-            submitBtn.disabled = true;
-            submitBtn.innerText = 'İşleniyor...';
-
-            try {
-                const res = await fetch('/api/v1/subscribers/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, fullName, subscribedSites: ['EBELGE_GIB', 'KOSGEB'] })
-                });
-                const data = await res.json();
-                if (res.ok && data.success) {
-                    msgDiv.className = 'msg-box msg-success';
-                    msgDiv.innerHTML = 'Aboneliğiniz oluşturuldu. Aktivasyon bağlantısı e-posta adresinize gönderildi.';
-                    document.getElementById('subForm').reset();
-                } else {
-                    msgDiv.className = 'msg-box msg-error';
-                    msgDiv.innerHTML = data.message || 'Bir hata oluştu.';
-                }
-            } catch (err) {
-                msgDiv.className = 'msg-box msg-error';
-                msgDiv.innerHTML = 'İşlem gerçekleştirilemedi.';
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerText = 'Abone Ol →';
-            }
-        });
     </script>
 </body>
 </html>

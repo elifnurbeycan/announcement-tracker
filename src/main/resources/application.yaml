@@ -7,6 +7,10 @@ server:
       enabled: true
 
 spring:
+  config:
+    # Local Docker/Keycloak settings are loaded automatically when the application
+    # is started from the project directory. Environment variables override them.
+    import: optional:file:.env[.properties]
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   application:
@@ -14,6 +18,23 @@ spring:
   
   security:
     oauth2:
+      client:
+        registration:
+          keycloak:
+            provider: keycloak
+            client-id: ${KEYCLOAK_CLIENT_ID:announcement-tracker-app}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:}
+            client-authentication-method: ${KEYCLOAK_CLIENT_AUTH_METHOD:none}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            authorization-uri: ${KEYCLOAK_SERVER_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:announcement-tracker-realm}/protocol/openid-connect/auth
+            token-uri: ${KEYCLOAK_SERVER_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:announcement-tracker-realm}/protocol/openid-connect/token
+            user-info-uri: ${KEYCLOAK_SERVER_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:announcement-tracker-realm}/protocol/openid-connect/userinfo
+            jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8180/realms/announcement-tracker-realm/protocol/openid-connect/certs}
+            user-name-attribute: preferred_username
       resourceserver:
         jwt:
           issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/announcement-tracker-realm}
@@ -29,12 +50,11 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
-
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: validate
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -63,10 +83,26 @@ announcement:
     email:
       from: ${MAIL_FROM:noreply@announcementtracker.com}
       default-recipient: ${DEFAULT_RECIPIENT:admin@example.com}
+      outbox:
+        poll-interval-ms: ${EMAIL_OUTBOX_POLL_INTERVAL_MS:30000}
+        initial-delay-ms: ${EMAIL_OUTBOX_INITIAL_DELAY_MS:10000}
+        max-attempts: ${EMAIL_OUTBOX_MAX_ATTEMPTS:8}
 
 keycloak:
   auth-server-url: ${KEYCLOAK_SERVER_URL:http://localhost:8180}
   realm: ${KEYCLOAK_REALM:announcement-tracker-realm}
   client-id: ${KEYCLOAK_CLIENT_ID:announcement-tracker-app}
+  admin:
+    enabled: ${KEYCLOAK_ADMIN_SYNC_ENABLED:true}
+    client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:announcement-tracker-admin}
+    client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET:}
+
+app:
+  security:
+    local-login-enabled: ${LOCAL_LOGIN_ENABLED:true}
+    sso-enabled: ${SSO_ENABLED:false}
+    session-cookie:
+      secure: ${SESSION_COOKIE_SECURE:false}
+      same-site: ${SESSION_COOKIE_SAME_SITE:Lax}
 
 

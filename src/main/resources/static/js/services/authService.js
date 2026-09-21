@@ -5,10 +5,11 @@ window.AuthService = {
     loginAdmin: async function(username, password) {
         const data = await window.ApiClient.post('/api/v1/auth/login', { username, password });
         if (data.success && data.data) {
+            sessionStorage.setItem('authRole', 'ADMIN');
             localStorage.removeItem('userToken');
             localStorage.removeItem('userData');
-            localStorage.setItem('adminToken', data.data.token);
-            localStorage.setItem('adminUser', JSON.stringify(data.data));
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminUser');
         }
         return data;
     },
@@ -16,10 +17,11 @@ window.AuthService = {
     loginUser: async function(email, password) {
         const data = await window.ApiClient.post('/api/v1/user/login', { email, password });
         if (data.success && data.data) {
+            sessionStorage.setItem('authRole', 'USER');
             localStorage.removeItem('adminToken');
             localStorage.removeItem('adminUser');
-            localStorage.setItem('userToken', data.data.token);
-            localStorage.setItem('userData', JSON.stringify(data.data));
+            localStorage.removeItem('userToken');
+            localStorage.removeItem('userData');
         }
         return data;
     },
@@ -29,36 +31,36 @@ window.AuthService = {
         return response.data || response;
     },
 
+    getAdminProfile: async function() {
+        const response = await window.ApiClient.get('/api/v1/auth/me');
+        return response.data || response;
+    },
+
     updateUserPreferences: async function(siteTypes) {
         const response = await window.ApiClient.put('/api/v1/user/me/preferences', siteTypes);
         const updatedUser = response.data || response;
-        localStorage.setItem('userData', JSON.stringify(updatedUser));
         return updatedUser;
     },
 
-    getAdminUser: function() {
+    logoutAdmin: async function() {
         try {
-            return JSON.parse(localStorage.getItem('adminUser') || '{}');
-        } catch(e) {
-            return {};
+            await window.ApiClient.post('/api/v1/auth/logout');
+        } catch (error) {
+            console.warn('Admin logout request failed:', error);
         }
-    },
-
-    getUserData: function() {
-        try {
-            return JSON.parse(localStorage.getItem('userData') || '{}');
-        } catch(e) {
-            return {};
-        }
-    },
-
-    logoutAdmin: function() {
+        sessionStorage.removeItem('authRole');
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminUser');
         window.location.href = '/admin-login.html';
     },
 
-    logoutUser: function() {
+    logoutUser: async function() {
+        try {
+            await window.ApiClient.post('/api/v1/user/logout');
+        } catch (error) {
+            console.warn('User logout request failed:', error);
+        }
+        sessionStorage.removeItem('authRole');
         localStorage.removeItem('userToken');
         localStorage.removeItem('userData');
         window.location.href = '/user-login.html';
