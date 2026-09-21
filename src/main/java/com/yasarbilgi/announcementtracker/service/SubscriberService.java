@@ -15,9 +15,13 @@ public interface SubscriberService {
 
     SubscriberResponseDto addSubscriber(SubscriberRequestDto dto);
 
+    SubscriberResponseDto updateSubscriber(Long id, SubscriberRequestDto dto);
+
     List<SubscriberResponseDto> getAllSubscribers();
 
     void deleteSubscriber(Long id);
+
+    void deleteSubscribersBatch(List<Long> ids);
 
     void toggleSubscriberStatus(Long id, boolean active);
 

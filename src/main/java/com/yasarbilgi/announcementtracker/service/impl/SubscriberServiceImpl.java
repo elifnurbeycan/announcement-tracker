@@ -119,6 +119,41 @@ public class SubscriberServiceImpl implements SubscriberService {
     }
 
     @Override
+    @Transactional
+    public SubscriberResponseDto updateSubscriber(Long id, SubscriberRequestDto dto) {
+        Subscriber subscriber = subscriberRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
+
+        if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
+            String newEmail = dto.getEmail().trim().toLowerCase();
+            if (!newEmail.equalsIgnoreCase(subscriber.getEmail()) && subscriberRepository.existsByEmail(newEmail)) {
+                throw new ScrapingException("'" + newEmail + "' adında bir e-posta adresi zaten kullanımda.");
+            }
+            subscriber.setEmail(newEmail);
+        }
+
+        if (dto.getFullName() != null) {
+            subscriber.setFullName(dto.getFullName().trim());
+        }
+
+        if (dto.getSubscribedSites() != null) {
+            subscriber.setSubscribedSites(new HashSet<>(dto.getSubscribedSites()));
+        }
+
+        if (dto.getDepartmentIds() != null) {
+            Set<Department> newDepts = new HashSet<>();
+            if (!dto.getDepartmentIds().isEmpty()) {
+                newDepts = new HashSet<>(departmentRepository.findAllById(dto.getDepartmentIds()));
+            }
+            subscriber.setDepartments(newDepts);
+        }
+
+        Subscriber updated = subscriberRepository.save(subscriber);
+        log.info("Subscriber ID: {} updated successfully.", id);
+        return mapToDto(updated);
+    }
+
+    @Override
     public List<SubscriberResponseDto> getAllSubscribers() {
         return subscriberRepository.findAll().stream().map(this::mapToDto).toList();
     }
@@ -139,6 +174,20 @@ public class SubscriberServiceImpl implements SubscriberService {
 
         subscriberRepository.delete(subscriber);
         log.info("Deleted subscriber with ID: {} and email: {}", id, subscriber.getEmail());
+    }
+
+    @Override
+    @Transactional
+    public void deleteSubscribersBatch(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        for (Long id : ids) {
+            try {
+                deleteSubscriber(id);
+            } catch (Exception e) {
+                log.warn("Toplu silme sırasında abone ID: {} silinemedi: {}", id, e.getMessage());
+            }
+        }
+        log.info("Toplu abone silme tamamlandı. Toplam talep edilen: {}", ids.size());
     }
 
 

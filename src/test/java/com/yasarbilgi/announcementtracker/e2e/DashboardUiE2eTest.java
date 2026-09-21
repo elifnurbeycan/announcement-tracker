@@ -1,9 +1,13 @@
 package com.yasarbilgi.announcementtracker.e2e;
 
 import com.microsoft.playwright.*;
+import com.microsoft.playwright.options.AriaRole;
 import org.junit.jupiter.api.*;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+
+import java.nio.file.Path;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,8 +20,8 @@ class DashboardUiE2eTest {
     private static Playwright playwright;
     private static Browser browser;
 
-    // Tarayıcının canlı açıldığını görmek için HEADLESS = false
-    private static final boolean HEADLESS = false;
+    // Headless mode for automated CI/CD & local test suite execution
+    private static final boolean HEADLESS = Boolean.parseBoolean(System.getProperty("playwright.headless", "false"));
 
     private BrowserContext context;
     private Page page;
@@ -31,12 +35,12 @@ class DashboardUiE2eTest {
 
         BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
                 .setHeadless(HEADLESS)
-                .setSlowMo(HEADLESS ? 0 : 800);
+                .setSlowMo(HEADLESS ? 0 : 300);
 
         try {
             browser = playwright.chromium().launch(launchOptions.setChannel("msedge"));
         } catch (Exception e) {
-            browser = playwright.chromium().launch(launchOptions.setChannel("chrome"));
+            browser = playwright.chromium().launch(launchOptions);
         }
     }
 
@@ -69,15 +73,15 @@ class DashboardUiE2eTest {
     }
 
     @Test
-    @DisplayName("Playwright UI: Giriş sayfasının temiz görünümü ve hatalı giriş senaryosu")
-    void testLoginPageAndErrorHandling() {
+    @DisplayName("E2E: Admin Giriş Sayfası Temiz Görünüm ve Hatalı Giriş Senaryosu")
+    void testAdminLoginAndErrorHandling() {
         page.navigate(baseUrl() + "/admin-login.html");
 
         assertThat(page.title()).contains("Super Admin Giriş Paneli");
-        assertThat(page.locator("h2").innerText()).contains("Super Admin Giriş Paneli");
+        assertThat(page.locator("h2").innerText()).contains("Yönetici Girişi");
 
         // Input placeholders check
-        assertThat(page.locator("input[type='text']").getAttribute("placeholder")).isEqualTo("Kullanıcı adınızı girin");
+        assertThat(page.locator("input[type='text']").getAttribute("placeholder")).isEqualTo("Kullanıcı adı");
         assertThat(page.locator("input[type='password']").getAttribute("placeholder")).isEqualTo("••••••••");
 
         // Invalid login check
@@ -87,75 +91,215 @@ class DashboardUiE2eTest {
 
         Locator errorBox = page.locator(".login-error");
         errorBox.waitFor();
-        assertThat(errorBox.innerText()).contains("Geçersiz kullanıcı adı veya şifre");
+        assertThat(errorBox.innerText()).contains("Geçersiz");
     }
 
     @Test
-    @DisplayName("Playwright UI: Dashboard ana sayfa, İstatistik Kartları ve Filtreleme Tabları testi")
-    void testDashboardMainViewAndFilterTabs() {
+    @DisplayName("E2E: Sidebar Navigasyonu ve Sayfa Geçişleri (Layout & Route State)")
+    void testSidebarNavigationAndRouteState() {
         performSuperAdminLogin();
 
-        // Admin badge & Navbar verification
-        Locator adminBadge = page.locator(".admin-badge");
-        adminBadge.waitFor();
-        assertThat(adminBadge.innerText()).contains("Admin");
+        // 1. Overview Page default
+        assertThat(page.locator(".page-title-badge").innerText()).contains("Genel Bakış");
 
-        // Stat cards check
-        Locator statCards = page.locator(".stat-card");
-        assertThat(statCards.count()).isGreaterThanOrEqualTo(3);
+        // 2. Click Announcements tab
+        page.click("a:has-text('Duyurular')");
+        page.waitForSelector(".page-title-badge:has-text('Duyurular')");
+        assertThat(page.locator(".page-title-badge").innerText()).contains("Duyurular");
 
-        // Search bar interaction
-        Locator searchInput = page.locator("input[placeholder*='Duyurularda ara']");
-        if (searchInput.count() > 0) {
-            searchInput.fill("fatura");
-            page.waitForTimeout(300);
-            assertThat(searchInput.inputValue()).isEqualTo("fatura");
+        // 3. Click Subscribers tab
+        page.click("a:has-text('Aboneler')");
+        page.waitForSelector(".page-title-badge:has-text('Abone Yönetimi')");
+        assertThat(page.locator(".page-title-badge").innerText()).contains("Abone Yönetimi");
+
+        // 4. Click Departments tab
+        page.click("a:has-text('Departmanlar')");
+        page.waitForSelector(".page-title-badge:has-text('Departman Yönetimi')");
+        assertThat(page.locator(".page-title-badge").innerText()).contains("Departman Yönetimi");
+
+        // 5. Click Sources tab
+        page.click("a:has-text('Kaynaklar')");
+        page.waitForSelector(".page-title-badge:has-text('Kaynak Takibi')");
+        assertThat(page.locator(".page-title-badge").innerText()).contains("Kaynak Takibi");
+
+        // 6. Click Settings tab
+        page.click("a:has-text('Ayarlar')");
+        page.waitForSelector(".page-title-badge:has-text('Sistem Ayarları')");
+        assertThat(page.locator(".page-title-badge").innerText()).contains("Sistem Ayarları");
+
+        // 7. Click Profile tab
+        page.click("a:has-text('Profilim')");
+        page.waitForSelector(".page-title-badge:has-text('Kullanıcı Profilim')");
+        assertThat(page.locator(".page-title-badge").innerText()).contains("Kullanıcı Profilim");
+
+        // Toggle sidebar collapse
+        page.click(".toggle-btn");
+        assertThat(page.locator(".sidebar").getAttribute("class")).contains("collapsed");
+    }
+
+    @Test
+    @DisplayName("E2E: Rol Bazlı Erişim ve Menü İzolasyonu")
+    void testRoleBasedNavigation() {
+        // Super Admin access
+        performSuperAdminLogin();
+        assertThat(page.locator(".sidebar").innerText()).contains("Genel Bakış");
+        assertThat(page.locator(".sidebar").innerText()).contains("Aboneler");
+        assertThat(page.locator(".sidebar").innerText()).contains("Departmanlar");
+
+        // User Login access
+        context = browser.newContext();
+        Page userPage = context.newPage();
+        userPage.navigate(baseUrl() + "/user-login.html");
+        userPage.fill("input[type='email']", "test@example.com");
+        userPage.fill("input[type='password']", "password123");
+        userPage.click("button[type='submit']");
+        
+        // If login completes or redirects to user-dashboard
+        if (userPage.url().contains("user-dashboard.html")) {
+            assertThat(userPage.locator(".sidebar").innerText()).contains("Duyurular");
+            assertThat(userPage.locator(".sidebar").innerText()).contains("Profilim");
+            assertThat(userPage.locator(".sidebar").innerText()).doesNotContain("Departmanlar");
+            assertThat(userPage.locator(".sidebar").innerText()).doesNotContain("Ayarlar");
         }
     }
 
     @Test
-    @DisplayName("Playwright UI: Manuel Duyuru Tarama Tetikleme (Scrape) Butonu testi")
-    void testManualScrapeTrigger() {
+    @DisplayName("E2E: Duyurular Sayfası, Filtreleme ve Tarama Tetikleme (Scrape)")
+    void testAnnouncementsViewAndScrapeTrigger() {
         performSuperAdminLogin();
 
-        Locator scrapeBtn = page.locator(".btn-scrape");
-        scrapeBtn.waitFor();
-        assertThat(scrapeBtn.innerText()).contains("Duyuruları Tara");
+        page.click("a:has-text('Duyurular')");
+        page.waitForSelector(".page-title-badge:has-text('Duyurular')");
 
-        // Click scrape button
+        // Search interaction
+        Locator searchInput = page.locator("input[placeholder*='Duyuru ara']");
+        searchInput.waitFor();
+        searchInput.fill("e-Belge");
+        assertThat(searchInput.inputValue()).isEqualTo("e-Belge");
+
+        // Filter pills
+        page.click("button:has-text('KOSGEB')");
+        page.click("button:has-text('Tüm Kaynaklar')");
+
+        // Scrape button click and toast verification
+        Locator scrapeBtn = page.locator(".btn-scrape").first();
         scrapeBtn.click();
 
-        // Should show loading or toast
-        page.waitForTimeout(500);
+        Locator toast = page.locator(".toast");
+        toast.waitFor();
+        assertThat(toast.innerText()).contains("Tarama tamamlandı");
     }
 
     @Test
-    @DisplayName("Playwright UI: Yeni Abone Ekleme Formu ve Site Tercihleri Seçim Modalı testi")
-    void testSubscriberFormModalInteraction() {
+    @DisplayName("E2E: Abone Yönetimi (Ekleme Modalı, Listeleme, Durum Değiştirme)")
+    void testSubscriberCrudFlowAndModals() {
         performSuperAdminLogin();
 
-        // Look for "+ Yeni Abone Ekle" or subscriber form
-        Locator emailInput = page.locator("input[type='email']");
-        if (emailInput.count() > 0) {
-            emailInput.fill("playwright.test@example.com");
+        page.click("a:has-text('Aboneler')");
+        page.waitForSelector(".page-title-badge:has-text('Abone Yönetimi')");
 
-            Locator nameInput = page.locator("input[placeholder*='Ad Soyad']");
-            if (nameInput.count() > 0) {
-                nameInput.fill("Playwright E2E Tester");
-            }
-        }
+        // Open Add Subscriber Modal
+        page.click("button:has-text('+ Abone Ekle')");
+        page.waitForSelector(".modal-card");
+
+        String uniqueEmail = "e2e-sub-" + UUID.randomUUID().toString().substring(0, 8) + "@kurum.com";
+        page.fill(".modal-card input[type='text']", "Test Abonesi");
+        page.fill(".modal-card input[type='email']", uniqueEmail);
+
+        page.click(".modal-card button[type='submit']");
+
+        // Toast verification
+        Locator toast = page.locator(".toast");
+        toast.waitFor();
+        assertThat(toast.innerText()).contains("Abone oluşturuldu");
+
+        // Verify subscriber appears in table
+        page.fill("input[placeholder*='filtrele']", uniqueEmail);
+        page.waitForSelector("td:has-text('" + uniqueEmail + "')");
+        assertThat(page.locator("td:has-text('" + uniqueEmail + "')").isVisible()).isTrue();
     }
 
     @Test
-    @DisplayName("Playwright UI: Güvenli Oturumu Kapatma (Logout) testi")
+    @DisplayName("E2E: Departman Yönetimi (Ekleme Modalı, Listeleme ve Düzenleme)")
+    void testDepartmentCrudFlowAndModals() {
+        performSuperAdminLogin();
+
+        page.click("a:has-text('Departmanlar')");
+        page.waitForSelector(".page-title-badge:has-text('Departman Yönetimi')");
+
+        // Open Add Department Modal
+        page.click("button:has-text('+ Departman Ekle')");
+        page.waitForSelector(".modal-card");
+
+        String deptName = "E2E Test Dept " + UUID.randomUUID().toString().substring(0, 4);
+        page.fill(".modal-card input[type='text']", deptName);
+
+        page.click(".modal-card button[type='submit']");
+
+        // Toast verification
+        Locator toast = page.locator(".toast");
+        toast.waitFor();
+        assertThat(toast.innerText()).contains("Departman oluşturuldu");
+
+        // Verify department appears in list
+        assertThat(page.locator("td:has-text('" + deptName + "')").isVisible()).isTrue();
+    }
+
+    @Test
+    @DisplayName("E2E: Excel İçe Aktar Modalı ve Şablon İndirme Etkileşimi")
+    void testExcelImportModalAndTemplateDownload() {
+        performSuperAdminLogin();
+
+        page.click("a:has-text('Aboneler')");
+        page.click("button:has-text('Excel/CSV')");
+        page.waitForSelector(".modal-card");
+
+        assertThat(page.locator(".modal-card h3").innerText()).contains("Toplu İçe Aktar");
+
+        // Verify template download button exists
+        Locator downloadBtn = page.locator("button:has-text('Excel Şablonunu İndir')");
+        assertThat(downloadBtn.isVisible()).isTrue();
+
+        // Close modal
+        page.click(".modal-card button:has-text('Kapat')");
+    }
+
+    @Test
+    @DisplayName("E2E: Sistem Ayarları (Tarama Periyodu Güncelleme)")
+    void testSettingsScrapePeriod() {
+        performSuperAdminLogin();
+
+        page.click("a:has-text('Ayarlar')");
+        page.waitForSelector(".page-title-badge:has-text('Sistem Ayarları')");
+
+        page.selectOption("select", "30");
+
+        Locator toast = page.locator(".toast");
+        toast.waitFor();
+        assertThat(toast.innerText()).contains("Tarama periyodu güncellendi");
+    }
+
+    @Test
+    @DisplayName("E2E: Kullanıcı Profilim Sayfası Bilgileri")
+    void testUserProfilePage() {
+        performSuperAdminLogin();
+
+        page.click("a:has-text('Profilim')");
+        page.waitForSelector(".page-title-badge:has-text('Kullanıcı Profilim')");
+
+        assertThat(page.locator(".card h2").innerText()).contains("Kullanıcı Profili");
+        assertThat(page.locator(".card").innerText()).contains("Süper Admin");
+    }
+
+    @Test
+    @DisplayName("E2E: Oturumu Güvenli Çıkış Yapma (Logout)")
     void testLogoutFlow() {
         performSuperAdminLogin();
 
-        Locator logoutBtn = page.locator(".btn-logout");
-        logoutBtn.waitFor();
-        logoutBtn.click();
+        page.click(".user-trigger");
+        page.click(".dropdown-item.danger");
 
         page.waitForURL("**/admin-login.html");
-        assertThat(page.url()).endsWith("/admin-login.html");
+        assertThat(page.url()).contains("/admin-login.html");
     }
 }

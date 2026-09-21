@@ -35,10 +35,24 @@ public class SubscriberController {
                 .body(ApiResponseDto.ok("Subscriber registered successfully", response));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponseDto<SubscriberResponseDto>> updateSubscriber(
+            @PathVariable Long id,
+            @Valid @RequestBody SubscriberRequestDto dto) {
+        SubscriberResponseDto response = subscriberService.updateSubscriber(id, dto);
+        return ResponseEntity.ok(ApiResponseDto.ok("Abone bilgileri başarıyla güncellendi.", response));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponseDto<Void>> deleteSubscriber(@PathVariable Long id) {
         subscriberService.deleteSubscriber(id);
         return ResponseEntity.ok(ApiResponseDto.ok("Subscriber removed successfully"));
+    }
+
+    @PostMapping("/batch-delete")
+    public ResponseEntity<ApiResponseDto<Void>> deleteSubscribersBatch(@RequestBody List<Long> ids) {
+        subscriberService.deleteSubscribersBatch(ids);
+        return ResponseEntity.ok(ApiResponseDto.ok("Seçilen aboneler başarıyla silindi."));
     }
 
     @PatchMapping("/{id}/status")

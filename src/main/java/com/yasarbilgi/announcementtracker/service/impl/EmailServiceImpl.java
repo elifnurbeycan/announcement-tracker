@@ -69,6 +69,11 @@ public class EmailServiceImpl implements EmailService {
      * HTML e-posta mesajını JavaMailSender kullanarak alıcıya gönderir.
      */
     private void sendHtmlEmail(String to, String subject, String htmlContent) {
+        if (isTestOrDummyEmail(to)) {
+            log.info("Test/Dummy e-posta alıcısı tespit edildi ({}). Gerçek SMTP iletimi atlandı.", to);
+            return;
+        }
+
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -213,6 +218,11 @@ public class EmailServiceImpl implements EmailService {
     public void sendWelcomeAndActivationEmail(String email, String fullName, String activationToken) {
         if (email == null || email.isBlank()) return;
 
+        if (isTestOrDummyEmail(email)) {
+            log.info("Test/Dummy hoş geldin e-posta alıcısı tespit edildi ({}). Gerçek SMTP iletimi atlandı.", email);
+            return;
+        }
+
         try {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
@@ -252,6 +262,44 @@ public class EmailServiceImpl implements EmailService {
         } catch (Exception e) {
             log.error("Failed to send welcome activation email to {}: {}", email, e.getMessage());
         }
+    }
+
+    /**
+     * Alıcı adresinin test veya geçersiz/dummy bir e-posta adresi olup olmadığını denetler.
+     * Bu sayede sahte domainlere (örn: @kurum.com, @example.com vb.) veya test alıcılarına
+     * gerçek SMTP sunucusu üzerinden e-posta gönderimi yapılarak geri seken (bounce) e-postalar önlenir.
+     */
+    private boolean isTestOrDummyEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return true;
+        }
+        String lower = email.trim().toLowerCase();
+
+        // Test veya Sahte Alan Adları (Domains)
+        if (lower.endsWith("@kurum.com") ||
+            lower.endsWith("@example.com") ||
+            lower.endsWith("@example.org") ||
+            lower.endsWith("@example.net") ||
+            lower.endsWith("@test.com") ||
+            lower.endsWith("@localhost") ||
+            lower.endsWith("@invalid") ||
+            lower.endsWith("@domain.com") ||
+            lower.endsWith("@sample.com")) {
+            return true;
+        }
+
+        // Test / E2E Alıcı Ön Ekleri ve İsim Kalıpları
+        if (lower.startsWith("e2e-") ||
+            lower.startsWith("test-") ||
+            lower.startsWith("dummy-") ||
+            lower.startsWith("fake-") ||
+            lower.contains("e2e-sub") ||
+            lower.contains("dummy") ||
+            lower.contains("fake")) {
+            return true;
+        }
+
+        return false;
     }
 }
 

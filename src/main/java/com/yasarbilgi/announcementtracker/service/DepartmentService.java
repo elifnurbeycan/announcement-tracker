@@ -20,6 +20,8 @@ public interface DepartmentService {
 
     void deleteDepartment(Long id);
 
+    void deleteDepartmentsBatch(List<Long> ids);
+
     DepartmentResponseDto updateDepartmentSites(Long id, Set<SiteType> siteTypes);
 
     List<SubscriberResponseDto> getDepartmentSubscribers(Long id);

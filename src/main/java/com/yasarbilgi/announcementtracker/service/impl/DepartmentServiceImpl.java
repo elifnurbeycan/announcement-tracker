@@ -104,6 +104,20 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     @Transactional
+    public void deleteDepartmentsBatch(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        for (Long id : ids) {
+            try {
+                deleteDepartment(id);
+            } catch (Exception e) {
+                log.warn("Toplu silme sırasında departman ID: {} silinemedi: {}", id, e.getMessage());
+            }
+        }
+        log.info("Toplu departman silme tamamlandı. Toplam talep edilen: {}", ids.size());
+    }
+
+    @Override
+    @Transactional
     public DepartmentResponseDto updateDepartmentSites(Long id, Set<SiteType> siteTypes) {
         Department dept = departmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Departman bulunamadı, ID: " + id));
