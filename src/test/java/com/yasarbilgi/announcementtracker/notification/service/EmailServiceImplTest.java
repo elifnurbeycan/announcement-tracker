@@ -35,7 +35,7 @@ class EmailServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(emailService, "mailFrom", "noreply@test.com");
+        ReflectionTestUtils.setField(emailService, "mailFrom", "noreply@company.com");
         ReflectionTestUtils.setField(emailService, "appBaseUrl", "http://localhost:8080");
 
         announcement = Announcement.builder()
@@ -50,7 +50,7 @@ class EmailServiceImplTest {
     @Test
     @DisplayName("Duyuru listesi boş olduğunda e-posta gönderimi tetiklenmemeli")
     void sendAnnouncementNotification_EmptyAnnouncements_ShouldNotSendEmail() {
-        emailService.sendAnnouncementNotification(List.of(), List.of("user@test.com"));
+        emailService.sendAnnouncementNotification(List.of(), List.of("user@realcompany.com"));
 
         verify(mailSender, never()).createMimeMessage();
         verify(mailSender, never()).send(any(MimeMessage.class));
@@ -70,7 +70,7 @@ class EmailServiceImplTest {
     void sendAnnouncementNotification_ValidInput_ShouldSendEmail() {
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
-        emailService.sendAnnouncementNotification(List.of(announcement), List.of("user@test.com"));
+        emailService.sendAnnouncementNotification(List.of(announcement), List.of("user@realcompany.com"));
 
         verify(mailSender, times(1)).createMimeMessage();
         verify(mailSender, times(1)).send(mimeMessage);
@@ -81,7 +81,7 @@ class EmailServiceImplTest {
     void sendSingleAnnouncementNotification_ValidInput_ShouldSendEmail() {
         when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
-        emailService.sendSingleAnnouncementNotification(announcement, List.of("user@test.com"));
+        emailService.sendSingleAnnouncementNotification(announcement, List.of("user@realcompany.com"));
 
         verify(mailSender, times(1)).createMimeMessage();
         verify(mailSender, times(1)).send(mimeMessage);
@@ -94,8 +94,26 @@ class EmailServiceImplTest {
         doThrow(new RuntimeException("SMTP Server Unreachable")).when(mailSender).send(mimeMessage);
 
         // Should not throw exception to caller
-        emailService.sendAnnouncementNotification(List.of(announcement), List.of("user@test.com"));
+        emailService.sendAnnouncementNotification(List.of(announcement), List.of("user@realcompany.com"));
 
         verify(mailSender).send(mimeMessage);
+    }
+
+    @Test
+    @DisplayName("Sahte/Test domain e-postalarında SMTP gönderimi atlanmalı (Bounce önleme)")
+    void sendAnnouncementNotification_DummyRecipient_ShouldSkipSmtpSend() {
+        emailService.sendAnnouncementNotification(List.of(announcement), List.of("e2e-sub-12345@kurum.com", "user@example.com"));
+
+        verify(mailSender, never()).createMimeMessage();
+        verify(mailSender, never()).send(any(MimeMessage.class));
+    }
+
+    @Test
+    @DisplayName("Sahte/Test hoş geldin e-postalarında SMTP gönderimi atlanmalı")
+    void sendWelcomeAndActivationEmail_DummyRecipient_ShouldSkipSmtpSend() {
+        emailService.sendWelcomeAndActivationEmail("e2e-sub-86fbf9d5@kurum.com", "Test User", "token123");
+
+        verify(mailSender, never()).createMimeMessage();
+        verify(mailSender, never()).send(any(MimeMessage.class));
     }
 }

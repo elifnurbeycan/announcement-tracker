@@ -51,6 +51,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
      * Sistemde kayıtlı tüm duyuru kaynaklarını (scrapers) paralel olarak tarar ve yeni duyuruları kaydeder.
      */
     @Override
+    @Transactional
     public List<AnnouncementResponseDto> triggerScrapeAll() {
         log.info("Kayıtlı tüm duyuru kaynakları için eş zamanlı (paralel) web kazıma başlatılıyor...");
 
@@ -132,7 +133,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         }
 
         if (!newEntities.isEmpty()) {
-            List<Announcement> savedEntities = announcementRepository.saveAll(newEntities);
+            List<Announcement> savedEntities = announcementRepository.saveAllAndFlush(newEntities);
             log.info("{} kaynağı için {} yeni duyuru veritabanına kaydedildi.", scraper.getSiteType(), savedEntities.size());
             return savedEntities.stream().map(this::mapToResponseDto).toList();
         } else {
@@ -177,7 +178,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     /**
-     * Henüz bildirim gönderilmemiş duyuruları aktif abonelere e-posta olarak iletir.
+     * Henüz bildirim gönderilmemiş duyuruları aktif abonelere toplu e-posta olarak iletir.
      */
     @Override
     @Transactional
@@ -195,35 +196,32 @@ public class AnnouncementServiceImpl implements AnnouncementService {
 
         List<Announcement> toNotify = !todaysAnnouncements.isEmpty()
                 ? todaysAnnouncements
-                : pending.stream().limit(3).toList();
+                : pending;
 
         List<Subscriber> activeSubscribers = subscriberRepository.findByActiveTrue();
         Set<SiteType> allAvailableSites = new HashSet<>(Arrays.asList(SiteType.values()));
 
-        for (Announcement a : toNotify) {
-            // Her duyuru için dinamik efektif kaynakları kapsayan abonelere mail gönderir
-            List<String> recipients = activeSubscribers.stream()
-                    .filter(sub -> sub.getEffectiveSites(allAvailableSites).contains(a.getSourceSite()))
-                    .map(Subscriber::getEmail)
-                    .distinct()
-                    .toList();
+        if (!activeSubscribers.isEmpty()) {
+            for (Subscriber sub : activeSubscribers) {
+                Set<SiteType> subSites = sub.getEffectiveSites(allAvailableSites);
+                List<Announcement> matchingForSub = toNotify.stream()
+                        .filter(a -> subSites.contains(a.getSourceSite()))
+                        .toList();
 
-            if (recipients.isEmpty() && activeSubscribers.isEmpty()) {
-                recipients = List.of(defaultRecipient);
+                if (!matchingForSub.isEmpty()) {
+                    emailService.sendAnnouncementNotification(matchingForSub, List.of(sub.getEmail()));
+                }
             }
-
-            if (!recipients.isEmpty()) {
-                emailService.sendSingleAnnouncementNotification(a, recipients);
-            }
+        } else if (defaultRecipient != null && !defaultRecipient.isBlank()) {
+            emailService.sendAnnouncementNotification(toNotify, List.of(defaultRecipient));
         }
 
         LocalDateTime now = LocalDateTime.now();
-        // Yalnızca bildirimi gönderilen duyuruları bildirildi olarak işaretler
         for (Announcement a : toNotify) {
             a.setNotified(true);
             a.setNotifiedAt(now);
         }
-        announcementRepository.saveAll(toNotify);
+        announcementRepository.saveAllAndFlush(toNotify);
 
         return toNotify.size();
     }

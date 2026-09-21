@@ -78,7 +78,7 @@ class AnnouncementServiceImplTest {
         when(scraperMock.scrape(any())).thenReturn(List.of(scrapedDto));
         when(announcementRepository.existsByContentHash("hash123")).thenReturn(false);
 
-        when(announcementRepository.saveAll(anyList())).thenAnswer(invocation -> {
+        when(announcementRepository.saveAllAndFlush(anyList())).thenAnswer(invocation -> {
             List<Announcement> list = invocation.getArgument(0);
             list.forEach(a -> a.setId(1L));
             return list;
@@ -108,8 +108,8 @@ class AnnouncementServiceImplTest {
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getTitle()).isEqualTo("Yeni GİB Duyurusu");
 
-        verify(announcementRepository, times(2)).saveAll(anyList());
-        verify(emailService).sendSingleAnnouncementNotification(any(Announcement.class), eq(List.of("sub1@gib.com")));
+        verify(announcementRepository, times(2)).saveAllAndFlush(anyList());
+        verify(emailService).sendAnnouncementNotification(anyList(), eq(List.of("sub1@gib.com")));
     }
 
     @Test
@@ -124,7 +124,7 @@ class AnnouncementServiceImplTest {
         List<AnnouncementResponseDto> results = announcementService.triggerScrapeAll();
 
         assertThat(results).isEmpty();
-        verify(announcementRepository, never()).saveAll(anyList());
+        verify(announcementRepository, never()).saveAllAndFlush(anyList());
     }
 
     @Test
@@ -137,7 +137,7 @@ class AnnouncementServiceImplTest {
         List<AnnouncementResponseDto> results = announcementService.triggerScrapeSite(SiteType.EBELGE_GIB);
 
         assertThat(results).isEmpty();
-        verify(announcementRepository, never()).saveAll(anyList());
+        verify(announcementRepository, never()).saveAllAndFlush(anyList());
     }
 
     @Test

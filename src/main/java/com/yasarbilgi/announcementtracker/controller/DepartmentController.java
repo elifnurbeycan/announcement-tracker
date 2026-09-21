@@ -55,6 +55,12 @@ public class DepartmentController {
         return ResponseEntity.ok(ApiResponseDto.ok("Departman silindi."));
     }
 
+    @PostMapping("/batch-delete")
+    public ResponseEntity<ApiResponseDto<Void>> deleteDepartmentsBatch(@RequestBody List<Long> ids) {
+        departmentService.deleteDepartmentsBatch(ids);
+        return ResponseEntity.ok(ApiResponseDto.ok("Seçilen departmanlar başarıyla silindi."));
+    }
+
     @PatchMapping("/{id}/sites")
     public ResponseEntity<ApiResponseDto<DepartmentResponseDto>> updateDepartmentSites(
             @PathVariable Long id,

@@ -36,7 +36,7 @@ public class AnnouncementController {
         return ResponseEntity.ok(ApiResponseDto.ok("Announcement found", dto));
     }
 
-    @PostMapping("/trigger")
+    @PostMapping({"/trigger", "/trigger-scrape"})
     public ResponseEntity<ApiResponseDto<List<AnnouncementResponseDto>>> triggerScrape(
             @RequestParam(required = false) SiteType siteType) {
 

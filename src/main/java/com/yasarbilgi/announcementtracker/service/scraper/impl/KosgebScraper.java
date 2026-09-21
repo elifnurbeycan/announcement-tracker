@@ -54,6 +54,9 @@ public class KosgebScraper extends AbstractAnnouncementScraper {
 
         log.info("Hedef adreste ({}) {} potansiyel KOSGEB duyuru öğesi bulundu.", TARGET_URL, items.size());
 
+        int consecutiveExistingCount = 0;
+        final int MAX_CONSECUTIVE_EXISTING = 3;
+
         for (Element item : items) {
             Element titleLink = item.selectFirst("h5.title a, h5 a, .title a");
             if (titleLink == null) {
@@ -77,9 +80,16 @@ public class KosgebScraper extends AbstractAnnouncementScraper {
             String contentHash = calculateHash(getSiteType().name() + ":" + title + ":" + announcementDate.toString());
 
             if (hashExistsPredicate != null && hashExistsPredicate.test(contentHash)) {
-                log.info("KOSGEB: Zaten veritabanında var olan duyuruya ulaşıldı [hash: {}]. Erken çıkış (Early Exit) yapılıyor.", contentHash);
-                break;
+                consecutiveExistingCount++;
+                if (consecutiveExistingCount >= MAX_CONSECUTIVE_EXISTING) {
+                    log.info("KOSGEB: {} adet üst üste veritabanında var olan duyuruya ulaşıldı. Erken çıkış (Early Exit) yapılıyor.", MAX_CONSECUTIVE_EXISTING);
+                    break;
+                }
+                continue;
             }
+
+            // Yeni/silinmiş bir duyuru bulunduğunda üst üste sayacı sıfırlanır
+            consecutiveExistingCount = 0;
 
             ScrapedAnnouncementDto dto = ScrapedAnnouncementDto.builder()
                     .title(title)

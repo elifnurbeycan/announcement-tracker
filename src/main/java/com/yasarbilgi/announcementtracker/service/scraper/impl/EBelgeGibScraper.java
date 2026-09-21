@@ -31,7 +31,7 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
 
     /**
      * e-Belge duyurular sayfasını bağlanan HTML belgesinden ayrıştırır ve DTO listesi olarak döndürür.
-     * Erken Çıkış (Early Exit): Veritabanında zaten var olan bir duyuru hash'ine rastlanırsa taramayı anında sonlandırır.
+     * Veritabanında zaten var olan duyurular atlanarak sayfadaki tüm yeni veya silinmiş duyurular taranır.
      */
     @Override
     public List<ScrapedAnnouncementDto> scrape(Predicate<String> hashExistsPredicate) {
@@ -49,6 +49,9 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
         }
 
         log.info("Hedef adreste ({}) {} potansiyel duyuru öğesi bulundu.", TARGET_URL, paragraphs.size());
+
+        int consecutiveExistingCount = 0;
+        final int MAX_CONSECUTIVE_EXISTING = 3;
 
         for (Element p : paragraphs) {
             String text = p.text().trim();
@@ -81,9 +84,16 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
             String contentHash = calculateHash(getSiteType().name() + ":" + date.toString() + ":" + title);
 
             if (hashExistsPredicate != null && hashExistsPredicate.test(contentHash)) {
-                log.info("e-Belge GİB: Zaten veritabanında var olan duyuruya ulaşıldı [hash: {}]. Erken çıkış (Early Exit) yapılıyor.", contentHash);
-                break;
+                consecutiveExistingCount++;
+                if (consecutiveExistingCount >= MAX_CONSECUTIVE_EXISTING) {
+                    log.info("e-Belge GİB: {} adet üst üste veritabanında var olan duyuruya ulaşıldı. Erken çıkış (Early Exit) yapılıyor.", MAX_CONSECUTIVE_EXISTING);
+                    break;
+                }
+                continue;
             }
+
+            // Yeni/silinmiş bir duyuru bulunduğunda üst üste sayacı sıfırlanır
+            consecutiveExistingCount = 0;
 
             boolean existsInList = results.stream().anyMatch(r -> r.getContentHash().equals(contentHash));
             if (!existsInList) {
