@@ -43,7 +43,7 @@ class DepartmentServiceImplTest {
                 .id(1L)
                 .name("Java")
                 .description("Java Yazılım Ekibi")
-                .sites(new HashSet<>(Arrays.asList(SiteType.EBELGE_GIB, SiteType.KOSGEB)))
+                .sites(new HashSet<>(Arrays.asList(SiteType.EBELGE_GIB)))
                 .subscribers(new HashSet<>())
                 .build();
     }
@@ -91,7 +91,7 @@ class DepartmentServiceImplTest {
         DepartmentRequestDto requestDto = DepartmentRequestDto.builder()
                 .name("Java & Spring")
                 .description("Güncellendi")
-                .sites(Set.of(SiteType.EBELGE_GIB, SiteType.KOSGEB))
+                .sites(Set.of(SiteType.EBELGE_GIB))
                 .build();
 
         when(departmentRepository.findById(1L)).thenReturn(Optional.of(sampleDepartment));

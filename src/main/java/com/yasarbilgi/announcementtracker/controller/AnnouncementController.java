@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/announcements")
@@ -25,10 +26,20 @@ public class AnnouncementController {
     @GetMapping
     public ResponseEntity<ApiResponseDto<Page<AnnouncementResponseDto>>> getAnnouncements(
             @RequestParam(required = false) SiteType siteType,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "false") boolean hasAttachment,
             @PageableDefault(size = 20, sort = "announcementDate", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        Page<AnnouncementResponseDto> page = announcementService.getAllAnnouncements(siteType, pageable);
+        Page<AnnouncementResponseDto> page = announcementService
+                .getAllAnnouncements(siteType, search, hasAttachment, pageable);
         return ResponseEntity.ok(ApiResponseDto.ok("Announcements fetched successfully", page));
+    }
+
+    @GetMapping("/counts")
+    public ResponseEntity<ApiResponseDto<Map<SiteType, Long>>> getAnnouncementCounts() {
+        return ResponseEntity.ok(ApiResponseDto.ok(
+                "Announcement counts fetched successfully",
+                announcementService.getAnnouncementCounts()));
     }
 
     @GetMapping("/{id}")

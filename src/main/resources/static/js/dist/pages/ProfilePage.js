@@ -23,7 +23,7 @@ window.ProfilePage = function ProfilePage({
   }, [user, availableSites]);
   let effectiveSources = [];
   if (isAdmin) {
-    effectiveSources = normalizedSites.length > 0 ? normalizedSites : ['EBELGE_GIB', 'KOSGEB'];
+    effectiveSources = normalizedSites.length > 0 ? normalizedSites : ['EBELGE_GIB'];
   } else {
     effectiveSources = user.effectiveSites || Array.from(new Set([...departmentSites, ...(user.subscribedSites || [])]));
   }

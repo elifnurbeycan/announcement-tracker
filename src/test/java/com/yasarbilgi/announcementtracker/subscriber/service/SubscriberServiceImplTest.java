@@ -69,7 +69,7 @@ class SubscriberServiceImplTest {
                 .email("test@example.com")
                 .fullName("Test User")
                 .active(true)
-                .subscribedSites(Set.of(SiteType.EBELGE_GIB, SiteType.KOSGEB))
+                .subscribedSites(Set.of(SiteType.EBELGE_GIB))
                 .build();
     }
 
@@ -83,14 +83,14 @@ class SubscriberServiceImplTest {
                 .build();
 
         when(subscriberRepository.existsByEmail("test@example.com")).thenReturn(false);
-        when(subscriberRepository.save(any(Subscriber.class))).thenReturn(subscriber);
+        when(subscriberRepository.saveAndFlush(any(Subscriber.class))).thenReturn(subscriber);
 
         SubscriberResponseDto response = subscriberService.addSubscriber(dto);
 
         assertThat(response).isNotNull();
         assertThat(response.getEmail()).isEqualTo("test@example.com");
 
-        verify(subscriberRepository, times(1)).save(any(Subscriber.class));
+        verify(subscriberRepository, times(1)).saveAndFlush(any(Subscriber.class));
         verify(keycloakAdminService).provisionSubscriber("test@example.com", "Test User", true);
         verify(emailService).sendWelcomeAndActivationEmail(eq("test@example.com"), eq("Test User"), anyString());
     }
@@ -105,11 +105,11 @@ class SubscriberServiceImplTest {
                 .build();
 
         when(subscriberRepository.existsByEmail("test@example.com")).thenReturn(false);
-        when(subscriberRepository.save(any(Subscriber.class))).thenAnswer(i -> i.getArgument(0));
+        when(subscriberRepository.saveAndFlush(any(Subscriber.class))).thenAnswer(i -> i.getArgument(0));
 
         SubscriberResponseDto response = subscriberService.addSubscriber(dto);
 
-        assertThat(response.getSubscribedSites()).contains(SiteType.EBELGE_GIB, SiteType.KOSGEB);
+        assertThat(response.getSubscribedSites()).contains(SiteType.EBELGE_GIB);
     }
 
     @Test
@@ -125,7 +125,7 @@ class SubscriberServiceImplTest {
 
         when(subscriberRepository.existsByEmail("deptuser@example.com")).thenReturn(false);
         when(departmentRepository.findAllById(Set.of(10L))).thenReturn(List.of(dept));
-        when(subscriberRepository.save(any(Subscriber.class))).thenAnswer(i -> i.getArgument(0));
+        when(subscriberRepository.saveAndFlush(any(Subscriber.class))).thenAnswer(i -> i.getArgument(0));
 
         SubscriberResponseDto response = subscriberService.addSubscriber(dto);
 
@@ -143,7 +143,7 @@ class SubscriberServiceImplTest {
                 .build();
 
         when(subscriberRepository.existsByEmail("test@example.com")).thenReturn(false);
-        when(subscriberRepository.save(any(Subscriber.class))).thenReturn(subscriber);
+        when(subscriberRepository.saveAndFlush(any(Subscriber.class))).thenReturn(subscriber);
         doThrow(new RuntimeException("Mail server down"))
                 .when(emailService).sendWelcomeAndActivationEmail(anyString(), anyString(), anyString());
 
@@ -160,19 +160,19 @@ class SubscriberServiceImplTest {
         SubscriberRequestDto dto = SubscriberRequestDto.builder()
                 .email("test@example.com")
                 .fullName("Test User")
-                .subscribedSites(Set.of(SiteType.KOSGEB))
+                .subscribedSites(Set.of(SiteType.EBELGE_GIB))
                 .build();
 
         when(subscriberRepository.existsByEmail("test@example.com")).thenReturn(true);
         when(subscriberRepository.findByEmail("test@example.com")).thenReturn(Optional.of(subscriber));
-        when(subscriberRepository.save(any(Subscriber.class))).thenReturn(subscriber);
+        when(subscriberRepository.saveAndFlush(any(Subscriber.class))).thenReturn(subscriber);
 
         SubscriberResponseDto response = subscriberService.addSubscriber(dto);
 
         assertThat(response).isNotNull();
         assertThat(subscriber.isActive()).isTrue();
-        assertThat(subscriber.getSubscribedSites()).contains(SiteType.KOSGEB);
-        verify(subscriberRepository, times(1)).save(subscriber);
+        assertThat(subscriber.getSubscribedSites()).contains(SiteType.EBELGE_GIB);
+        verify(subscriberRepository, times(1)).saveAndFlush(subscriber);
     }
 
     @Test
@@ -192,7 +192,7 @@ class SubscriberServiceImplTest {
         when(subscriberRepository.findById(1L)).thenReturn(Optional.of(subscriber));
         when(subscriberRepository.save(any(Subscriber.class))).thenReturn(subscriber);
 
-        Set<SiteType> newSites = Set.of(SiteType.KOSGEB);
+        Set<SiteType> newSites = Set.of(SiteType.EBELGE_GIB);
         SubscriberResponseDto dto = subscriberService.updateSitePreferences(1L, newSites);
 
         assertThat(dto).isNotNull();
@@ -225,7 +225,7 @@ class SubscriberServiceImplTest {
     void updateSitePreferences_NotFound_ShouldThrowException() {
         when(subscriberRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> subscriberService.updateSitePreferences(999L, Set.of(SiteType.KOSGEB)))
+        assertThatThrownBy(() -> subscriberService.updateSitePreferences(999L, Set.of(SiteType.EBELGE_GIB)))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Subscriber not found with ID: 999");
     }
@@ -260,6 +260,7 @@ class SubscriberServiceImplTest {
 
         verify(keycloakAdminService).deleteUserInKeycloak("test@example.com");
         verify(subscriberRepository).delete(subscriber);
+        verify(subscriberRepository).flush();
     }
 
     @Test

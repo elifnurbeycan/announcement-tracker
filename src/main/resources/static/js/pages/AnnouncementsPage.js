@@ -19,6 +19,38 @@ window.AnnouncementsPage = function AnnouncementsPage({
         if (window.lucide) window.lucide.createIcons();
     }, [announcements, selectedSiteFilter, hasAttachmentFilter]);
 
+    const taklitAnnouncements = announcements.filter(item => item.sourceSite === 'TAKLIT_TAGSIS');
+    const standardAnnouncements = announcements.filter(item => item.sourceSite !== 'TAKLIT_TAGSIS');
+
+    const cleanTaklitValue = (value = '') => value
+        .replace(/<\/?br\s*\/?>/gi, ' · ')
+        .replace(/\s*·\s*(?:·\s*)+/g, ' · ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const parseTaklitDetails = (content = '') => {
+        const details = {};
+        content.split('|').forEach(part => {
+            const separatorIndex = part.indexOf(':');
+            if (separatorIndex < 0) return;
+            const key = part.slice(0, separatorIndex).trim();
+            const value = cleanTaklitValue(part.slice(separatorIndex + 1));
+            details[key] = value;
+        });
+
+        const location = (details['İl/İlçe'] || '').split('/');
+        return {
+            company: details.Firma || '-',
+            brand: details.Marka || '-',
+            product: details['Ürün'] || '-',
+            violation: details.Uygunsuzluk || '-',
+            batchNumber: details['Parti/Seri No'] || '-',
+            district: location.length > 1 ? location.slice(1).join('/').trim() : '-',
+            city: location[0] ? location[0].trim() : '-',
+            productGroup: details['Ürün Grubu'] || '-'
+        };
+    };
+
     return (
         <div>
             {/* Toolbar Card */}
@@ -30,14 +62,20 @@ window.AnnouncementsPage = function AnnouncementsPage({
                         className="input-field" 
                         placeholder="Duyuru ara (başlık, içerik)..." 
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                            setPage(0);
+                            setSearchQuery(e.target.value);
+                        }}
                     />
                 </div>
 
                 <div className="filter-pills">
                     <button 
                         className={`filter-pill ${selectedSiteFilter === '' ? 'active' : ''}`}
-                        onClick={() => setSelectedSiteFilter('')}
+                        onClick={() => {
+                            setPage(0);
+                            setSelectedSiteFilter('');
+                        }}
                     >
                         Tüm Kaynaklar
                     </button>
@@ -45,14 +83,20 @@ window.AnnouncementsPage = function AnnouncementsPage({
                         <button 
                             key={site} 
                             className={`filter-pill ${selectedSiteFilter === site ? 'active' : ''}`}
-                            onClick={() => setSelectedSiteFilter(site)}
+                            onClick={() => {
+                                setPage(0);
+                                setSelectedSiteFilter(site);
+                            }}
                         >
                             {site}
                         </button>
                     ))}
                     <button 
                         className={`filter-pill ${hasAttachmentFilter ? 'active' : ''}`}
-                        onClick={() => setHasAttachmentFilter(!hasAttachmentFilter)}
+                        onClick={() => {
+                            setPage(0);
+                            setHasAttachmentFilter(!hasAttachmentFilter);
+                        }}
                         style={{ borderStyle: 'dashed' }}
                     >
                         <i data-lucide="paperclip" style={{ width: '14px', height: '14px', display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }}></i>
@@ -71,12 +115,64 @@ window.AnnouncementsPage = function AnnouncementsPage({
                 </div>
 
                 <div className="announcements-grid">
-                    {announcements.length === 0 ? (
+                    {announcements.length === 0 && (
                         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-sub)' }}>
                             Filtrelere uygun duyuru bulunamadı.
                         </div>
-                    ) : (
-                        announcements.map((item, index) => (
+                    )}
+
+                    {taklitAnnouncements.length > 0 && (
+                        <div className="table-responsive taklit-table-wrapper">
+                            <table className="data-table taklit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Kamuoyu Duyuru Tarihi</th>
+                                        <th>Firma Adı</th>
+                                        <th>Marka</th>
+                                        <th>Ürün Adı</th>
+                                        <th>Uygunsuzluk</th>
+                                        <th>Parti/Seri No</th>
+                                        <th>İlçe</th>
+                                        <th>İl</th>
+                                        <th>Ürün Grubu</th>
+                                        <th>Kaynak</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {taklitAnnouncements.map((item, index) => {
+                                        const details = parseTaklitDetails(item.content);
+                                        return (
+                                            <tr key={item.id || index}>
+                                                <td className="taklit-date-cell">
+                                                    {item.announcementDate
+                                                        ? new Date(item.announcementDate).toLocaleDateString('tr-TR')
+                                                        : '-'}
+                                                </td>
+                                                <td className="taklit-company-cell">{details.company}</td>
+                                                <td>{details.brand}</td>
+                                                <td>{details.product}</td>
+                                                <td>{details.violation}</td>
+                                                <td>{details.batchNumber}</td>
+                                                <td>{details.district}</td>
+                                                <td>{details.city}</td>
+                                                <td>{details.productGroup}</td>
+                                                <td>
+                                                    {item.sourceUrl ? (
+                                                        <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="btn-link btn-source taklit-source-link">
+                                                            <i data-lucide="external-link"></i>
+                                                            Aç
+                                                        </a>
+                                                    ) : '-'}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {standardAnnouncements.map((item, index) => (
                             <div key={item.id || index} className="announcement-card">
                                 <div className="card-top">
                                     <span className="site-badge">{item.sourceSite}</span>
@@ -102,8 +198,7 @@ window.AnnouncementsPage = function AnnouncementsPage({
                                     )}
                                 </div>
                             </div>
-                        ))
-                    )}
+                    ))}
                 </div>
 
                 {/* Pagination */}

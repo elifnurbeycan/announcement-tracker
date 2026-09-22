@@ -77,7 +77,7 @@ public class SubscriberServiceImpl implements SubscriberService {
             if (!saved.isActive()) {
                 saved.setActive(true);
             }
-            subscriberRepository.save(saved);
+            saved = subscriberRepository.saveAndFlush(saved);
         } else {
             Subscriber subscriber = Subscriber.builder()
                     .email(dto.getEmail())
@@ -86,7 +86,7 @@ public class SubscriberServiceImpl implements SubscriberService {
                     .departments(assignedDepts)
                     .active(true)
                     .build();
-            saved = subscriberRepository.save(subscriber);
+            saved = subscriberRepository.saveAndFlush(subscriber);
             log.info("New subscriber registered: {} with preferences: {}", saved.getEmail(), preferredSites);
         }
 
@@ -96,7 +96,13 @@ public class SubscriberServiceImpl implements SubscriberService {
             saved.setKeycloakSubject(keycloakSubject);
             saved = subscriberRepository.save(saved);
         }
-        keycloakAdminService.triggerKeycloakResetPasswordEmail(saved.getEmail());
+        if (keycloakAdminService.isEnabled()) {
+            try {
+                keycloakAdminService.triggerKeycloakResetPasswordEmail(saved.getEmail());
+            } catch (Exception e) {
+                log.warn("Keycloak reset password email trigger failed for {}: {}", saved.getEmail(), e.getMessage());
+            }
+        }
 
         try {
             emailService.sendWelcomeAndActivationEmail(
@@ -160,8 +166,9 @@ public class SubscriberServiceImpl implements SubscriberService {
         Subscriber subscriber = subscriberRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
 
-        keycloakAdminService.deleteUserInKeycloak(subscriber.getEmail());
         subscriberRepository.delete(subscriber);
+        subscriberRepository.flush();
+        keycloakAdminService.deleteUserInKeycloak(subscriber.getEmail());
         log.info("Deleted subscriber with ID: {} and email: {}", id, subscriber.getEmail());
     }
 

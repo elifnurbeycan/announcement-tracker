@@ -1,20 +1,20 @@
 window.SourcesPage = function SourcesPage({
   availableSites = [],
-  announcements = []
+  announcementCounts = {}
 }) {
   React.useEffect(() => {
     if (window.lucide) window.lucide.createIcons();
-  }, [availableSites, announcements]);
+  }, [availableSites, announcementCounts]);
   const siteInfoList = [{
     code: 'EBELGE_GIB',
     name: 'Gelir İdaresi Başkanlığı (e-Belge)',
     url: 'https://ebelge.gib.gov.tr/duyurular.html',
     description: 'GİB e-Fatura, e-Arşiv, e-İrsaliye ve e-Defter resmi portal duyuruları'
   }, {
-    code: 'KOSGEB',
-    name: 'KOSGEB Genel Duyurular',
-    url: 'https://www.kosgeb.gov.tr/site/tr/genel/duyurular',
-    description: 'KOSGEB destek, hibe ve genel kurumsal duyuruları'
+    code: 'TAKLIT_TAGSIS',
+    name: 'Tarım ve Orman Bkn. Taklit/Tağşiş Duyuruları',
+    url: 'https://guvenilirgida.tarimorman.gov.tr/GuvenilirGida/gkd/TaklitVeyaTagsis',
+    description: 'Kamuoyuna açıklanan taklit veya tağşiş yapılan gıda ürünleri ve firmalar listesi'
   }];
   return React.createElement("div", null, React.createElement("div", {
     className: "card-header-flex",
@@ -40,7 +40,7 @@ window.SourcesPage = function SourcesPage({
       gap: '20px'
     }
   }, siteInfoList.map(site => {
-    const count = announcements.filter(a => a.sourceSite === site.code).length;
+    const count = announcementCounts[site.code] || 0;
     return React.createElement("div", {
       key: site.code,
       className: "card"

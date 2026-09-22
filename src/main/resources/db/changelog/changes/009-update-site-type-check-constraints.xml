@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="009-update-site-type-check-constraints" author="announcement-tracker">
+        <sql>
+            ALTER TABLE subscriber_site_preferences
+                DROP CONSTRAINT IF EXISTS subscriber_site_preferences_site_type_check;
+            ALTER TABLE subscriber_site_preferences
+                ADD CONSTRAINT ck_subscriber_site_preferences_site_type
+                CHECK (site_type IN ('EBELGE_GIB', 'TAKLIT_TAGSIS'));
+
+            ALTER TABLE department_sites
+                DROP CONSTRAINT IF EXISTS department_sites_site_type_check;
+            ALTER TABLE department_sites
+                ADD CONSTRAINT ck_department_sites_site_type
+                CHECK (site_type IN ('EBELGE_GIB', 'TAKLIT_TAGSIS'));
+        </sql>
+        <rollback>
+            ALTER TABLE subscriber_site_preferences
+                DROP CONSTRAINT IF EXISTS ck_subscriber_site_preferences_site_type;
+            ALTER TABLE department_sites
+                DROP CONSTRAINT IF EXISTS ck_department_sites_site_type;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

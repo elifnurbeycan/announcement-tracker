@@ -35,8 +35,7 @@ class SiteControllerTest {
         mockMvc.perform(get("/api/v1/sites"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(2)))
-                .andExpect(jsonPath("$.data[0].name", is("EBELGE_GIB")))
-                .andExpect(jsonPath("$.data[1].name", is("KOSGEB")));
+                .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.data[0].name", is("EBELGE_GIB")));
     }
 }

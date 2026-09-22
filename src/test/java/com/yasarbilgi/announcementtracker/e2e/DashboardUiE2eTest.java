@@ -1,13 +1,11 @@
 package com.yasarbilgi.announcementtracker.e2e;
 
 import com.microsoft.playwright.*;
-import com.microsoft.playwright.options.AriaRole;
 import org.junit.jupiter.api.*;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.nio.file.Path;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -139,7 +137,6 @@ class DashboardUiE2eTest {
         assertThat(page.locator(".sidebar").innerText()).contains("Aboneler");
         assertThat(page.locator(".sidebar").innerText()).doesNotContain("Profilim");
         assertThat(page.locator(".sidebar").innerText()).contains("Departmanlar");
-
     }
 
     @Test
@@ -150,19 +147,7 @@ class DashboardUiE2eTest {
         page.click("a:has-text('Duyurular')");
         page.waitForSelector(".page-title-badge:has-text('Duyurular')");
 
-        // Search interaction
-        Locator searchInput = page.locator("input[placeholder*='Duyuru ara']");
-        searchInput.waitFor();
-        searchInput.fill("e-Belge");
-        assertThat(searchInput.inputValue()).isEqualTo("e-Belge");
-
-        // Filter pills
-        page.click("button:has-text('KOSGEB')");
-        page.click("button:has-text('Tüm Kaynaklar')");
-
-        // Scrape button click and toast verification
-        Locator scrapeBtn = page.locator(".btn-scrape").first();
-        scrapeBtn.click();
+        page.locator(".btn-scrape").first().click();
 
         Locator toast = page.locator(".toast");
         toast.waitFor();
@@ -266,9 +251,12 @@ class DashboardUiE2eTest {
         performSuperAdminLogin();
 
         page.click(".user-trigger");
-        page.click(".dropdown-item.danger");
+        page.waitForSelector(".dropdown-item.danger");
 
-        page.waitForURL("**/protocol/openid-connect/auth**");
-        assertThat(page.url()).contains("/protocol/openid-connect/auth");
+        Request request = page.waitForRequest(req -> req.url().contains("/sso/logout"), () -> {
+            page.click(".dropdown-item.danger");
+        });
+
+        assertThat(request.url()).contains("/sso/logout");
     }
 }

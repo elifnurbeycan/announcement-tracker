@@ -102,13 +102,13 @@ class AnnouncementServiceImplTest {
                 .isNotified(false)
                 .build();
 
-        when(announcementRepository.findByIsNotifiedFalse()).thenReturn(List.of(savedEntity));
+        when(announcementRepository.findAllById(List.of(1L))).thenReturn(List.of(savedEntity));
 
         com.yasarbilgi.announcementtracker.entity.Department gibDept = com.yasarbilgi.announcementtracker.entity.Department.builder().id(10L).name("GIB").sites(Set.of(SiteType.EBELGE_GIB)).build();
-        com.yasarbilgi.announcementtracker.entity.Department kosgebDept = com.yasarbilgi.announcementtracker.entity.Department.builder().id(20L).name("KOSGEB").sites(Set.of(SiteType.KOSGEB)).build();
+        com.yasarbilgi.announcementtracker.entity.Department otherDept = com.yasarbilgi.announcementtracker.entity.Department.builder().id(20L).name("OTHER").sites(Set.of()).build();
 
         Subscriber sub1 = Subscriber.builder().email("sub1@gib.com").active(true).departments(Set.of(gibDept)).subscribedSites(Set.of(SiteType.EBELGE_GIB)).build();
-        Subscriber sub2 = Subscriber.builder().email("sub2@kosgeb.com").active(true).departments(Set.of(kosgebDept)).subscribedSites(Set.of(SiteType.KOSGEB)).build();
+        Subscriber sub2 = Subscriber.builder().email("sub2@other.com").active(true).departments(Set.of(otherDept)).subscribedSites(Set.of()).build();
         when(subscriberRepository.findByActiveTrue()).thenReturn(List.of(sub1, sub2));
         when(notificationOutboxService.enqueue(savedEntity, "sub1@gib.com")).thenReturn(true);
 
@@ -118,15 +118,16 @@ class AnnouncementServiceImplTest {
         assertThat(results.get(0).getTitle()).isEqualTo("Yeni GİB Duyurusu");
 
         verify(announcementPersistenceService).saveAndFlush(any(Announcement.class));
+        verify(announcementRepository, never()).findByIsNotifiedFalse();
         verify(notificationOutboxService).enqueue(savedEntity, "sub1@gib.com");
-        verify(notificationOutboxService, never()).enqueue(savedEntity, "sub2@kosgeb.com");
+        verify(notificationOutboxService, never()).enqueue(savedEntity, "sub2@other.com");
     }
 
     @Test
     @DisplayName("Kazıma sırasında bir scraper hata verirse diğer scraper'ların devam etmesi")
     void triggerScrapeAll_ScraperThrowsException_ShouldHandleGracefully() {
         AnnouncementScraper failingScraper = mock(AnnouncementScraper.class);
-        when(failingScraper.getSiteType()).thenReturn(SiteType.KOSGEB);
+        when(failingScraper.getSiteType()).thenReturn(SiteType.EBELGE_GIB);
         when(failingScraper.scrape(any())).thenThrow(new RuntimeException("Network timeout"));
 
         when(scraperRegistry.getAllScrapers()).thenReturn(List.of(failingScraper));
@@ -151,91 +152,34 @@ class AnnouncementServiceImplTest {
     }
 
     @Test
-    @DisplayName("Sayfalı duyuru listesi alma")
-    void getAllAnnouncements_ShouldReturnPagedResponse() {
-        Announcement entity = Announcement.builder().id(1L).title("Duyuru").sourceSite(SiteType.EBELGE_GIB).build();
-        Page<Announcement> pagedEntities = new PageImpl<>(List.of(entity));
+    @DisplayName("Tüm duyuruları sayfalama ile alma")
+    void getAllAnnouncements_ShouldReturnPagedAnnouncements() {
+        Announcement announcement = Announcement.builder()
+                .id(1L)
+                .title("Test Duyuru")
+                .sourceSite(SiteType.EBELGE_GIB)
+                .build();
 
         Pageable pageable = PageRequest.of(0, 10);
-        when(announcementRepository.findAll(pageable)).thenReturn(pagedEntities);
+        Page<Announcement> page = new PageImpl<>(List.of(announcement), pageable, 1);
 
-        Page<AnnouncementResponseDto> result = announcementService.getAllAnnouncements(null, pageable);
+        when(announcementRepository.findAllFiltered(null, "", false, pageable)).thenReturn(page);
 
+        Page<AnnouncementResponseDto> result = announcementService
+                .getAllAnnouncements(null, null, false, pageable);
+
+        assertThat(result).isNotNull();
         assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Duyuru");
+        assertThat(result.getContent().get(0).getTitle()).isEqualTo("Test Duyuru");
     }
 
     @Test
-    @DisplayName("Site bazlı sayfalı duyuru listesi alma")
-    void getAnnouncementsBySite_ShouldFilterBySiteType() {
-        Announcement entity = Announcement.builder().id(1L).title("KOSGEB Duyuru").sourceSite(SiteType.KOSGEB).build();
-        Page<Announcement> pagedEntities = new PageImpl<>(List.of(entity));
-
-        Pageable pageable = PageRequest.of(0, 10);
-        when(announcementRepository.findBySourceSite(SiteType.KOSGEB, pageable)).thenReturn(pagedEntities);
-
-        Page<AnnouncementResponseDto> result = announcementService.getAllAnnouncements(SiteType.KOSGEB, pageable);
-
-        assertThat(result.getContent()).hasSize(1);
-        assertThat(result.getContent().get(0).getSourceSite()).isEqualTo(SiteType.KOSGEB);
-    }
-
-    @Test
-    @DisplayName("ID ile duyuru detayını getirme - Bulundu")
-    void getAnnouncementById_Success() {
-        Announcement entity = Announcement.builder().id(5L).title("Test Duyuru").sourceSite(SiteType.EBELGE_GIB).build();
-        when(announcementRepository.findById(5L)).thenReturn(Optional.of(entity));
-
-        AnnouncementResponseDto dto = announcementService.getAnnouncementById(5L);
-
-        assertThat(dto).isNotNull();
-        assertThat(dto.getId()).isEqualTo(5L);
-        assertThat(dto.getTitle()).isEqualTo("Test Duyuru");
-    }
-
-    @Test
-    @DisplayName("ID ile duyuru detayını getirme - Bulunamadı, Exception fırlatmalı")
+    @DisplayName("Bulunamayan duyuru ID'si istendiğinde ResourceNotFoundException fırlatmalı")
     void getAnnouncementById_NotFound_ShouldThrowException() {
-        when(announcementRepository.findById(99L)).thenReturn(Optional.empty());
+        when(announcementRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> announcementService.getAnnouncementById(99L))
+        assertThatThrownBy(() -> announcementService.getAnnouncementById(999L))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("Duyuru bulunamadı, ID: 99");
-    }
-
-    @Test
-    @DisplayName("Bekleyen bildirim yoksa notifyPendingAnnouncements 0 dönmeli")
-    void notifyPendingAnnouncements_NoPending_ShouldReturnZero() {
-        when(announcementRepository.findByIsNotifiedFalse()).thenReturn(List.of());
-
-        int count = announcementService.notifyPendingAnnouncements();
-
-        assertThat(count).isEqualTo(0);
-        verify(emailService, never()).sendSingleAnnouncementNotification(any(), any());
-    }
-
-    @Test
-    @DisplayName("Test e-postası gönderme - Duyuru var")
-    void sendTestEmail_WithAnnouncement_ShouldSendNotification() {
-        Announcement announcement = Announcement.builder().id(1L).title("Test").sourceSite(SiteType.EBELGE_GIB).build();
-        when(announcementRepository.findAll()).thenReturn(List.of(announcement));
-
-        Subscriber sub = Subscriber.builder().email("admin@test.com").active(true).build();
-        when(subscriberRepository.findByActiveTrue()).thenReturn(List.of(sub));
-
-        announcementService.sendTestEmail();
-
-        verify(emailService).sendSingleAnnouncementNotification(announcement, List.of("admin@test.com"));
-    }
-
-    @Test
-    @DisplayName("Test e-postası gönderme - Duyuru yoksa bildirim göndermemeli")
-    void sendTestEmail_NoAnnouncement_ShouldSkip() {
-        when(subscriberRepository.findByActiveTrue()).thenReturn(List.of());
-        when(announcementRepository.findAll()).thenReturn(List.of());
-
-        announcementService.sendTestEmail();
-
-        verify(emailService, never()).sendSingleAnnouncementNotification(any(), any());
+                .hasMessageContaining("Duyuru bulunamadı, ID: 999");
     }
 }

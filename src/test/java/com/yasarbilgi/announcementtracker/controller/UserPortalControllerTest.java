@@ -34,19 +34,19 @@ class UserPortalControllerTest {
     @Test
     @DisplayName("Kullanıcı duyuruları kişisel değil efektif site kapsamıyla filtrelenmeli")
     void getMyAnnouncements_UsesDepartmentAndPersonalEffectiveSites() {
-        Set<SiteType> effectiveSites = Set.of(SiteType.EBELGE_GIB, SiteType.KOSGEB);
+        Set<SiteType> effectiveSites = Set.of(SiteType.EBELGE_GIB);
         SubscriberResponseDto user = SubscriberResponseDto.builder()
-                .subscribedSites(Set.of(SiteType.KOSGEB))
+                .subscribedSites(Set.of(SiteType.EBELGE_GIB))
                 .departmentSites(Set.of(SiteType.EBELGE_GIB))
                 .effectiveSites(effectiveSites)
                 .build();
         PageRequest pageable = PageRequest.of(0, 10);
 
-        when(announcementService.getAnnouncementsForSites(effectiveSites, null, pageable))
+        when(announcementService.getAnnouncementsForSites(effectiveSites, null, null, false, pageable))
                 .thenReturn(Page.<AnnouncementResponseDto>empty(pageable));
 
-        controller.getMyAnnouncements(user, null, pageable);
+        controller.getMyAnnouncements(user, null, null, false, pageable);
 
-        verify(announcementService).getAnnouncementsForSites(effectiveSites, null, pageable);
+        verify(announcementService).getAnnouncementsForSites(effectiveSites, null, null, false, pageable);
     }
 }

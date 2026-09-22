@@ -26,8 +26,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -85,9 +87,10 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 .flatMap(List::stream)
                 .toList();
 
-        // Yeni eklenen duyurular için abonelere e-posta bildirimi gönderilir
+        // Yalnızca bu taramada eklenen duyurular için bildirim oluşturulur.
+        // Eski "bildirilmedi" kayıtların tamamını tekrar kuyruğa almak toplu e-postaya yol açar.
         if (!newAnnouncements.isEmpty()) {
-            notifyPendingAnnouncements();
+            notifyNewAnnouncements(newAnnouncements);
         }
 
         return newAnnouncements;
@@ -105,7 +108,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         List<AnnouncementResponseDto> newAnnouncements = processScrapingForScraper(scraper);
 
         if (!newAnnouncements.isEmpty()) {
-            notifyPendingAnnouncements();
+            notifyNewAnnouncements(newAnnouncements);
         }
 
         return newAnnouncements;
@@ -156,25 +159,42 @@ public class AnnouncementServiceImpl implements AnnouncementService {
      * Veritabanındaki duyuruları sayfalama (pagination) desteği ile listeler.
      */
     @Override
-    public Page<AnnouncementResponseDto> getAllAnnouncements(SiteType siteType, Pageable pageable) {
-        if (siteType != null) {
-            return announcementRepository.findBySourceSite(siteType, pageable).map(this::mapToResponseDto);
-        }
-        return announcementRepository.findAll(pageable).map(this::mapToResponseDto);
+    public Page<AnnouncementResponseDto> getAllAnnouncements(
+            SiteType siteType, String search, boolean hasAttachment, Pageable pageable) {
+        return announcementRepository
+                .findAllFiltered(siteType, normalizeSearch(search), hasAttachment, pageable)
+                .map(this::mapToResponseDto);
     }
 
     @Override
-    public Page<AnnouncementResponseDto> getAnnouncementsForSites(java.util.Set<SiteType> subscribedSites, SiteType siteFilter, Pageable pageable) {
+    public Page<AnnouncementResponseDto> getAnnouncementsForSites(
+            Set<SiteType> subscribedSites,
+            SiteType siteFilter,
+            String search,
+            boolean hasAttachment,
+            Pageable pageable) {
         if (subscribedSites == null || subscribedSites.isEmpty()) {
             return Page.empty(pageable);
         }
+        Set<SiteType> sourceSites = subscribedSites;
         if (siteFilter != null) {
             if (!subscribedSites.contains(siteFilter)) {
                 return Page.empty(pageable);
             }
-            return announcementRepository.findBySourceSite(siteFilter, pageable).map(this::mapToResponseDto);
+            sourceSites = Set.of(siteFilter);
         }
-        return announcementRepository.findBySourceSiteIn(subscribedSites, pageable).map(this::mapToResponseDto);
+        return announcementRepository
+                .findForSitesFiltered(sourceSites, normalizeSearch(search), hasAttachment, pageable)
+                .map(this::mapToResponseDto);
+    }
+
+    @Override
+    public Map<SiteType, Long> getAnnouncementCounts() {
+        Map<SiteType, Long> counts = new EnumMap<>(SiteType.class);
+        Arrays.stream(SiteType.values()).forEach(siteType -> counts.put(siteType, 0L));
+        announcementRepository.countBySourceSite()
+                .forEach(row -> counts.put(row.getSiteType(), row.getAnnouncementCount()));
+        return counts;
     }
 
     /**
@@ -208,6 +228,25 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 ? todaysAnnouncements
                 : pending;
 
+        return enqueueAnnouncements(toNotify);
+    }
+
+    private int notifyNewAnnouncements(List<AnnouncementResponseDto> newAnnouncements) {
+        List<Long> ids = newAnnouncements.stream()
+                .map(AnnouncementResponseDto::getId)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (ids.isEmpty()) {
+            return 0;
+        }
+        return enqueueAnnouncements(announcementRepository.findAllById(ids));
+    }
+
+    private int enqueueAnnouncements(List<Announcement> announcements) {
+        if (announcements.isEmpty()) {
+            return 0;
+        }
+
         List<Subscriber> activeSubscribers = subscriberRepository.findByActiveTrue();
         Set<SiteType> allAvailableSites = new HashSet<>(Arrays.asList(SiteType.values()));
 
@@ -215,7 +254,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         if (!activeSubscribers.isEmpty()) {
             for (Subscriber sub : activeSubscribers) {
                 Set<SiteType> subSites = sub.getEffectiveSites(allAvailableSites);
-                List<Announcement> matchingForSub = toNotify.stream()
+                List<Announcement> matchingForSub = announcements.stream()
                         .filter(a -> subSites.contains(a.getSourceSite()))
                         .toList();
 
@@ -228,7 +267,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 }
             }
         } else if (defaultRecipient != null && !defaultRecipient.isBlank()) {
-            for (Announcement announcement : toNotify) {
+            for (Announcement announcement : announcements) {
                 if (notificationOutboxService.enqueue(announcement, defaultRecipient)) {
                     queuedDeliveries++;
                 }
@@ -292,5 +331,12 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         }
         log.warn("Güvenli olmayan duyuru URL'si yok sayıldı.");
         return null;
+    }
+
+    private String normalizeSearch(String search) {
+        if (search == null || search.isBlank()) {
+            return "";
+        }
+        return search.trim();
     }
 }

@@ -116,7 +116,7 @@ class SubscriberControllerTest {
     @Test
     @DisplayName("PATCH /api/v1/subscribers/{id}/sites - Site tercihleri güncelleme HTTP 200")
     void updateSitePreferences_ShouldReturnOk() {
-        Set<SiteType> sites = Set.of(SiteType.KOSGEB);
+        Set<SiteType> sites = Set.of(SiteType.EBELGE_GIB);
         when(subscriberService.updateSitePreferences(eq(1L), anySet())).thenReturn(sampleDto);
 
         ResponseEntity<ApiResponseDto<SubscriberResponseDto>> response = subscriberController.updateSitePreferences(1L, sites);
