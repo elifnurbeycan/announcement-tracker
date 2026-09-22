@@ -6,13 +6,13 @@ import com.yasarbilgi.announcementtracker.entity.Announcement;
 import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
-import com.yasarbilgi.announcementtracker.enums.SiteType;
 import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
 import com.yasarbilgi.announcementtracker.repository.AnnouncementRepository;
 import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.EmailService;
 import com.yasarbilgi.announcementtracker.service.KeycloakAdminService;
+import com.yasarbilgi.announcementtracker.service.UnsubscribeTokenService;
 import com.yasarbilgi.announcementtracker.service.impl.SubscriberServiceImpl;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,6 +52,9 @@ class SubscriberServiceImplTest {
 
     @Mock
     private KeycloakAdminService keycloakAdminService;
+
+    @Mock
+    private UnsubscribeTokenService unsubscribeTokenService;
 
     @InjectMocks
     private SubscriberServiceImpl subscriberService;
@@ -106,6 +109,27 @@ class SubscriberServiceImplTest {
         SubscriberResponseDto response = subscriberService.addSubscriber(dto);
 
         assertThat(response.getSubscribedSites()).contains(SiteType.EBELGE_GIB, SiteType.KOSGEB);
+    }
+
+    @Test
+    @DisplayName("Departmanlı yeni abone eklenirken ek site seçilmediğinde tüm siteler değil sadece departman kaynakları efektif olmalı")
+    void addSubscriber_DepartmentAssigned_NullExtraSites_ShouldNotDefaultToAllSites() {
+        Department dept = Department.builder().id(10L).name("IT").sites(Set.of(SiteType.EBELGE_GIB)).build();
+        SubscriberRequestDto dto = SubscriberRequestDto.builder()
+                .email("deptuser@example.com")
+                .fullName("Dept User")
+                .departmentIds(Set.of(10L))
+                .subscribedSites(null)
+                .build();
+
+        when(subscriberRepository.existsByEmail("deptuser@example.com")).thenReturn(false);
+        when(departmentRepository.findAllById(Set.of(10L))).thenReturn(List.of(dept));
+        when(subscriberRepository.save(any(Subscriber.class))).thenAnswer(i -> i.getArgument(0));
+
+        SubscriberResponseDto response = subscriberService.addSubscriber(dto);
+
+        assertThat(response.getSubscribedSites()).isEmpty();
+        assertThat(response.getEffectiveSites()).containsExactly(SiteType.EBELGE_GIB);
     }
 
     @Test
@@ -256,6 +280,41 @@ class SubscriberServiceImplTest {
         assertThat(result).isTrue();
         assertThat(subscriber.isActive()).isFalse();
         verify(subscriberRepository).save(subscriber);
+    }
+
+    @Test
+    @DisplayName("Aktif aboneye güvenli Keycloak şifre bağlantısı gönderme")
+    void sendPasswordSetupEmail_ActiveSubscriber_ShouldProvisionAndTriggerEmail() {
+        when(subscriberRepository.findById(1L)).thenReturn(Optional.of(subscriber));
+
+        subscriberService.sendPasswordSetupEmail(1L);
+
+        verify(keycloakAdminService).provisionSubscriber("test@example.com", "Test User", true);
+        verify(keycloakAdminService).triggerKeycloakResetPasswordEmail("test@example.com");
+    }
+
+    @Test
+    @DisplayName("Token ile güvenli abonelik iptal etme")
+    void unsubscribeByToken_ValidToken_ShouldDeactivate() {
+        when(subscriberRepository.findByEmail("test@example.com")).thenReturn(Optional.of(subscriber));
+        when(unsubscribeTokenService.generate("test@example.com")).thenReturn("valid-token");
+        when(unsubscribeTokenService.verifyAndExtractEmail("valid-token")).thenReturn(Optional.of("test@example.com"));
+
+        String token = subscriberService.generateUnsubscribeToken("test@example.com");
+        assertThat(token).isNotBlank();
+
+        boolean result = subscriberService.unsubscribeByToken(token);
+
+        assertThat(result).isTrue();
+        assertThat(subscriber.isActive()).isFalse();
+    }
+
+    @Test
+    @DisplayName("Geçersiz token ile abonelik iptali false dönmeli")
+    void unsubscribeByToken_InvalidToken_ShouldReturnFalse() {
+        when(unsubscribeTokenService.verifyAndExtractEmail("invalid-token-123")).thenReturn(Optional.empty());
+        boolean result = subscriberService.unsubscribeByToken("invalid-token-123");
+        assertThat(result).isFalse();
     }
 
     @Test

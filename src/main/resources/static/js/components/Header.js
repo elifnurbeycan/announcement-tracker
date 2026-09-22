@@ -67,10 +67,12 @@ window.Header = function Header({
 
                     {userDropdownOpen && (
                         <div className="dropdown-menu">
-                            <a href="#/profile" className="dropdown-item" onClick={() => setUserDropdownOpen(false)}>
-                                <i data-lucide="user" style={{ width: '16px', height: '16px' }}></i>
-                                Profilim
-                            </a>
+                            {!isAdmin && (
+                                <a href="#/profile" className="dropdown-item" onClick={() => setUserDropdownOpen(false)}>
+                                    <i data-lucide="user" style={{ width: '16px', height: '16px' }}></i>
+                                    Profilim
+                                </a>
+                            )}
                             {isAdmin && (
                                 <a href="#/settings" className="dropdown-item" onClick={() => setUserDropdownOpen(false)}>
                                     <i data-lucide="settings" style={{ width: '16px', height: '16px' }}></i>

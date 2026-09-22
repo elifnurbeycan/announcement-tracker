@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:17-alpine:///announcement_tracker_test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    username: test
+    password: test
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  liquibase:
+    enabled: true
+
+announcement:
+  tracker:
+    enabled: false
+    unsubscribe:
+      secret: test-only-unsubscribe-secret-32-characters
+      validity: 30d
+
+keycloak:
+  admin:
+    enabled: false
+
+app:
+  security:
+    local-login-enabled: true
+    sso-enabled: false

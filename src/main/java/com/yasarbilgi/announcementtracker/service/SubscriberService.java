@@ -25,19 +25,21 @@ public interface SubscriberService {
 
     void toggleSubscriberStatus(Long id, boolean active);
 
+    void sendPasswordSetupEmail(Long id);
+
     SubscriberResponseDto updateSitePreferences(Long id, Set<SiteType> siteTypes);
 
     boolean unsubscribeByEmail(String email);
+
+    String generateUnsubscribeToken(String email);
+
+    boolean unsubscribeByToken(String token);
 
     int importSubscribersFromExcel(MultipartFile file);
 
     int importSubscribersFromExcel(MultipartFile file, Set<SiteType> targetSites);
 
     com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto importSubscribersFromExcelDetailed(MultipartFile file, Set<SiteType> targetSites);
-
-    SubscriberResponseDto setPasswordWithToken(com.yasarbilgi.announcementtracker.dto.request.SetPasswordRequestDto dto);
-
-    com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto loginUser(com.yasarbilgi.announcementtracker.dto.request.UserLoginRequestDto dto);
 
     com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto createOidcSession(String email);
 

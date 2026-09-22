@@ -62,13 +62,13 @@ public class SecurityConfig {
                     "/admin-login.html",
                     "/user-login",
                     "/user-login.html",
-                    "/set-password.html",
                     "/dashboard",
                     "/dashboard.html",
                     "/user-dashboard",
                     "/user-dashboard.html",
                     "/css/**",
                     "/js/**",
+                    "/vendor/**",
                     "/images/**",
                     "/favicon.ico",
                     "/oauth2/**",
@@ -77,9 +77,7 @@ public class SecurityConfig {
                     "/api/v1/subscribers/unsubscribe/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.POST,
-                    "/api/v1/auth/login",
-                    "/api/v1/user/login",
-                    "/api/v1/user/set-password"
+                    "/api/v1/auth/login"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET,
                     "/api/v1/auth/mode",

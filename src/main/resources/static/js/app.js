@@ -60,14 +60,18 @@ function DashboardApp() {
 
         // Hash Route Check
         const hash = window.location.hash.replace('#/', '');
-        if (hash && ['overview', 'announcements', 'subscribers', 'departments', 'sources', 'settings', 'profile'].includes(hash)) {
+        if (hash && ['overview', 'announcements', 'subscribers', 'departments', 'sources', 'settings'].includes(hash)) {
             setActiveTab(hash);
+        } else if (hash) {
+            window.location.hash = '#/overview';
         }
 
         const handleHashChange = () => {
             const h = window.location.hash.replace('#/', '');
-            if (h && ['overview', 'announcements', 'subscribers', 'departments', 'sources', 'settings', 'profile'].includes(h)) {
+            if (h && ['overview', 'announcements', 'subscribers', 'departments', 'sources', 'settings'].includes(h)) {
                 setActiveTab(h);
+            } else if (h) {
+                window.location.hash = '#/overview';
             }
         };
 
@@ -204,6 +208,15 @@ function DashboardApp() {
             await loadSubscribers();
         } catch(e) {
             showToast(e.message || 'Durum değiştirilemedi.', 'error');
+        }
+    };
+
+    const handleSendPasswordSetupEmail = async (sub) => {
+        try {
+            await window.SubscriberService.sendPasswordSetupEmail(sub.id);
+            showToast(`${sub.email} adresine güvenli şifre belirleme bağlantısı gönderildi.`);
+        } catch (e) {
+            showToast(e.message || 'Şifre belirleme bağlantısı gönderilemedi.', 'error');
         }
     };
 
@@ -359,6 +372,7 @@ function DashboardApp() {
                             onOpenEditModal={(sub) => { setEditSubscriber(sub); setSubscriberModalOpen(true); }}
                             onOpenImportModal={() => setImportModalOpen(true)}
                             onToggleStatus={handleToggleStatus}
+                            onSendPasswordSetupEmail={handleSendPasswordSetupEmail}
                             onDeleteSubscriber={handleDeleteSubscriber}
                             onBulkDeleteSubscribers={handleBulkDeleteSubscribers}
                         />
@@ -389,13 +403,6 @@ function DashboardApp() {
                         />
                     )}
 
-                    {activeTab === 'profile' && (
-                        <window.ProfilePage 
-                            user={user}
-                            role="ROLE_ADMIN"
-                            availableSites={availableSites}
-                        />
-                    )}
                 </main>
             </div>
 

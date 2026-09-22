@@ -122,9 +122,9 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                         .content(dto.getContent())
                         .announcementDate(dto.getAnnouncementDate())
                         .sourceSite(dto.getSourceSite())
-                        .sourceUrl(dto.getSourceUrl())
-                        .attachmentUrl(dto.getAttachmentUrl())
-                        .imageUrl(dto.getImageUrl())
+                        .sourceUrl(sanitizeExternalUrl(dto.getSourceUrl()))
+                        .attachmentUrl(sanitizeExternalUrl(dto.getAttachmentUrl()))
+                        .imageUrl(sanitizeExternalUrl(dto.getImageUrl()))
                         .contentHash(dto.getContentHash())
                         .isNotified(false)
                         .build();
@@ -258,12 +258,30 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                 .announcementDate(entity.getAnnouncementDate())
                 .sourceSite(entity.getSourceSite())
                 .sourceSiteDisplayName(entity.getSourceSite().getDisplayName())
-                .sourceUrl(entity.getSourceUrl())
-                .attachmentUrl(entity.getAttachmentUrl())
-                .imageUrl(entity.getImageUrl())
+                .sourceUrl(sanitizeExternalUrl(entity.getSourceUrl()))
+                .attachmentUrl(sanitizeExternalUrl(entity.getAttachmentUrl()))
+                .imageUrl(sanitizeExternalUrl(entity.getImageUrl()))
                 .createdAt(entity.getCreatedAt())
                 .notifiedAt(entity.getNotifiedAt())
                 .isNotified(entity.isNotified())
                 .build();
+    }
+
+    private String sanitizeExternalUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            java.net.URI uri = java.net.URI.create(value.trim());
+            String scheme = uri.getScheme();
+            if (("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme))
+                    && uri.getHost() != null) {
+                return uri.toASCIIString();
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Invalid scraper output is intentionally discarded.
+        }
+        log.warn("Güvenli olmayan duyuru URL'si yok sayıldı.");
+        return null;
     }
 }

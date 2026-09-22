@@ -2,9 +2,9 @@ package com.yasarbilgi.announcementtracker.service.impl;
 
 import com.yasarbilgi.announcementtracker.entity.Announcement;
 import com.yasarbilgi.announcementtracker.service.EmailService;
+import com.yasarbilgi.announcementtracker.service.UnsubscribeTokenService;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -21,10 +21,15 @@ import java.util.List;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
 
     private final JavaMailSender mailSender;
+    private final UnsubscribeTokenService unsubscribeTokenService;
+
+    public EmailServiceImpl(JavaMailSender mailSender, UnsubscribeTokenService unsubscribeTokenService) {
+        this.mailSender = mailSender;
+        this.unsubscribeTokenService = unsubscribeTokenService;
+    }
 
     @Value("${announcement.tracker.email.from:noreply@announcementtracker.com}")
     private String mailFrom;
@@ -160,14 +165,16 @@ public class EmailServiceImpl implements EmailService {
 
             // Duyuru içerisinde gömülü görsel var ise gösterilir
             if (a.getImageUrl() != null && !a.getImageUrl().isBlank()) {
+                String safeImageUrl = sanitizeUrl(a.getImageUrl());
                 sb.append("<div style='margin: 16px 0; text-align: center;'>");
-                sb.append("  <img src='").append(a.getImageUrl()).append("' style='max-width: 100%; border-radius: 10px; border: 1px solid #e2e8f0;' alt='Duyuru Görseli' />");
+                sb.append("  <img src='").append(safeImageUrl).append("' style='max-width: 100%; border-radius: 10px; border: 1px solid #e2e8f0;' alt='Duyuru Görseli' />");
                 sb.append("</div>");
             }
 
             // Ek dosya / PDF bağlantısı
             if (a.getAttachmentUrl() != null && !a.getAttachmentUrl().isBlank()) {
                 String attachUrl = a.getAttachmentUrl();
+                String safeAttachUrl = sanitizeUrl(attachUrl);
                 boolean isPdf = attachUrl.endsWith(".pdf");
                 String badgeText = isPdf ? "PDF DOKÜMANI" : "DOSYA PAKETİ";
                 String badgeBg = isPdf ? "#dc2626" : "#2563eb";
@@ -184,22 +191,23 @@ public class EmailServiceImpl implements EmailService {
                 sb.append("    </table>");
 
                 sb.append("    <div style='font-size: 13px; color: #1d4ed8; background: #ffffff; padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; word-break: break-all; overflow-wrap: anywhere; margin: 14px 0 16px 0; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif;'>");
-                sb.append("      <a href='").append(attachUrl).append("' style='color: #1d4ed8 !important; font-weight: 600; text-decoration: underline; word-break: break-all; overflow-wrap: anywhere;' target='_blank'>").append(escapeHtml(attachUrl)).append("</a>");
+                sb.append("      <a href='").append(safeAttachUrl).append("' style='color: #1d4ed8 !important; font-weight: 600; text-decoration: underline; word-break: break-all; overflow-wrap: anywhere;' target='_blank'>").append(safeAttachUrl).append("</a>");
                 sb.append("    </div>");
 
-                sb.append("    <a href='").append(attachUrl).append("' class='cta-btn-secondary' target='_blank'>").append(btnText).append("</a>");
+                sb.append("    <a href='").append(safeAttachUrl).append("' class='cta-btn-secondary' target='_blank'>").append(btnText).append("</a>");
 
                 sb.append("  </td></tr>");
                 sb.append("</table>");
             }
 
             // Duyurunun asıl orijinal web sayfasına yönlendiren ana buton
-            String sourceUrl = (a.getSourceUrl() != null && !a.getSourceUrl().isBlank()) 
+            String rawSourceUrl = (a.getSourceUrl() != null && !a.getSourceUrl().isBlank())
                     ? a.getSourceUrl() 
                     : a.getSourceSite().getBaseUrl();
+            String safeSourceUrl = sanitizeUrl(rawSourceUrl);
 
             sb.append("<div style='margin-top: 20px;'>");
-            sb.append("  <a href='").append(sourceUrl).append("' class='cta-btn-primary' target='_blank'>Duyurunun Asıl Web Sayfasına Git &rarr;</a>");
+            sb.append("  <a href='").append(safeSourceUrl).append("' class='cta-btn-primary' target='_blank'>Duyurunun Asıl Web Sayfasına Git &rarr;</a>");
             sb.append("</div>");
 
             sb.append("</div>");
@@ -207,7 +215,8 @@ public class EmailServiceImpl implements EmailService {
 
         sb.append("</div>"); // content-padding sonu
 
-        String unsubUrl = appBaseUrl + "/api/v1/subscribers/unsubscribe?email=" + recipientEmail;
+        String unsubToken = unsubscribeTokenService.generate(recipientEmail);
+        String unsubUrl = escapeHtml(appBaseUrl + "/api/v1/subscribers/unsubscribe?token=" + unsubToken);
 
         sb.append("<div class='footer'>");
         sb.append("<p>Bu e-posta Java 21 & Spring Boot Duyuru Takip Servisi tarafından otomatik olarak oluşturulmuştur.</p>");
@@ -215,6 +224,18 @@ public class EmailServiceImpl implements EmailService {
         sb.append("</div></div></div></body></html>");
 
         return sb.toString();
+    }
+
+    private String sanitizeUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return "#";
+        }
+        String trimmed = url.trim();
+        String lower = trimmed.toLowerCase();
+        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+            return escapeHtml(trimmed);
+        }
+        return "#";
     }
 
     /**
@@ -225,7 +246,8 @@ public class EmailServiceImpl implements EmailService {
         return text.replace("&", "&amp;")
                    .replace("<", "&lt;")
                    .replace(">", "&gt;")
-                   .replace("\"", "&quot;");
+                   .replace("\"", "&quot;")
+                   .replace("'", "&#39;");
     }
 
     @Override
@@ -243,11 +265,11 @@ public class EmailServiceImpl implements EmailService {
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
             helper.setFrom(mailFrom);
             helper.setTo(email);
-            helper.setSubject("Aboneliğiniz Başlatıldı - Keycloak Şifrenizi Belirleyin");
+            helper.setSubject("Duyuru Takip Sistemi Hesabınız Oluşturuldu");
 
             String setPasswordUrl = (passwordResetUrlOrToken != null && passwordResetUrlOrToken.startsWith("http"))
                     ? passwordResetUrlOrToken
-                    : appBaseUrl + "/set-password.html?token=" + passwordResetUrlOrToken;
+                    : appBaseUrl + "/user-login.html";
 
             String name = (fullName != null && !fullName.isBlank()) ? fullName : email.split("@")[0];
 
@@ -263,11 +285,11 @@ public class EmailServiceImpl implements EmailService {
                     <div style='padding: 24px; color: #334155; line-height: 1.6;'>
                       <p>Merhaba <strong>%s</strong>,</p>
                       <p>Duyuru takip sistemimize aboneliğiniz yönetici tarafından başarıyla oluşturulmuştur. Artık seçtiğiniz resmi kaynaklardan yayımlanan güncel duyuruları e-posta olarak alacaksınız.</p>
-                      <p>Kullanıcı panelinize erişebilmek için Keycloak kimlik doğrulama sunucusu üzerinden şifrenizi oluşturabilirsiniz.</p>
+                      <p>Parolanızı belirlemeniz için Keycloak tarafından ayrıca tek kullanımlık ve süreli bir güvenlik e-postası gönderilecektir.</p>
                       <div style='text-align: center; margin: 30px 0;'>
-                        <a href='%s' style='background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;'>Keycloak Şifrenizi Belirleyin &amp; Giriş Yapın &rarr;</a>
+                        <a href='%s' style='background-color: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;'>Kullanıcı Giriş Ekranına Git &rarr;</a>
                       </div>
-                      <p style='font-size: 13px; color: #64748b;'>Şifreniz doğrudan güvenli Keycloak sunucusunda tutulmaktadır.</p>
+                      <p style='font-size: 13px; color: #64748b;'>Parolanız yalnızca güvenli Keycloak sunucusunda tutulur; duyuru takip uygulaması parolanızı görmez.</p>
                     </div>
                   </div>
                 </body>
@@ -281,8 +303,8 @@ public class EmailServiceImpl implements EmailService {
             mailSender.send(mimeMessage);
             log.info("Welcome & password setup email sent to: {}", email);
         } catch (Exception e) {
-            log.warn("SMTP email send failed (local SMTP settings may be unconfigured). Use direct link: {}/set-password.html?email={}", appBaseUrl, email);
-            log.error("Failed to send welcome password setup email to {}: {}", email, e.getMessage());
+            log.warn("SMTP email send failed (local SMTP settings may be unconfigured). Direct login: {}/user-login.html", appBaseUrl);
+            log.error("Failed to send welcome email to {}: {}", email, e.getMessage());
         }
     }
 

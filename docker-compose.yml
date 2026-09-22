@@ -30,9 +30,36 @@ services:
       - "127.0.0.1:8180:8080"
     volumes:
       - ./config/keycloak/announcement-tracker-realm.json:/opt/keycloak/data/import/announcement-tracker-realm-realm.json:ro
+      - ./config/keycloak/themes/announcement-tracker:/opt/keycloak/themes/announcement-tracker:ro
     depends_on:
       postgres:
         condition: service_healthy
+
+  keycloak-config:
+    image: quay.io/keycloak/keycloak:26.7.4
+    container_name: announcement-tracker-keycloak-config
+    entrypoint: ["/bin/bash", "/config/configure-keycloak.sh"]
+    environment:
+      KEYCLOAK_SERVER_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-announcement-tracker-realm}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-announcement-tracker-app}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID:?Set KEYCLOAK_ADMIN_CLIENT_ID in .env}
+      KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME:?Set KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME in .env}
+      KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD:?Set KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD in .env}
+      KEYCLOAK_CONSOLE_ADMIN_USERNAME: ${KEYCLOAK_CONSOLE_ADMIN_USERNAME:-}
+      KEYCLOAK_CONSOLE_ADMIN_PASSWORD: ${KEYCLOAK_CONSOLE_ADMIN_PASSWORD:-}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+    volumes:
+      - ./scripts/configure-keycloak.sh:/config/configure-keycloak.sh:ro
+    depends_on:
+      keycloak:
+        condition: service_started
+    restart: "no"
 
 volumes:
   keycloak_postgres_data:

@@ -36,6 +36,12 @@ public class KeycloakAdminService {
     @Value("${keycloak.realm:announcement-tracker-realm}")
     private String keycloakRealm;
 
+    @Value("${keycloak.client-id:announcement-tracker-app}")
+    private String applicationClientId;
+
+    @Value("${announcement.tracker.app-base-url:http://localhost:8080}")
+    private String appBaseUrl;
+
     @Value("${keycloak.admin.enabled:false}")
     private boolean enabled;
 
@@ -113,32 +119,6 @@ public class KeycloakAdminService {
         }
     }
 
-    public void setSubscriberPassword(String email, String password, String fullName) {
-        if (!enabled) {
-            return;
-        }
-
-        try {
-            provisionSubscriber(email, fullName, true);
-            String token = getAdminAccessToken();
-            Map<String, Object> user = findUserByEmail(normalizeEmail(email), token)
-                    .orElseThrow(() -> new IdentityProviderException("Keycloak hesabı oluşturulamadı: " + email));
-            String userId = String.valueOf(user.get("id"));
-            String url = adminUrl("users/" + userId + "/reset-password");
-            Map<String, Object> payload = Map.of(
-                    "type", "password",
-                    "value", password,
-                    "temporary", false
-            );
-            restTemplate.exchange(url, HttpMethod.PUT, jsonEntity(payload, token), Void.class);
-            log.info("Keycloak subscriber credential initialized: {}", normalizeEmail(email));
-        } catch (IdentityProviderException | IllegalArgumentException exception) {
-            throw exception;
-        } catch (Exception exception) {
-            throw new IdentityProviderException("Keycloak kullanıcı parolası ayarlanamadı.", exception);
-        }
-    }
-
     public void deleteUserInKeycloak(String email) {
         if (!enabled || email == null || email.isBlank()) {
             return;
@@ -195,47 +175,38 @@ public class KeycloakAdminService {
         }
     }
 
-    public String getKeycloakPasswordResetUrl() {
-        return keycloakServerUrl + "/realms/" + keycloakRealm + "/login-actions/reset-credentials";
-    }
-
     public void triggerKeycloakResetPasswordEmail(String email) {
-        if (!enabled) return;
+        if (!enabled) {
+            throw new IdentityProviderException("Keycloak şifre oluşturma servisi etkin değil.");
+        }
         try {
             String token = getAdminAccessToken();
             Optional<Map<String, Object>> userOpt = findUserByEmail(normalizeEmail(email), token);
-            if (userOpt.isPresent()) {
-                String userId = String.valueOf(userOpt.get().get("id"));
-                String url = adminUrl("users/" + userId + "/execute-actions-email");
-                restTemplate.exchange(url, HttpMethod.PUT, jsonEntity(List.of("UPDATE_PASSWORD"), token), Void.class);
-                log.info("Keycloak execute-actions-email triggered for: {}", email);
+            if (userOpt.isEmpty()) {
+                throw new IdentityProviderException("Keycloak kullanıcısı bulunamadığı için şifre bağlantısı gönderilemedi.");
             }
-        } catch (Exception e) {
-            log.warn("Could not trigger Keycloak execute-actions-email directly: {}", e.getMessage());
-        }
-    }
 
-    public boolean authenticateUser(String email, String password) {
-        if (!enabled) {
-            return true;
-        }
-        try {
-            String tokenUrl = String.format("%s/realms/%s/protocol/openid-connect/token", keycloakServerUrl, keycloakRealm);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-            params.add("grant_type", "password");
-            params.add("client_id", adminClientId != null && !adminClientId.isBlank() ? "announcement-tracker-app" : "announcement-tracker-app");
-            params.add("username", normalizeEmail(email));
-            params.add("password", password);
-
-            HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(params, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(tokenUrl, entity, Map.class);
-            return response.getStatusCode().is2xxSuccessful() && response.getBody() != null && response.getBody().containsKey("access_token");
-        } catch (Exception e) {
-            log.warn("Keycloak user password authentication failed for {}: {}", email, e.getMessage());
-            return false;
+            String userId = String.valueOf(userOpt.get().get("id"));
+            String url = UriComponentsBuilder
+                    .fromUriString(adminUrl("users/" + userId + "/execute-actions-email"))
+                    .queryParam("client_id", applicationClientId)
+                    // Continue with the application's Authorization Code flow after the
+                    // password action. Keycloak already has an authenticated browser
+                    // session, so this normally signs the subscriber in without a
+                    // second credential prompt.
+                    .queryParam("redirect_uri", appBaseUrl + "/oauth2/authorization/keycloak")
+                    .queryParam("lifespan", 43_200)
+                    .build()
+                    .encode()
+                    .toUriString();
+            restTemplate.exchange(url, HttpMethod.PUT, jsonEntity(List.of("UPDATE_PASSWORD"), token), Void.class);
+            log.info("Keycloak execute-actions-email triggered for: {}", email);
+        } catch (IdentityProviderException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new IdentityProviderException(
+                    "Keycloak şifre belirleme e-postasını gönderemedi. SMTP ve realm ayarlarını kontrol edin.",
+                    exception);
         }
     }
 

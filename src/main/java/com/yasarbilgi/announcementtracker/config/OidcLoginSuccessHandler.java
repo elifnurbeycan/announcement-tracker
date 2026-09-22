@@ -34,6 +34,13 @@ public class OidcLoginSuccessHandler implements AuthenticationSuccessHandler {
         OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
         Collection<String> roles = extractRealmRoles(oidcUser);
         boolean adminLogin = hasAdminRole(roles);
+        boolean subscriberLogin = hasSubscriberRole(roles);
+
+        if (!adminLogin && !subscriberLogin) {
+            clearTemporaryOauthSession(request);
+            response.sendRedirect("/user-login.html?ssoError=insufficient-roles");
+            return;
+        }
 
         try {
             if (adminLogin) {
@@ -70,6 +77,13 @@ public class OidcLoginSuccessHandler implements AuthenticationSuccessHandler {
                 .map(String::toUpperCase)
                 .anyMatch(role -> role.equals("ADMIN") || role.equals("SUPER_ADMIN") ||
                         role.equals("ROLE_ADMIN") || role.equals("ROLE_SUPER_ADMIN"));
+    }
+
+    private boolean hasSubscriberRole(Collection<String> roles) {
+        return roles.stream()
+                .map(String::toUpperCase)
+                .anyMatch(role -> role.equals("SUBSCRIBER") || role.equals("ROLE_SUBSCRIBER") ||
+                        role.equals("USER") || role.equals("ROLE_USER"));
     }
 
     private String firstNonBlank(String first, String second) {

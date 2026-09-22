@@ -83,14 +83,16 @@ window.Sidebar = function Sidebar({ activeTab, setActiveTab, collapsed, mobileOp
                     </>
                 )}
 
-                <a 
-                    href="#/profile"
-                    className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('profile')}
-                >
-                    <i data-lucide="user"></i>
-                    {!collapsed && <span>Profilim</span>}
-                </a>
+                {!isAdmin && (
+                    <a
+                        href="#/profile"
+                        className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('profile')}
+                    >
+                        <i data-lucide="user"></i>
+                        {!collapsed && <span>Profilim</span>}
+                    </a>
+                )}
             </nav>
         </aside>
     );

@@ -1,10 +1,16 @@
 app:
   security:
-    local-login-enabled: true
-    sso-enabled: false
+    local-login-enabled: false
+    sso-enabled: true
     session-cookie:
       secure: true
       same-site: Lax
+
+announcement:
+  tracker:
+    unsubscribe:
+      secret: ${UNSUBSCRIBE_TOKEN_SECRET}
+      validity: ${UNSUBSCRIBE_TOKEN_VALIDITY:30d}
 
 server:
   forward-headers-strategy: framework

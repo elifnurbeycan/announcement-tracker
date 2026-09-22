@@ -72,6 +72,14 @@ public class SubscriberController {
         return ResponseEntity.ok(ApiResponseDto.ok("Abone aktiflik durumu güncellendi."));
     }
 
+    @PostMapping("/{id}/password-setup-email")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
+    public ResponseEntity<ApiResponseDto<Void>> sendPasswordSetupEmail(@PathVariable Long id) {
+        subscriberService.sendPasswordSetupEmail(id);
+        return ResponseEntity.ok(ApiResponseDto.ok(
+                "Güvenli ve süreli şifre belirleme bağlantısı aboneye gönderildi."));
+    }
+
     @PatchMapping("/{id}/sites")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<SubscriberResponseDto>> updateSitePreferences(
@@ -153,24 +161,20 @@ public class SubscriberController {
     }
 
     @PostMapping("/unsubscribe")
-    public ResponseEntity<ApiResponseDto<Boolean>> unsubscribeApi(@RequestParam String email) {
-        boolean success = subscriberService.unsubscribeByEmail(email);
-        if (success) {
-            return ResponseEntity.ok(ApiResponseDto.ok("Aboneliğiniz başarıyla iptal edilmiştir.", true));
-        } else {
-            return ResponseEntity.badRequest().body(ApiResponseDto.error("Belirtilen e-posta adresi sistemde bulunamadı."));
-        }
+    public ResponseEntity<ApiResponseDto<Boolean>> unsubscribeApi(@RequestParam String token) {
+        subscriberService.unsubscribeByToken(token);
+        return ResponseEntity.ok(ApiResponseDto.ok("Abonelik iptal talebiniz işlenmiştir.", true));
     }
 
     @GetMapping(value = "/unsubscribe", produces = org.springframework.http.MediaType.TEXT_HTML_VALUE)
-    public ResponseEntity<String> unsubscribeHtml(@RequestParam String email, CsrfToken csrfToken) {
-        String safeEmail = HtmlUtils.htmlEscape(email == null ? "" : email);
+    public ResponseEntity<String> unsubscribeHtml(@RequestParam String token, CsrfToken csrfToken) {
+        String safeToken = HtmlUtils.htmlEscape(token == null ? "" : token);
         String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Abonelik İptali</title>" +
                 unsubscribeStyles() + "</head><body><div class='card'>" +
                 "<h2>Abonelikten Çık</h2>" +
-                "<p><b>" + safeEmail + "</b> adresinin bildirim aboneliğini iptal etmek istediğinizi onaylayın.</p>" +
+                "<p>Bildirim aboneliğinizi iptal etmek istediğinizi onaylıyor musunuz?</p>" +
                 "<form method='post' action='/api/v1/subscribers/unsubscribe/confirm'>" +
-                "<input type='hidden' name='email' value='" + safeEmail + "'>" +
+                "<input type='hidden' name='token' value='" + safeToken + "'>" +
                 "<input type='hidden' name='" + HtmlUtils.htmlEscape(csrfToken.getParameterName()) + "' value='" +
                 HtmlUtils.htmlEscape(csrfToken.getToken()) + "'>" +
                 "<button type='submit'>Aboneliği İptal Et</button></form>" +
@@ -180,14 +184,13 @@ public class SubscriberController {
     }
 
     @PostMapping(value = "/unsubscribe/confirm", produces = org.springframework.http.MediaType.TEXT_HTML_VALUE)
-    public ResponseEntity<String> unsubscribeConfirm(@RequestParam String email) {
-        boolean success = subscriberService.unsubscribeByEmail(email);
-        String safeEmail = HtmlUtils.htmlEscape(email == null ? "" : email);
+    public ResponseEntity<String> unsubscribeConfirm(@RequestParam String token) {
+        subscriberService.unsubscribeByToken(token);
         String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Abonelik İptali</title>" +
                 unsubscribeStyles() + "</head><body>" +
                 "<div class='card'>" +
-                "<h2 class='" + (success ? "success" : "error") + "'>" + (success ? "Abonelik İptal Edildi" : "İşlem Başarısız") + "</h2>" +
-                "<p>" + (success ? "<b>" + safeEmail + "</b> adresi e-Belge Duyuru Bildirim listesinden çıkarılmıştır. Artık e-posta bildirimi almayacaksınız." : "<b>" + safeEmail + "</b> adresi sistemde bulunamadı veya zaten abonelikten çıkarılmış.") + "</p>" +
+                "<h2 class='success'>Abonelik İptal Edildi</h2>" +
+                "<p>Aboneliğiniz e-Belge Duyuru Bildirim listesinden çıkarılmıştır. Artık e-posta bildirimi almayacaksınız.</p>" +
                 "<a href='/'>Ana Sayfaya Dön</a>" +
                 "</div></body></html>";
         return ResponseEntity.ok(html);

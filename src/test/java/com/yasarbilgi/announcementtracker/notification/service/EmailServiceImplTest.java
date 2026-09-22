@@ -3,6 +3,7 @@ package com.yasarbilgi.announcementtracker.notification.service;
 import com.yasarbilgi.announcementtracker.entity.Announcement;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
 import com.yasarbilgi.announcementtracker.service.impl.EmailServiceImpl;
+import com.yasarbilgi.announcementtracker.service.UnsubscribeTokenService;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,6 +29,9 @@ class EmailServiceImplTest {
     @Mock
     private MimeMessage mimeMessage;
 
+    @Mock
+    private UnsubscribeTokenService unsubscribeTokenService;
+
     @InjectMocks
     private EmailServiceImpl emailService;
 
@@ -37,6 +41,7 @@ class EmailServiceImplTest {
     void setUp() {
         ReflectionTestUtils.setField(emailService, "mailFrom", "noreply@company.com");
         ReflectionTestUtils.setField(emailService, "appBaseUrl", "http://localhost:8080");
+        lenient().when(unsubscribeTokenService.generate(anyString())).thenReturn("test-unsubscribe-token");
 
         announcement = Announcement.builder()
                 .id(1L)

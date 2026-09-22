@@ -1,0 +1,110 @@
+:root {
+    --at-bg: #080d1a;
+    --at-panel: #0f172a;
+    --at-border: #244775;
+    --at-text: #f8fafc;
+    --at-muted: #94a3b8;
+    --at-blue: #3b82f6;
+    --at-cyan: #06b6d4;
+}
+
+body,
+.login-pf body,
+.pf-v5-c-login,
+.pf-v5-c-background-image,
+.pf-v5-c-login__container {
+    background: radial-gradient(circle at 25% 20%, rgba(37, 99, 235, .13), transparent 34%),
+                linear-gradient(135deg, var(--at-bg), #101126) !important;
+    color: var(--at-text);
+    font-family: "Segoe UI", Arial, sans-serif;
+}
+
+#kc-header {
+    margin-bottom: 22px;
+}
+
+#kc-header-wrapper {
+    color: transparent !important;
+    font-size: 0 !important;
+    text-align: center;
+}
+
+#kc-header-wrapper::before {
+    content: "e-Duyuru Takip";
+    color: #a5b4fc;
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: -.5px;
+}
+
+.card-pf,
+.pf-v5-c-login__main,
+.pf-v5-c-card,
+#kc-content {
+    background: rgba(15, 23, 42, .96) !important;
+    border: 1px solid var(--at-border) !important;
+    border-radius: 22px !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .45) !important;
+}
+
+#kc-content {
+    padding: 34px !important;
+}
+
+#kc-page-title,
+.pf-v5-c-title,
+label,
+.pf-v5-c-form__label-text {
+    color: var(--at-text) !important;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+    background: #111b31 !important;
+    border: 1px solid #263653 !important;
+    border-radius: 10px !important;
+    color: var(--at-text) !important;
+    min-height: 46px;
+}
+
+input:focus {
+    border-color: var(--at-blue) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, .18) !important;
+}
+
+#kc-login,
+input[type="submit"],
+.pf-v5-c-button.pf-m-primary {
+    background: linear-gradient(135deg, var(--at-cyan), var(--at-blue)) !important;
+    border: 0 !important;
+    border-radius: 10px !important;
+    color: white !important;
+    font-weight: 700 !important;
+    min-height: 46px;
+}
+
+a {
+    color: #60a5fa !important;
+}
+
+.pf-v5-c-helper-text,
+.subtitle,
+#kc-info,
+#kc-info-wrapper {
+    color: var(--at-muted) !important;
+}
+
+.pf-v5-c-alert,
+.alert-error {
+    background: rgba(127, 29, 29, .35) !important;
+    border: 1px solid rgba(248, 113, 113, .45) !important;
+    border-radius: 10px !important;
+    color: #fca5a5 !important;
+}
+
+@media (max-width: 600px) {
+    #kc-content {
+        padding: 24px 18px !important;
+    }
+}

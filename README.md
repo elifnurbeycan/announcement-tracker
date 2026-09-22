@@ -4,6 +4,18 @@ Bu proje, Gelir İdaresi Başkanlığı (GİB) e-Belge portalı ve KOSGEB resmi 
 
 ---
 
+## Frontend build
+
+Tarayıcıda Babel çalıştırılmaz. JSX kaynaklarında değişiklik yaptıktan sonra derlenmiş statik dosyaları güncelleyin:
+
+```powershell
+node scripts/build-frontend.js
+```
+
+Derlenmiş çıktılar `src/main/resources/static/js/dist` altında tutulur ve uygulama bu dosyaları sunar.
+
+---
+
 ## 🚀 Temel Özellikler
 
 - **🌐 Çoklu Kaynak Web Kazıma (Multi-Source Scraping)**: GİB e-Belge ve KOSGEB portalı duyuruları, ek dosyaları (.pdf, .zip vb.) ve görselleri otomatik taranır.
@@ -61,7 +73,7 @@ Proje **Strategy Pattern** ve **Spring Bean Auto-Registration** mimarisinde kurg
 - **PostgreSQL 17**: 3NF ve BCNF standartlarında ilişkisel veri modeli.
 - **`ON DELETE CASCADE`**: İlişkili tablolarda (`subscriber_site_preferences`, `subscriber_departments`) güvenli silme kısıtlaması.
 - **Performans İndeksleri**: `idx_announcement_hash`, `idx_announcement_site`, `idx_announcement_notified` ve `idx_announcement_date` indeksleri ile yüksek hızlı sorgulama.
-- **Kimlik Doğrulama**: `CustomTokenAuthenticationFilter` ile Admin ve Abone rolleri için sunucu taraflı oturum doğrulaması; `HttpOnly`, `Secure`, `SameSite` cookie ve CSRF koruması.
+- **Kimlik Doğrulama**: Keycloak Authorization Code akışı ve `SessionAuthenticationFilter` ile rol tabanlı sunucu tarafı oturum doğrulaması; `HttpOnly`, `Secure`, `SameSite` cookie ve CSRF koruması. Kullanıcı parolaları uygulamaya gönderilmez.
 
 ---
 
@@ -104,21 +116,22 @@ Keycloak istemcisi confidential client olarak tanımlanmalı, Standard Flow etki
 
 #### Docker ile Yerel Keycloak
 
-Depodaki Compose tanımı Keycloak'ı `http://localhost:8180` adresinde, ayrı bir PostgreSQL veritabanıyla çalıştırır ve `announcement-tracker-realm` yapılandırmasını ilk açılışta içe aktarır:
+Depodaki Compose tanımı Keycloak'ı `http://localhost:8180` adresinde, ayrı bir PostgreSQL veritabanıyla çalıştırır ve `announcement-tracker-realm` yapılandırmasını ilk açılışta içe aktarır. `keycloak-config` servisi tema, SMTP, güvenli yönlendirme adresleri ve servis hesabının en düşük kullanıcı-yönetim rollerini her açılışta idempotent olarak uygular:
 
 ```powershell
-$env:KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD="yalnizca-yerel-guclu-bir-parola"
 docker compose up -d
+docker compose logs keycloak-config
 ```
 
 Yönetim konsolu `http://localhost:8180/admin` adresindedir. İlk girişte kullanıcı adı `admin`, parola ise yukarıda verdiğiniz değerdir. `announcement-tracker-realm` içinde uygulamanın yerel yöneticisiyle aynı kullanıcı adına sahip bir kullanıcı oluşturup `ROLE_SUPER_ADMIN` rolünü atayın. Çalışan girişi için Keycloak kullanıcısının e-posta adresi uygulamadaki aktif abonenin e-posta adresiyle aynı olmalıdır.
 
-Uygulamayı yerel SSO açık şekilde başlatın:
+`.env` dosyasında `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`,
+`SPRING_MAIL_PASSWORD` ve `MAIL_FROM` doldurulmalıdır. Keycloak, imzalı ve süreli
+`UPDATE_PASSWORD` bağlantısını bu SMTP hesabıyla gönderir. Uygulamayı normal IDE Run
+butonuyla veya aşağıdaki komutla başlatabilirsiniz:
 
 ```powershell
-.\scripts\configure-keycloak-admin-client.ps1
-.\scripts\create-keycloak-permanent-admin.ps1
-.\scripts\start-local-sso.ps1
+.\mvnw.cmd spring-boot:run
 ```
 
 Kalıcı yönetim konsolu hesabı `.env` içindeki `KEYCLOAK_CONSOLE_ADMIN_USERNAME` ve
@@ -127,7 +140,7 @@ kurulum içindir; canlı ortamda bu değerler `.env` yerine kurumun secret manag
 
 Yerel istemci Authorization Code + PKCE kullanır; Direct Access Grant, joker yönlendirme adresleri ve herkese açık kullanıcı kaydı kapalıdır. `start-dev` yalnızca geliştirme içindir. Canlı Keycloak kurulumu HTTPS, sabit hostname, secret yönetimi ve production `start` modu ile ayrıca yapılandırılmalıdır.
 
-Super Admin panelinden abone oluşturulduğunda backend aynı e-posta için Keycloak hesabını ve `ROLE_SUBSCRIBER` rolünü otomatik oluşturur. Ad-soyad/e-posta güncelleme, aktif-pasif yapma, Excel içe aktarma ve silme işlemleri de Keycloak'a yansıtılır. Uygulama bunun için kullanıcı parolası yerine yalnızca `manage-users`, `query-users` ve `view-users` rollerine sahip `announcement-tracker-admin` servis hesabını kullanır.
+Super Admin panelinden abone oluşturulduğunda backend aynı e-posta için Keycloak hesabını ve `ROLE_SUBSCRIBER` rolünü otomatik oluşturur ve tek kullanımlık şifre belirleme e-postasını gönderir. Mevcut aboneler için Aboneler tablosundaki **Şifre Bağlantısı** işlemi aynı güvenli e-postayı yeniden yollar. Ad-soyad/e-posta güncelleme, aktif-pasif yapma, Excel içe aktarma ve silme işlemleri de Keycloak'a yansıtılır. Uygulama bunun için kullanıcı parolası yerine yalnızca `manage-users`, `query-users`, `view-users` ve realm bilgisini okumak için `view-realm` rollerine sahip `announcement-tracker-admin` servis hesabını kullanır.
 
 ### 3. Uygulamayı Başlatma
 ```bash
@@ -137,7 +150,11 @@ Uygulama başlatıldıktan sonra panellere erişebilirsiniz:
 - **Yönetim Paneli (Super Admin)**: `http://localhost:8080/admin-login.html`
 - **Abone Portalı**: `http://localhost:8080/user-login.html`
 
-### 4. Testleri Çalıştırma (Unit + Playwright E2E UI)
+### 4. Testleri Çalıştırma (Unit + PostgreSQL + Playwright E2E UI)
+
+Test profili H2 kullanmaz. Entegrasyon testleri Testcontainers aracılığıyla geçici bir
+PostgreSQL 17 konteyneri oluşturduğu için testlerden önce Docker Desktop çalışır durumda olmalıdır.
+
 ```bash
 ./mvnw test
 ```

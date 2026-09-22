@@ -14,11 +14,10 @@
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/auth.css">
 
-    <!-- React 18 & Babel & Lucide Icons -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Local Vendor Scripts (React 18, Babel, Lucide) -->
+    <script src="/vendor/react.production.min.js"></script>
+    <script src="/vendor/react-dom.production.min.js"></script>
+    <script src="/vendor/lucide.min.js"></script>
 </head>
 <body style="display: flex; align-items: center; justify-content: center; padding: 20px;">
 
@@ -27,113 +26,6 @@
     <!-- API Client & Services -->
     <script src="/js/api/apiClient.js"></script>
     <script src="/js/services/authService.js"></script>
-
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-
-        function AdminLoginApp() {
-            const [username, setUsername] = useState('');
-            const [password, setPassword] = useState('');
-            const [error, setError] = useState('');
-            const [loading, setLoading] = useState(false);
-
-            useEffect(() => {
-                setTimeout(() => { if (window.lucide) window.lucide.createIcons(); }, 50);
-                const sessionMessage = sessionStorage.getItem('sessionExpiredMessage');
-                if (sessionMessage) {
-                    setError(sessionMessage);
-                    sessionStorage.removeItem('sessionExpiredMessage');
-                }
-            }, []);
-
-            const handleLogin = async (e) => {
-                e.preventDefault();
-                setError('');
-                setLoading(true);
-
-                try {
-                    await window.AuthService.loginAdmin(username, password);
-                    window.location.href = '/dashboard.html';
-                } catch (err) {
-                    setError(err.message || 'Geçersiz kullanıcı adı veya şifre.');
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            return (
-                <div className="login-card">
-                    <div className="login-header">
-                        <div className="login-icon-box">
-                            <i data-lucide="shield-check" style={{ width: '32px', height: '32px', color: 'white' }}></i>
-                        </div>
-                        <h2>Yönetici Girişi</h2>
-                        <p>Duyuru Takip Yönetim Paneli</p>
-                    </div>
-
-                    {error && <div className="login-error">{error}</div>}
-
-                    <form onSubmit={handleLogin}>
-                        <div className="form-group">
-                            <label className="form-label">Kullanıcı Adı</label>
-                            <input 
-                                type="text" 
-                                className="input-field" 
-                                placeholder="Kullanıcı adı" 
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                required 
-                                autoFocus
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Şifre</label>
-                            <input 
-                                type="password" 
-                                className="input-field" 
-                                placeholder="••••••••" 
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required 
-                            />
-                        </div>
-
-                        <button type="submit" className="btn-submit" disabled={loading}>
-                            {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
-                        </button>
-                    </form>
-
-                    <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
-                        <p style={{ fontSize: '13px', color: 'var(--text-sub)', marginBottom: '12px' }}>Kullanıcı Girişi Yapmak İster misiniz?</p>
-                        <a 
-                            href="/user-login.html" 
-                            style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                width: '100%',
-                                background: 'rgba(59, 130, 246, 0.1)',
-                                border: '1px solid rgba(59, 130, 246, 0.3)',
-                                color: '#60a5fa',
-                                padding: '12px',
-                                borderRadius: '10px',
-                                fontSize: '13px',
-                                fontWeight: '600',
-                                textDecoration: 'none',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            <i data-lucide="user" style={{ width: '16px', height: '16px' }}></i>
-                            Kullanıcı Paneline Git &rarr;
-                        </a>
-                    </div>
-                </div>
-            );
-        }
-
-        ReactDOM.render(<AdminLoginApp />, document.getElementById('root'));
-    </script>
+    <script src="/js/dist/admin-login.js"></script>
 </body>
 </html>
