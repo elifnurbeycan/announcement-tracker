@@ -34,14 +34,6 @@ class ScraperRegistryTest {
     }
 
     @Test
-    @DisplayName("Kayıtlı olmayan site tipi istendiğinde ScrapingException fırlatmalı")
-    void getRequiredScraper_UnregisteredSiteType_ShouldThrowException() {
-        assertThatThrownBy(() -> registry.getRequiredScraper(SiteType.KOSGEB))
-                .isInstanceOf(ScrapingException.class)
-                .hasMessageContaining("No scraper strategy registered for site type: KOSGEB");
-    }
-
-    @Test
     @DisplayName("Tüm scraper stratejilerini alma")
     void getAllScrapers_ShouldReturnAllRegisteredStrategies() {
         assertThat(registry.getAllScrapers()).hasSize(1);

@@ -28,7 +28,6 @@ class ModelAndEnumTest {
     void enum_Tests() {
         assertThat(SiteType.EBELGE_GIB.getDisplayName()).isEqualTo("e-Belge GİB");
         assertThat(SiteType.EBELGE_GIB.getBaseUrl()).contains("ebelge.gib.gov.tr");
-        assertThat(SiteType.KOSGEB.getDisplayName()).isEqualTo("KOSGEB Duyuruları");
         assertThat(SiteType.valueOf("EBELGE_GIB")).isEqualTo(SiteType.EBELGE_GIB);
 
         assertThat(ScrapingStatus.SUCCESS.name()).isEqualTo("SUCCESS");
@@ -70,7 +69,7 @@ class ModelAndEnumTest {
         SubscriberRequestDto subReq = SubscriberRequestDto.builder()
                 .email("a@b.com")
                 .fullName("Full")
-                .subscribedSites(Set.of(SiteType.KOSGEB))
+                .subscribedSites(Set.of(SiteType.EBELGE_GIB))
                 .build();
         assertThat(subReq.getEmail()).isEqualTo("a@b.com");
 

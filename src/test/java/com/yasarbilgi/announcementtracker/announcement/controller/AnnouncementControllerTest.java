@@ -21,6 +21,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,10 +49,11 @@ class AnnouncementControllerTest {
     @DisplayName("GET /api/v1/announcements - Sayfalı duyuruları çekme HTTP 200")
     void getAnnouncements_ShouldReturnPagedAnnouncements() {
         Page<AnnouncementResponseDto> pageDto = new PageImpl<>(List.of(sampleDto));
-        when(announcementService.getAllAnnouncements(any(), any())).thenReturn(pageDto);
+        when(announcementService.getAllAnnouncements(any(), any(), anyBoolean(), any())).thenReturn(pageDto);
 
         ResponseEntity<ApiResponseDto<Page<AnnouncementResponseDto>>> response = 
-                announcementController.getAnnouncements(SiteType.EBELGE_GIB, PageRequest.of(0, 10));
+                announcementController.getAnnouncements(
+                        SiteType.EBELGE_GIB, "test", false, PageRequest.of(0, 10));
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isNotNull();

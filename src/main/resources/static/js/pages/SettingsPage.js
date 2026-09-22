@@ -63,7 +63,7 @@ window.SettingsPage = function SettingsPage({
                 </div>
 
                 <p style={{ fontSize: '13.5px', color: 'var(--text-sub)', marginBottom: '24px', lineHeight: '1.6' }}>
-                    Sistemin resmi duyuru kaynaklarını (GİB, KOSGEB vb.) otomatik olarak kaç dakikada bir tarayacağını ayarlayın. Yeni bir duyuru tespit edildiğinde ilgili abonelere e-posta bildirimi gönderilir.
+                    Sistemin resmi duyuru kaynaklarını (GİB vb.) otomatik olarak kaç dakikada bir tarayacağını ayarlayın. Yeni bir duyuru tespit edildiğinde ilgili abonelere e-posta bildirimi gönderilir.
                 </p>
 
                 <form onSubmit={handleSubmit}>

@@ -9,7 +9,8 @@ function DashboardApp() {
   const [announcements, setAnnouncements] = React.useState([]);
   const [subscribers, setSubscribers] = React.useState([]);
   const [departments, setDepartments] = React.useState([]);
-  const [availableSites, setAvailableSites] = React.useState(['EBELGE_GIB', 'KOSGEB']);
+  const [availableSites, setAvailableSites] = React.useState(['EBELGE_GIB']);
+  const [announcementCounts, setAnnouncementCounts] = React.useState({});
   const [scrapePeriod, setScrapePeriod] = React.useState(30);
   const [page, setPage] = React.useState(0);
   const [totalPages, setTotalPages] = React.useState(1);
@@ -66,20 +67,24 @@ function DashboardApp() {
   }, []);
   const loadAnnouncements = React.useCallback(async () => {
     try {
-      const data = await window.AnnouncementService.getAnnouncements(page, 10, selectedSiteFilter, searchQuery);
+      const data = await window.AnnouncementService.getAnnouncements(page, 10, selectedSiteFilter, searchQuery, hasAttachmentFilter);
       if (data && data.content) {
-        let items = data.content;
-        if (hasAttachmentFilter) {
-          items = items.filter(a => a.attachmentUrl && a.attachmentUrl.trim() !== '');
-        }
-        setAnnouncements(items);
+        setAnnouncements(data.content);
         setTotalPages(data.totalPages || 1);
-        setTotalElements(data.totalElements !== undefined ? data.totalElements : items.length);
+        setTotalElements(data.totalElements !== undefined ? data.totalElements : data.content.length);
       }
     } catch (e) {
       console.error('Failed to load announcements:', e);
     }
   }, [page, selectedSiteFilter, searchQuery, hasAttachmentFilter]);
+  const loadAnnouncementCounts = React.useCallback(async () => {
+    try {
+      const data = await window.AnnouncementService.getAnnouncementCounts();
+      setAnnouncementCounts(data || {});
+    } catch (e) {
+      console.error('Failed to load announcement counts:', e);
+    }
+  }, []);
   const loadSubscribers = React.useCallback(async () => {
     try {
       const data = await window.SubscriberService.getSubscribers();
@@ -117,11 +122,14 @@ function DashboardApp() {
   }, []);
   React.useEffect(() => {
     loadAnnouncements();
+  }, [loadAnnouncements]);
+  React.useEffect(() => {
+    loadAnnouncementCounts();
     loadSubscribers();
     loadDepartments();
     loadSites();
     loadSettings();
-  }, [loadAnnouncements, loadSubscribers, loadDepartments, loadSites, loadSettings]);
+  }, [loadAnnouncementCounts, loadSubscribers, loadDepartments, loadSites, loadSettings]);
   const handleScrape = async () => {
     setScraping(true);
     try {
@@ -134,6 +142,7 @@ function DashboardApp() {
         showToast('Tarama tamamlandı. Yeni duyuru bulunamadı.');
       }
       await loadAnnouncements();
+      await loadAnnouncementCounts();
     } catch (e) {
       console.error('Tarama hatası:', e);
       showToast(e.message || 'Tarama sırasında bir hata oluştu.', 'error');
@@ -364,7 +373,7 @@ function DashboardApp() {
     onBulkDeleteDepartments: handleBulkDeleteDepartments
   }), activeTab === 'sources' && React.createElement(window.SourcesPage, {
     availableSites: availableSites,
-    announcements: announcements
+    announcementCounts: announcementCounts
   }), activeTab === 'settings' && React.createElement(window.SettingsPage, {
     scrapePeriod: scrapePeriod,
     onSavePeriod: handleSaveScrapePeriod

@@ -1,14 +1,13 @@
 # Announcement Tracker
 
-GİB e-Belge ve KOSGEB gibi resmî kaynaklarda yayımlanan duyuruları düzenli olarak tarayan, tekilleştiren ve ilgili çalışanlara e-posta yoluyla ulaştıran kurumsal duyuru takip uygulaması.
+GİB e-Belge ile Tarım ve Orman Bakanlığı Taklit/Tağşiş listelerinde yayımlanan duyuruları düzenli olarak tarayan, tekilleştiren ve ilgili çalışanlara e-posta yoluyla ulaştıran kurumsal duyuru takip uygulaması.
 
 Uygulama; merkezi kimlik yönetimi, departman ve kaynak bazlı abonelik, yönetim paneli, çalışan portalı, kalıcı e-posta kuyruğu ve otomatik tarama zamanlayıcısını tek bir Spring Boot uygulamasında birleştirir.
-
-![Yönetim paneli](docs/images/dashboard-ui.png)
 
 ## İçindekiler
 
 - [Öne çıkan yetenekler](#öne-çıkan-yetenekler)
+- [Takip edilen kaynaklar](#takip-edilen-kaynaklar)
 - [Sistem mimarisi](#sistem-mimarisi)
 - [Teknoloji ve sürümler](#teknoloji-ve-sürümler)
 - [Kimlik doğrulama ve yetkilendirme](#kimlik-doğrulama-ve-yetkilendirme)
@@ -24,7 +23,7 @@ Uygulama; merkezi kimlik yönetimi, departman ve kaynak bazlı abonelik, yöneti
 
 | Alan | Açıklama |
 |---|---|
-| Çoklu kaynak tarama | GİB e-Belge ve KOSGEB duyuruları Jsoup tabanlı bağımsız scraper stratejileriyle taranır. |
+| Çoklu kaynak tarama | GİB e-Belge ve Tarım ve Orman Bakanlığı Taklit/Tağşiş duyuruları bağımsız scraper stratejileriyle taranır. |
 | Duyuru tekilleştirme | Kalıcı kaynak URL'si veya normalize edilmiş duyuru bilgileri üzerinden SHA-256 kimliği üretilir. |
 | Paralel tarama | Kayıtlı kaynaklar `CompletableFuture` ile eş zamanlı işlenir. |
 | Dinamik zamanlama | Tarama periyodu ve zamanlayıcının aktiflik durumu yönetim panelinden değiştirilebilir. |
@@ -36,6 +35,15 @@ Uygulama; merkezi kimlik yönetimi, departman ve kaynak bazlı abonelik, yöneti
 | Kalıcı e-posta outbox'ı | Teslimatlar PostgreSQL'de izlenir; geçici hatalar artan gecikmeyle yeniden denenir, kalıcı hatalar `DEAD` durumuna alınır. |
 | Yönetim ve çalışan portalları | Yönetici operasyonları ile çalışanların duyuru ve tercih ekranları rol bazlı olarak ayrılır. |
 | Güvenli abonelikten çıkma | İmzalı, süreli token ve CSRF doğrulamasıyla abonelikten çıkma akışı sağlanır. |
+
+## Takip edilen kaynaklar
+
+| Kaynak | İzlenen içerik | Toplama yöntemi |
+|---|---|---|
+| [GİB e-Belge](https://ebelge.gib.gov.tr/duyurular.html) | e-Fatura, e-Arşiv, e-İrsaliye ve e-Defter duyuruları | Duyuru sayfalarının ve eklerinin Jsoup ile ayrıştırılması |
+| [Tarım ve Orman Bakanlığı Güvenilir Gıda](https://guvenilirgida.tarimorman.gov.tr/GuvenilirGida/gkd/TaklitVeyaTagsis) | Taklit veya tağşiş yapılan gıdalara ilişkin iki kamuoyu listesi | DataTables JSON servisinin tüm sayfaları gezilerek yapılandırılmış kayıtların alınması |
+
+Taklit/Tağşiş kayıtlarında kamuoyu duyuru tarihi, firma, marka, ürün, uygunsuzluk, parti/seri numarası, il, ilçe ve ürün grubu ayrı alanlar halinde saklanır. Yönetim ve çalışan portallarında tablo olarak sunulan bu kayıtlar, bildirim e-postalarında da okunabilir bir bilgi tablosuna dönüştürülür.
 
 ## Sistem mimarisi
 

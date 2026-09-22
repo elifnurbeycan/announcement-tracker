@@ -54,8 +54,11 @@ public class UserPortalController {
     public ResponseEntity<ApiResponseDto<Page<AnnouncementResponseDto>>> getMyAnnouncements(
             @AuthenticationPrincipal SubscriberResponseDto user,
             @RequestParam(required = false) SiteType siteType,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "false") boolean hasAttachment,
             @org.springframework.data.web.PageableDefault(size = 10, sort = {"announcementDate", "id"}, direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
-        Page<AnnouncementResponseDto> announcements = announcementService.getAnnouncementsForSites(user.getEffectiveSites(), siteType, pageable);
+        Page<AnnouncementResponseDto> announcements = announcementService.getAnnouncementsForSites(
+                user.getEffectiveSites(), siteType, search, hasAttachment, pageable);
         return ResponseEntity.ok(ApiResponseDto.ok("Duyurular listelendi.", announcements));
     }
 }

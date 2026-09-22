@@ -12,5 +12,7 @@
     <include file="db/changelog/changes/005-remove-legacy-subscriber-columns.xml"/>
     <include file="db/changelog/changes/006-remove-legacy-admin-password.xml"/>
     <include file="db/changelog/changes/007-production-identity-and-data-hardening.xml"/>
+    <include file="db/changelog/changes/008-migrate-legacy-kosgeb-site-references.xml"/>
+    <include file="db/changelog/changes/009-update-site-type-check-constraints.xml"/>
 
 </databaseChangeLog>

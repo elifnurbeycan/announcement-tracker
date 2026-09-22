@@ -66,7 +66,7 @@ window.SettingsPage = function SettingsPage({
       marginBottom: '24px',
       lineHeight: '1.6'
     }
-  }, "Sistemin resmi duyuru kaynaklar\u0131n\u0131 (G\u0130B, KOSGEB vb.) otomatik olarak ka\xE7 dakikada bir tarayaca\u011F\u0131n\u0131 ayarlay\u0131n. Yeni bir duyuru tespit edildi\u011Finde ilgili abonelere e-posta bildirimi g\xF6nderilir."), React.createElement("form", {
+  }, "Sistemin resmi duyuru kaynaklar\u0131n\u0131 (G\u0130B vb.) otomatik olarak ka\xE7 dakikada bir tarayaca\u011F\u0131n\u0131 ayarlay\u0131n. Yeni bir duyuru tespit edildi\u011Finde ilgili abonelere e-posta bildirimi g\xF6nderilir."), React.createElement("form", {
     onSubmit: handleSubmit
   }, React.createElement("div", {
     className: "form-group"

@@ -34,7 +34,7 @@ window.ProfilePage = function ProfilePage({
     // Compute Effective Sources
     let effectiveSources = [];
     if (isAdmin) {
-        effectiveSources = normalizedSites.length > 0 ? normalizedSites : ['EBELGE_GIB', 'KOSGEB'];
+        effectiveSources = normalizedSites.length > 0 ? normalizedSites : ['EBELGE_GIB'];
     } else {
         effectiveSources = user.effectiveSites || Array.from(new Set([
             ...departmentSites,

@@ -36,12 +36,11 @@ class DepartmentSubscriptionLogicTest {
         Set<SiteType> effective = subscriber.getEffectiveSites(allSites);
         assertEquals(Set.of(SiteType.EBELGE_GIB), effective);
 
-        // 2. Admin updates Java -> KOSGEB
-        javaDept.setSites(new HashSet<>(Set.of(SiteType.KOSGEB)));
+        // 2. Admin updates Java -> EBELGE_GIB
+        javaDept.setSites(new HashSet<>(Set.of(SiteType.EBELGE_GIB)));
 
-        // Subscriber record unchanged, effective sites automatically recalculate to KOSGEB
         Set<SiteType> updatedEffective = subscriber.getEffectiveSites(allSites);
-        assertEquals(Set.of(SiteType.KOSGEB), updatedEffective);
+        assertEquals(Set.of(SiteType.EBELGE_GIB), updatedEffective);
     }
 
     @Test
@@ -56,7 +55,7 @@ class DepartmentSubscriptionLogicTest {
         Department backendDept = Department.builder()
                 .id(2L)
                 .name("Backend")
-                .sites(new HashSet<>(Set.of(SiteType.KOSGEB)))
+                .sites(new HashSet<>(Set.of(SiteType.EBELGE_GIB)))
                 .build();
 
         Subscriber subscriber = Subscriber.builder()
@@ -67,7 +66,7 @@ class DepartmentSubscriptionLogicTest {
                 .build();
 
         Set<SiteType> effective = subscriber.getEffectiveSites(allSites);
-        assertEquals(Set.of(SiteType.EBELGE_GIB, SiteType.KOSGEB), effective);
+        assertEquals(Set.of(SiteType.EBELGE_GIB), effective);
     }
 
     @Test
@@ -83,11 +82,11 @@ class DepartmentSubscriptionLogicTest {
                 .id(102L)
                 .email("abone@kurum.com")
                 .departments(new HashSet<>(Set.of(javaDept)))
-                .subscribedSites(new HashSet<>(Set.of(SiteType.KOSGEB))) // Personal site
+                .subscribedSites(new HashSet<>(Set.of(SiteType.EBELGE_GIB)))
                 .build();
 
         Set<SiteType> effective = subscriber.getEffectiveSites(allSites);
-        assertEquals(Set.of(SiteType.EBELGE_GIB, SiteType.KOSGEB), effective);
+        assertEquals(Set.of(SiteType.EBELGE_GIB), effective);
     }
 
     @Test
@@ -96,7 +95,7 @@ class DepartmentSubscriptionLogicTest {
         Department javaDept = Department.builder()
                 .id(1L)
                 .name("Java")
-                .sites(new HashSet<>(Set.of(SiteType.EBELGE_GIB, SiteType.KOSGEB)))
+                .sites(new HashSet<>(Set.of(SiteType.EBELGE_GIB)))
                 .build();
 
         Department backendDept = Department.builder()
@@ -109,14 +108,12 @@ class DepartmentSubscriptionLogicTest {
                 .id(103L)
                 .email("duplicate@example.com")
                 .departments(new HashSet<>(Arrays.asList(javaDept, backendDept)))
-                .subscribedSites(new HashSet<>(Set.of(SiteType.EBELGE_GIB))) // Also in personal
+                .subscribedSites(new HashSet<>(Set.of(SiteType.EBELGE_GIB)))
                 .build();
 
         Set<SiteType> effective = subscriber.getEffectiveSites(allSites);
-        // EBELGE_GIB present in Java, Backend and Personal, but must be deduplicated
-        assertEquals(2, effective.size());
+        assertEquals(1, effective.size());
         assertTrue(effective.contains(SiteType.EBELGE_GIB));
-        assertTrue(effective.contains(SiteType.KOSGEB));
     }
 
     @Test
@@ -125,7 +122,7 @@ class DepartmentSubscriptionLogicTest {
         Subscriber subscriber = Subscriber.builder()
                 .id(104L)
                 .email("general@example.com")
-                .departments(new HashSet<>()) // Empty departments
+                .departments(new HashSet<>())
                 .subscribedSites(new HashSet<>())
                 .build();
 
@@ -140,24 +137,23 @@ class DepartmentSubscriptionLogicTest {
         Department emptyJavaDept = Department.builder()
                 .id(1L)
                 .name("Java")
-                .sites(new HashSet<>()) // 0 sites
+                .sites(new HashSet<>())
                 .build();
 
         Subscriber subscriber = Subscriber.builder()
                 .id(105L)
                 .email("emptydept@example.com")
                 .departments(new HashSet<>(Set.of(emptyJavaDept)))
-                .subscribedSites(new HashSet<>(Set.of(SiteType.KOSGEB)))
+                .subscribedSites(new HashSet<>(Set.of(SiteType.EBELGE_GIB)))
                 .build();
 
         Set<SiteType> effective = subscriber.getEffectiveSites(allSites);
-        assertEquals(Set.of(SiteType.KOSGEB), effective);
+        assertEquals(Set.of(SiteType.EBELGE_GIB), effective);
 
-        // Adding Site to Java later
         emptyJavaDept.getSites().add(SiteType.EBELGE_GIB);
 
         Set<SiteType> updatedEffective = subscriber.getEffectiveSites(allSites);
-        assertEquals(Set.of(SiteType.EBELGE_GIB, SiteType.KOSGEB), updatedEffective);
+        assertEquals(Set.of(SiteType.EBELGE_GIB), updatedEffective);
     }
 
     @Test
@@ -172,7 +168,7 @@ class DepartmentSubscriptionLogicTest {
         Department backendDept = Department.builder()
                 .id(2L)
                 .name("Backend")
-                .sites(new HashSet<>(Set.of(SiteType.KOSGEB)))
+                .sites(new HashSet<>(Set.of(SiteType.EBELGE_GIB)))
                 .build();
 
         Subscriber subscriber = Subscriber.builder()
@@ -182,17 +178,14 @@ class DepartmentSubscriptionLogicTest {
                 .subscribedSites(new HashSet<>())
                 .build();
 
-        // 1. Initial: Java + Backend
         assertEquals(2, subscriber.getDepartments().size());
         assertFalse(subscriber.isGeneralEmployee());
 
-        // 2. Remove Java -> subscriber keeps Backend
         subscriber.getDepartments().remove(javaDept);
         assertEquals(1, subscriber.getDepartments().size());
         assertFalse(subscriber.isGeneralEmployee());
-        assertEquals(Set.of(SiteType.KOSGEB), subscriber.getEffectiveSites(allSites));
+        assertEquals(Set.of(SiteType.EBELGE_GIB), subscriber.getEffectiveSites(allSites));
 
-        // 3. Remove Backend -> subscriber has 0 departments left -> becomes Genel Çalışan
         subscriber.getDepartments().remove(backendDept);
         assertTrue(subscriber.getDepartments().isEmpty());
         assertTrue(subscriber.isGeneralEmployee());

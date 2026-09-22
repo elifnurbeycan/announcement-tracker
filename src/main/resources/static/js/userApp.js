@@ -10,7 +10,7 @@ function UserDashboardApp() {
 
     // Data State
     const [announcements, setAnnouncements] = React.useState([]);
-    const [availableSites, setAvailableSites] = React.useState(['EBELGE_GIB', 'KOSGEB']);
+    const [availableSites, setAvailableSites] = React.useState(['EBELGE_GIB']);
 
     // Pagination & Search State
     const [page, setPage] = React.useState(0);
@@ -58,18 +58,12 @@ function UserDashboardApp() {
     // Load User Announcements
     const loadUserAnnouncements = React.useCallback(async () => {
         try {
-            const data = await window.AnnouncementService.getUserAnnouncements(page, 10, searchQuery);
+            const data = await window.AnnouncementService.getUserAnnouncements(
+                page, 10, selectedSiteFilter, searchQuery, hasAttachmentFilter);
             if (data && data.content) {
-                let items = data.content;
-                if (selectedSiteFilter) {
-                    items = items.filter(a => a.sourceSite === selectedSiteFilter);
-                }
-                if (hasAttachmentFilter) {
-                    items = items.filter(a => a.attachmentUrl && a.attachmentUrl.trim() !== '');
-                }
-                setAnnouncements(items);
+                setAnnouncements(data.content);
                 setTotalPages(data.totalPages || 1);
-                setTotalElements(data.totalElements || items.length);
+                setTotalElements(data.totalElements !== undefined ? data.totalElements : data.content.length);
             }
         } catch(e) {
             console.error('Failed to load user announcements:', e);

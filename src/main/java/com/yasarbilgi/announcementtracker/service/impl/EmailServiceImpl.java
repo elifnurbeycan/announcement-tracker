@@ -1,6 +1,7 @@
 package com.yasarbilgi.announcementtracker.service.impl;
 
 import com.yasarbilgi.announcementtracker.entity.Announcement;
+import com.yasarbilgi.announcementtracker.enums.SiteType;
 import com.yasarbilgi.announcementtracker.service.EmailService;
 import com.yasarbilgi.announcementtracker.service.UnsubscribeTokenService;
 import jakarta.mail.MessagingException;
@@ -14,7 +15,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * E-posta bildirimlerinin oluşturulması ve gönderilmesini sağlayan servis uygulaması.
@@ -119,98 +122,64 @@ public class EmailServiceImpl implements EmailService {
      * Kurumsal standartlara uygun HTML e-posta şablonunu oluşturur.
      */
     private String buildHtmlEmailBody(List<Announcement> announcements, String recipientEmail) {
+        boolean onlyTaklitTagsis = announcements.stream()
+                .allMatch(announcement -> announcement.getSourceSite() == SiteType.TAKLIT_TAGSIS);
+        boolean onlyEbelge = announcements.stream()
+                .allMatch(announcement -> announcement.getSourceSite() == SiteType.EBELGE_GIB);
+
+        String headerSubtitle = onlyTaklitTagsis
+                ? "Tarım ve Orman Bakanlığı kamuoyu duyuruları"
+                : onlyEbelge
+                    ? "Gelir İdaresi Başkanlığı e-Belge duyuruları"
+                    : "Resmî kaynaklardan güncel duyurular";
+
         StringBuilder sb = new StringBuilder();
         sb.append("<!DOCTYPE html><html><head><meta charset='UTF-8'>");
         sb.append("<meta name='viewport' content='width=device-width, initial-scale=1.0'>");
         sb.append("<style>")
-          .append("body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #1e293b; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }")
-          .append(".wrapper { width: 100%; background-color: #f1f5f9; padding: 24px 0; }")
-          .append(".container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }")
-          .append(".hero-header { background: linear-gradient(135deg, #0f172a, #1e3a8a); text-align: center; padding: 32px 20px; color: #ffffff; }")
-          .append(".hero-title { font-size: 24px; font-weight: 800; color: #ffffff; margin: 0; letter-spacing: -0.5px; }")
-          .append(".hero-subtitle { font-size: 14px; color: #93c5fd; font-weight: 500; margin-top: 6px; }")
-          .append(".content-padding { padding: 28px 24px; }")
-          .append(".card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 24px; background: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }")
-          .append(".badge { display: inline-block; background: #dbeafe; color: #1d4ed8; font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; }")
-          .append(".date { color: #64748b; font-size: 14px; font-weight: 600; float: right; }")
-          .append(".title { font-size: 20px; font-weight: 800; color: #0f172a; margin: 16px 0 12px 0; line-height: 1.4; }")
-          .append(".content { font-size: 16px; color: #334155; line-height: 1.7; margin-bottom: 20px; }")
-          .append(".cta-btn-primary { display: block; width: 100%; text-align: center; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff !important; text-decoration: none; padding: 14px 20px; border-radius: 10px; font-size: 15px; font-weight: 700; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); box-sizing: border-box; margin-top: 14px; }")
-          .append(".cta-btn-secondary { display: block; width: 100%; text-align: center; background: linear-gradient(135deg, #0f172a, #1e293b); color: #ffffff !important; text-decoration: none; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 700; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25); box-sizing: border-box; margin-top: 10px; }")
-          .append(".footer { background: #f8fafc; padding: 20px; font-size: 13px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; }")
+          .append("body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;background:#eef2f7;color:#172033;margin:0;padding:0;-webkit-font-smoothing:antialiased}")
+          .append(".wrapper{width:100%;background:#eef2f7;padding:28px 12px;box-sizing:border-box}")
+          .append(".container{max-width:640px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 12px 32px rgba(15,23,42,.10)}")
+          .append(".hero-header{background:linear-gradient(135deg,#101b3f,#2448a3);padding:34px 34px 30px;color:#fff}")
+          .append(".eyebrow{font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#bfdbfe;margin-bottom:8px}")
+          .append(".hero-title{font-size:25px;font-weight:800;color:#fff;margin:0;letter-spacing:-.4px}")
+          .append(".hero-subtitle{font-size:14px;color:#dbeafe;line-height:1.5;margin-top:7px}")
+          .append(".intro{padding:22px 28px 0;color:#475569;font-size:14px;line-height:1.6}")
+          .append(".content-padding{padding:20px 28px 30px}")
+          .append(".card{border:1px solid #dbe3ee;border-radius:14px;padding:22px;margin-bottom:18px;background:#fff;box-shadow:0 3px 10px rgba(15,23,42,.035)}")
+          .append(".card:last-child{margin-bottom:0}")
+          .append(".meta-table{width:100%;border-collapse:collapse;margin-bottom:14px}")
+          .append(".badge{display:inline-block;background:#e8f0ff;color:#2156c9;font-size:11px;font-weight:800;padding:6px 10px;border-radius:999px;letter-spacing:.35px}")
+          .append(".date{color:#64748b;font-size:13px;font-weight:600;text-align:right;white-space:nowrap}")
+          .append(".title{font-size:19px;font-weight:750;color:#101828;margin:0 0 14px;line-height:1.4}")
+          .append(".content{font-size:15px;color:#475569;line-height:1.7;margin-bottom:18px}")
+          .append(".detail-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #e2e8f0;border-radius:11px;overflow:hidden;margin:6px 0 18px}")
+          .append(".detail-table td{padding:10px 12px;border-bottom:1px solid #e8edf4;font-size:14px;line-height:1.45;vertical-align:top}")
+          .append(".detail-table tr:last-child td{border-bottom:0}")
+          .append(".detail-label{width:34%;background:#f8fafc;color:#64748b;font-weight:650}")
+          .append(".detail-value{color:#172033;font-weight:600;word-break:break-word}")
+          .append(".alert-value{color:#b42318;background:#fff8f6}")
+          .append(".cta-btn-primary{display:block;text-align:center;background:#2864dc;color:#fff!important;text-decoration:none;padding:13px 18px;border-radius:9px;font-size:14px;font-weight:750;box-sizing:border-box;margin-top:16px}")
+          .append(".cta-btn-secondary{display:block;text-align:center;background:#172033;color:#fff!important;text-decoration:none;padding:12px 18px;border-radius:9px;font-size:13px;font-weight:700;box-sizing:border-box;margin-top:10px}")
+          .append(".footer{background:#f8fafc;padding:21px 24px;font-size:12px;line-height:1.55;color:#8290a5;text-align:center;border-top:1px solid #e2e8f0}")
+          .append("@media(max-width:620px){.wrapper{padding:0}.container{border-radius:0}.hero-header{padding:28px 22px}.intro{padding:20px 18px 0}.content-padding{padding:16px 18px 24px}.card{padding:18px}.hero-title{font-size:22px}.title{font-size:17px}.detail-table td{display:block;width:auto!important;border-bottom:0}.detail-table .detail-label{padding-bottom:3px}.detail-table .detail-value{padding-top:2px;border-bottom:1px solid #e8edf4}.detail-table tr:last-child .detail-value{border-bottom:0}}")
           .append("</style></head><body>");
 
         sb.append("<div class='wrapper'><div class='container'>");
 
-        // Kurumsal Üst Başlık Banner
         sb.append("<div class='hero-header'>");
-        sb.append("  <div class='hero-title'>e-Belge Duyuru & Bildirim Servisi</div>");
-        sb.append("  <div class='hero-subtitle'>Gelir İdaresi Başkanlığı Resmi Güncellemeleri</div>");
+        sb.append("<div class='eyebrow'>Duyuru Takip Sistemi</div>");
+        sb.append("<div class='hero-title'>Yeni duyuru bildirimi</div>");
+        sb.append("<div class='hero-subtitle'>").append(headerSubtitle).append("</div>");
         sb.append("</div>");
 
+        sb.append("<div class='intro'>Takip ettiğiniz kaynaklarda ")
+                .append(announcements.size())
+                .append(" yeni kayıt yayımlandı. Ayrıntıları aşağıda inceleyebilirsiniz.</div>");
         sb.append("<div class='content-padding'>");
 
         for (Announcement a : announcements) {
-            String dateFormatted = a.getAnnouncementDate() != null
-                    ? a.getAnnouncementDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-                    : "";
-
-            sb.append("<div class='card'>");
-            sb.append("<span class='badge'>").append(a.getSourceSite().getDisplayName()).append("</span>");
-            sb.append("<span class='date'>").append(dateFormatted).append("</span>");
-            sb.append("<div style='clear: both;'></div>");
-
-            sb.append("<div class='title'>").append(escapeHtml(a.getTitle())).append("</div>");
-            sb.append("<div class='content'>").append(escapeHtml(a.getContent())).append("</div>");
-
-            // Duyuru içerisinde gömülü görsel var ise gösterilir
-            if (a.getImageUrl() != null && !a.getImageUrl().isBlank()) {
-                String safeImageUrl = sanitizeUrl(a.getImageUrl());
-                sb.append("<div style='margin: 16px 0; text-align: center;'>");
-                sb.append("  <img src='").append(safeImageUrl).append("' style='max-width: 100%; border-radius: 10px; border: 1px solid #e2e8f0;' alt='Duyuru Görseli' />");
-                sb.append("</div>");
-            }
-
-            // Ek dosya / PDF bağlantısı
-            if (a.getAttachmentUrl() != null && !a.getAttachmentUrl().isBlank()) {
-                String attachUrl = a.getAttachmentUrl();
-                String safeAttachUrl = sanitizeUrl(attachUrl);
-                boolean isPdf = attachUrl.endsWith(".pdf");
-                String badgeText = isPdf ? "PDF DOKÜMANI" : "DOSYA PAKETİ";
-                String badgeBg = isPdf ? "#dc2626" : "#2563eb";
-                String btnText = isPdf ? "Ek PDF Dokümanını İndir &darr;" : "Ek Dosya Paketini İndir &darr;";
-
-                sb.append("<table width='100%' cellpadding='0' cellspacing='0' style='margin: 22px 0 16px 0; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc; border-collapse: separate;'>");
-                sb.append("  <tr><td style='padding: 18px 20px;'>");
-                
-                sb.append("    <table width='100%' cellpadding='0' cellspacing='0'>");
-                sb.append("      <tr>");
-                sb.append("        <td style='font-size: 14px; font-weight: 700; color: #0f172a;'>📎 Duyuru Ek Dosyası</td>");
-                sb.append("        <td align='right'><span style='background: ").append(badgeBg).append("; color: #ffffff; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px;'>").append(badgeText).append("</span></td>");
-                sb.append("      </tr>");
-                sb.append("    </table>");
-
-                sb.append("    <div style='font-size: 13px; color: #1d4ed8; background: #ffffff; padding: 12px 14px; border-radius: 8px; border: 1px solid #cbd5e1; word-break: break-all; overflow-wrap: anywhere; margin: 14px 0 16px 0; font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif;'>");
-                sb.append("      <a href='").append(safeAttachUrl).append("' style='color: #1d4ed8 !important; font-weight: 600; text-decoration: underline; word-break: break-all; overflow-wrap: anywhere;' target='_blank'>").append(safeAttachUrl).append("</a>");
-                sb.append("    </div>");
-
-                sb.append("    <a href='").append(safeAttachUrl).append("' class='cta-btn-secondary' target='_blank'>").append(btnText).append("</a>");
-
-                sb.append("  </td></tr>");
-                sb.append("</table>");
-            }
-
-            // Duyurunun asıl orijinal web sayfasına yönlendiren ana buton
-            String rawSourceUrl = (a.getSourceUrl() != null && !a.getSourceUrl().isBlank())
-                    ? a.getSourceUrl() 
-                    : a.getSourceSite().getBaseUrl();
-            String safeSourceUrl = sanitizeUrl(rawSourceUrl);
-
-            sb.append("<div style='margin-top: 20px;'>");
-            sb.append("  <a href='").append(safeSourceUrl).append("' class='cta-btn-primary' target='_blank'>Duyurunun Asıl Web Sayfasına Git &rarr;</a>");
-            sb.append("</div>");
-
-            sb.append("</div>");
+            appendAnnouncementCard(sb, a);
         }
 
         sb.append("</div>"); // content-padding sonu
@@ -219,11 +188,126 @@ public class EmailServiceImpl implements EmailService {
         String unsubUrl = escapeHtml(appBaseUrl + "/api/v1/subscribers/unsubscribe?token=" + unsubToken);
 
         sb.append("<div class='footer'>");
-        sb.append("<p>Bu e-posta Java 21 & Spring Boot Duyuru Takip Servisi tarafından otomatik olarak oluşturulmuştur.</p>");
-        sb.append("<p style='margin-top: 8px; font-size: 12px;'>E-posta listesinden ayrılmak için <a href='").append(unsubUrl).append("' style='color: #475569; text-decoration: underline;'>Abonelikten Çıkın</a>.</p>");
+        sb.append("<div>Bu ileti Duyuru Takip Sistemi tarafından otomatik olarak oluşturulmuştur.</div>");
+        sb.append("<div style='margin-top:7px'>Bildirimleri almak istemiyorsanız <a href='").append(unsubUrl).append("' style='color:#475569;text-decoration:underline'>abonelikten çıkabilirsiniz</a>.</div>");
         sb.append("</div></div></div></body></html>");
 
         return sb.toString();
+    }
+
+    private void appendAnnouncementCard(StringBuilder sb, Announcement announcement) {
+        String dateFormatted = announcement.getAnnouncementDate() != null
+                ? announcement.getAnnouncementDate().format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+                : "Tarih belirtilmedi";
+        String sourceName = announcement.getSourceSite() != null
+                ? announcement.getSourceSite().getDisplayName()
+                : "Resmî duyuru";
+
+        sb.append("<div class='card'>");
+        sb.append("<table class='meta-table' cellpadding='0' cellspacing='0'><tr>");
+        sb.append("<td><span class='badge'>").append(escapeHtml(sourceName)).append("</span></td>");
+        if (announcement.getSourceSite() != SiteType.TAKLIT_TAGSIS) {
+            sb.append("<td class='date'>").append(dateFormatted).append("</td>");
+        }
+        sb.append("</tr></table>");
+
+        if (announcement.getSourceSite() == SiteType.TAKLIT_TAGSIS) {
+            appendTaklitTagsisContent(sb, announcement, dateFormatted);
+        } else {
+            sb.append("<div class='title'>").append(escapeHtml(announcement.getTitle())).append("</div>");
+            sb.append("<div class='content'>").append(escapeHtml(announcement.getContent())).append("</div>");
+        }
+
+        appendImageAndAttachment(sb, announcement);
+        appendSourceButton(sb, announcement);
+        sb.append("</div>");
+    }
+
+    private void appendTaklitTagsisContent(
+            StringBuilder sb,
+            Announcement announcement,
+            String announcementDate) {
+        Map<String, String> details = parseTaklitTagsisContent(announcement.getContent());
+        String company = details.getOrDefault("Firma", "");
+        String product = details.getOrDefault("Ürün", "");
+        String heading = !product.isBlank() ? product : (!company.isBlank() ? company : announcement.getTitle());
+
+        sb.append("<div class='title'>").append(escapeHtml(heading)).append("</div>");
+        sb.append("<table class='detail-table' cellpadding='0' cellspacing='0'>");
+        if (announcement.getAnnouncementDate() != null) {
+            appendDetailRow(sb, "Kamuoyu Duyuru Tarihi", announcementDate, false);
+        }
+        appendDetailRow(sb, "Firma Adı", company, false);
+        appendDetailRow(sb, "Marka", details.get("Marka"), false);
+        appendDetailRow(sb, "Ürün Adı", product, false);
+        appendDetailRow(sb, "Uygunsuzluk", details.get("Uygunsuzluk"), true);
+        appendDetailRow(sb, "Parti / Seri No", details.get("Parti/Seri No"), false);
+        appendDetailRow(sb, "İl / İlçe", details.get("İl/İlçe"), false);
+        appendDetailRow(sb, "Ürün Grubu", details.get("Ürün Grubu"), false);
+        appendDetailRow(sb, "Liste", details.get("Liste"), false);
+        sb.append("</table>");
+    }
+
+    private Map<String, String> parseTaklitTagsisContent(String content) {
+        Map<String, String> details = new LinkedHashMap<>();
+        if (content == null || content.isBlank()) {
+            return details;
+        }
+
+        for (String segment : content.split("\\s*\\|\\s*")) {
+            int separator = segment.indexOf(':');
+            if (separator <= 0) {
+                continue;
+            }
+            String key = segment.substring(0, separator).trim();
+            String value = segment.substring(separator + 1).trim();
+            if (!key.isBlank() && !value.isBlank()) {
+                details.put(key, value);
+            }
+        }
+        return details;
+    }
+
+    private void appendDetailRow(StringBuilder sb, String label, String value, boolean alert) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        sb.append("<tr><td class='detail-label'>").append(escapeHtml(label)).append("</td>");
+        sb.append("<td class='detail-value")
+                .append(alert ? " alert-value" : "")
+                .append("'>")
+                .append(escapeHtml(value))
+                .append("</td></tr>");
+    }
+
+    private void appendImageAndAttachment(StringBuilder sb, Announcement announcement) {
+        if (announcement.getImageUrl() != null && !announcement.getImageUrl().isBlank()) {
+            sb.append("<div style='margin:16px 0;text-align:center'>")
+                    .append("<img src='").append(sanitizeUrl(announcement.getImageUrl()))
+                    .append("' style='max-width:100%;border-radius:10px;border:1px solid #e2e8f0' alt='Duyuru görseli'></div>");
+        }
+
+        if (announcement.getAttachmentUrl() == null || announcement.getAttachmentUrl().isBlank()) {
+            return;
+        }
+
+        String attachmentUrl = sanitizeUrl(announcement.getAttachmentUrl());
+        boolean pdf = announcement.getAttachmentUrl().toLowerCase().endsWith(".pdf");
+        sb.append("<div style='margin:18px 0;padding:16px;border:1px solid #dbe3ee;border-radius:10px;background:#f8fafc'>")
+                .append("<div style='font-size:13px;font-weight:700;color:#172033;margin-bottom:8px'>Duyuru eki</div>")
+                .append("<div style='font-size:12px;color:#64748b;word-break:break-all'>")
+                .append(attachmentUrl).append("</div>")
+                .append("<a href='").append(attachmentUrl).append("' class='cta-btn-secondary' target='_blank'>")
+                .append(pdf ? "PDF belgesini aç" : "Ek dosyayı aç")
+                .append("</a></div>");
+    }
+
+    private void appendSourceButton(StringBuilder sb, Announcement announcement) {
+        String rawSourceUrl = announcement.getSourceUrl() != null && !announcement.getSourceUrl().isBlank()
+                ? announcement.getSourceUrl()
+                : announcement.getSourceSite() != null ? announcement.getSourceSite().getBaseUrl() : "#";
+        sb.append("<a href='").append(sanitizeUrl(rawSourceUrl))
+                .append("' class='cta-btn-primary' target='_blank'>Resmî kaydı görüntüle</a>");
     }
 
     private String sanitizeUrl(String url) {

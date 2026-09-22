@@ -56,7 +56,7 @@ class ExcelImportAndProfileTest {
         backendDept = Department.builder()
                 .id(2L)
                 .name("Backend")
-                .sites(new HashSet<>(Set.of(SiteType.KOSGEB)))
+                .sites(new HashSet<>(Set.of(SiteType.EBELGE_GIB)))
                 .subscribers(new HashSet<>())
                 .build();
     }
@@ -161,7 +161,6 @@ class ExcelImportAndProfileTest {
         assertEquals(2, response.getDepartments().size());
         assertFalse(response.isGeneralEmployee());
         assertTrue(response.getEffectiveSites().contains(SiteType.EBELGE_GIB));
-        assertTrue(response.getEffectiveSites().contains(SiteType.KOSGEB));
     }
 
     @Test

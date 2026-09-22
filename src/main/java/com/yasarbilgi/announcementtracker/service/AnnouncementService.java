@@ -6,6 +6,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public interface AnnouncementService {
 
@@ -24,12 +26,23 @@ public interface AnnouncementService {
     /**
      * Fetches stored announcements with pagination.
      */
-    Page<AnnouncementResponseDto> getAllAnnouncements(SiteType siteType, Pageable pageable);
+    Page<AnnouncementResponseDto> getAllAnnouncements(
+            SiteType siteType, String search, boolean hasAttachment, Pageable pageable);
 
     /**
      * Fetches stored announcements for a user's subscribed sites with site filtering and pagination.
      */
-    Page<AnnouncementResponseDto> getAnnouncementsForSites(java.util.Set<SiteType> subscribedSites, SiteType siteFilter, Pageable pageable);
+    Page<AnnouncementResponseDto> getAnnouncementsForSites(
+            Set<SiteType> subscribedSites,
+            SiteType siteFilter,
+            String search,
+            boolean hasAttachment,
+            Pageable pageable);
+
+    /**
+     * Returns the persisted announcement total for every source.
+     */
+    Map<SiteType, Long> getAnnouncementCounts();
 
     /**
      * Retrieves announcement by ID.
