@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 import java.util.List;
@@ -28,6 +29,7 @@ class OidcLoginSuccessHandlerTest {
     @Mock private SessionCookieService sessionCookieService;
     @Mock private Authentication authentication;
     @Mock private OidcUser oidcUser;
+    @Mock private OidcIdToken oidcIdToken;
 
     @Test
     void adminRole_CreatesOpaqueAdminSessionAndRedirects() throws Exception {
@@ -36,12 +38,15 @@ class OidcLoginSuccessHandlerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         when(authentication.getPrincipal()).thenReturn(oidcUser);
+        when(oidcUser.getIdToken()).thenReturn(oidcIdToken);
+        when(oidcIdToken.getTokenValue()).thenReturn("header.payload.signature");
         when(oidcUser.getClaimAsMap("realm_access")).thenReturn(Map.of("roles", List.of("ROLE_ADMIN")));
         when(oidcUser.getClaimAsString("preferred_username")).thenReturn("admin");
         when(authService.createOidcSession("admin")).thenReturn(LoginResponseDto.builder().token("opaque-admin-session").build());
 
         handler.onAuthenticationSuccess(request, response, authentication);
 
+        verify(sessionCookieService).setOidcLogoutHint(response, "header.payload.signature");
         verify(sessionCookieService).setAdminSession(response, "opaque-admin-session");
         assertThat(response.getRedirectedUrl()).isEqualTo("/dashboard.html");
     }
@@ -53,6 +58,8 @@ class OidcLoginSuccessHandlerTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
 
         when(authentication.getPrincipal()).thenReturn(oidcUser);
+        when(oidcUser.getIdToken()).thenReturn(oidcIdToken);
+        when(oidcIdToken.getTokenValue()).thenReturn("header.payload.signature");
         when(oidcUser.getClaimAsMap("realm_access")).thenReturn(Map.of("roles", List.of("ROLE_USER")));
         when(oidcUser.getEmail()).thenReturn("employee@example.com");
         when(subscriberService.createOidcSession("employee@example.com"))
@@ -60,6 +67,7 @@ class OidcLoginSuccessHandlerTest {
 
         handler.onAuthenticationSuccess(request, response, authentication);
 
+        verify(sessionCookieService).setOidcLogoutHint(response, "header.payload.signature");
         verify(sessionCookieService).setUserSession(response, "opaque-user-session");
         assertThat(response.getRedirectedUrl()).isEqualTo("/user-dashboard.html");
     }

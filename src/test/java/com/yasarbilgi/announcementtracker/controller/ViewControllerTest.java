@@ -16,24 +16,17 @@ class ViewControllerTest {
     }
 
     @Test
-    @DisplayName("Kök URL (/) isteğinin /dashboard.html adresine yönlendirilmesi")
-    void index_ShouldForwardToDashboardHtml() {
-        String forward = viewController.index();
-        assertThat(forward).isEqualTo("forward:/dashboard.html");
+    @DisplayName("Kök URL (/) isteğinin doğrudan Keycloak girişine yönlendirilmesi")
+    void index_ShouldRedirectToLogin() {
+        String redirect = viewController.index();
+        assertThat(redirect).isEqualTo("redirect:/oauth2/authorization/keycloak");
     }
 
     @Test
-    @DisplayName("/login URL isteğinin /admin-login.html adresine yönlendirilmesi")
-    void login_ShouldForwardToAdminLoginHtml() {
-        String forward = viewController.login();
-        assertThat(forward).isEqualTo("forward:/admin-login.html");
-    }
-
-    @Test
-    @DisplayName("/admin-login URL isteğinin /admin-login.html adresine yönlendirilmesi")
-    void adminLogin_ShouldForwardToAdminLoginHtml() {
-        String forward = viewController.adminLogin();
-        assertThat(forward).isEqualTo("forward:/admin-login.html");
+    @DisplayName("Tüm giriş URL'leri doğrudan ortak Keycloak girişine yönlendirilmeli")
+    void login_ShouldRedirectToKeycloak() {
+        String redirect = viewController.login();
+        assertThat(redirect).isEqualTo("redirect:/oauth2/authorization/keycloak");
     }
 
     @Test

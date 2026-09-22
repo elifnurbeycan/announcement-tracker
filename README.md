@@ -147,8 +147,7 @@ Super Admin panelinden abone oluşturulduğunda backend aynı e-posta için Keyc
 ./mvnw spring-boot:run
 ```
 Uygulama başlatıldıktan sonra panellere erişebilirsiniz:
-- **Yönetim Paneli (Super Admin)**: `http://localhost:8080/admin-login.html`
-- **Abone Portalı**: `http://localhost:8080/user-login.html`
+- **Ortak Keycloak Girişi**: `http://localhost:8080/login`
 
 ### 4. Testleri Çalıştırma (Unit + PostgreSQL + Playwright E2E UI)
 

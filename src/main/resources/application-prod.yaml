@@ -1,7 +1,5 @@
 app:
   security:
-    local-login-enabled: false
-    sso-enabled: true
     session-cookie:
       secure: true
       same-site: Lax

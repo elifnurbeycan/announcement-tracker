@@ -101,11 +101,24 @@ $appBaseUrl = $settings["APP_BASE_URL"]
 if ([string]::IsNullOrWhiteSpace($appBaseUrl) -or $appBaseUrl -like "*example.com*") {
     $appBaseUrl = "http://localhost:8080"
 }
-$passwordActionRedirect = "$($appBaseUrl.TrimEnd('/'))/user-login.html"
-$passwordActionContinue = "$($appBaseUrl.TrimEnd('/'))/oauth2/authorization/keycloak"
+$passwordActionRedirect = "$($appBaseUrl.TrimEnd('/'))/login"
 $redirectUris = @($applicationClient.redirectUris)
-if ($redirectUris -notcontains $passwordActionRedirect -or $redirectUris -notcontains $passwordActionContinue) {
-    $applicationClient.redirectUris = @($redirectUris + $passwordActionRedirect + $passwordActionContinue | Select-Object -Unique)
+$clientAttributes = @{}
+if ($null -ne $applicationClient.attributes) {
+    foreach ($attribute in $applicationClient.attributes.PSObject.Properties) {
+        $clientAttributes[$attribute.Name] = [string]$attribute.Value
+    }
+}
+$configuredPostLogoutRedirect = [string]$clientAttributes['post.logout.redirect.uris']
+$configuredLogoutConfirmation = [string]$clientAttributes['logout.confirmation.enabled']
+$clientAttributes['pkce.code.challenge.method'] = 'S256'
+$clientAttributes['post.logout.redirect.uris'] = $passwordActionRedirect
+$clientAttributes['logout.confirmation.enabled'] = 'false'
+$applicationClient.attributes = $clientAttributes
+if ($redirectUris -notcontains $passwordActionRedirect `
+        -or $configuredPostLogoutRedirect -ne $passwordActionRedirect `
+        -or $configuredLogoutConfirmation -ne 'false') {
+    $applicationClient.redirectUris = @($redirectUris + $passwordActionRedirect | Select-Object -Unique)
     Invoke-RestMethod -Method Put `
         -Uri "$ServerUrl/admin/realms/$Realm/clients/$applicationClientUuid" `
         -Headers $headers `

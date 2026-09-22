@@ -38,11 +38,12 @@ public class OidcLoginSuccessHandler implements AuthenticationSuccessHandler {
 
         if (!adminLogin && !subscriberLogin) {
             clearTemporaryOauthSession(request);
-            response.sendRedirect("/user-login.html?ssoError=insufficient-roles");
+            response.sendRedirect("/sso-error.html?reason=insufficient-roles");
             return;
         }
 
         try {
+            sessionCookieService.setOidcLogoutHint(response, oidcUser.getIdToken().getTokenValue());
             if (adminLogin) {
                 String username = firstNonBlank(
                         oidcUser.getClaimAsString("preferred_username"),
@@ -60,7 +61,7 @@ public class OidcLoginSuccessHandler implements AuthenticationSuccessHandler {
             response.sendRedirect("/user-dashboard.html");
         } catch (RuntimeException exception) {
             clearTemporaryOauthSession(request);
-            response.sendRedirect((adminLogin ? "/admin-login.html" : "/user-login.html") + "?ssoError=account-mapping");
+            response.sendRedirect("/sso-error.html?reason=account-mapping");
         }
     }
 

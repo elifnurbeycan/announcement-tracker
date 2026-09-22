@@ -62,7 +62,8 @@ if [ -z "$APP_CLIENT_UUID" ]; then
 fi
 
 "$KCADM" update "clients/$APP_CLIENT_UUID" -r "$REALM" \
-  -s "redirectUris=[\"$APP_BASE_URL/login/oauth2/code/keycloak\",\"$APP_BASE_URL/user-login.html\",\"$APP_BASE_URL/oauth2/authorization/keycloak\"]" \
+  -s "redirectUris=[\"$APP_BASE_URL/login/oauth2/code/keycloak\",\"$APP_BASE_URL/login\"]" \
+  -s "attributes={\"pkce.code.challenge.method\":\"S256\",\"post.logout.redirect.uris\":\"$APP_BASE_URL/login\",\"logout.confirmation.enabled\":\"false\"}" \
   -s "webOrigins=[\"$APP_BASE_URL\"]" >/dev/null
 
 ROLE_MAPPER_ID=$("$KCADM" get "clients/$APP_CLIENT_UUID/protocol-mappers/models" -r "$REALM" \

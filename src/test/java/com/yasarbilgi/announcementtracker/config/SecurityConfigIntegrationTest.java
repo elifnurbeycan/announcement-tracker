@@ -13,6 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 @SpringBootTest
@@ -22,6 +23,14 @@ class SecurityConfigIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Test
+    @DisplayName("Ortak giriş adresi sağlayıcı seçimi göstermeden Keycloak'a yönlendirir")
+    void login_RedirectsDirectlyToKeycloak() throws Exception {
+        mockMvc.perform(get("/login"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/oauth2/authorization/keycloak"));
+    }
 
     @Test
     @DisplayName("Duyuru listesi kimlik doğrulaması olmadan okunabilir")

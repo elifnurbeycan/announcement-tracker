@@ -2,18 +2,6 @@
  * Authentication Service
  */
 window.AuthService = {
-    loginAdmin: async function(username, password) {
-        const data = await window.ApiClient.post('/api/v1/auth/login', { username, password });
-        if (data.success && data.data) {
-            sessionStorage.setItem('authRole', 'ADMIN');
-            localStorage.removeItem('userToken');
-            localStorage.removeItem('userData');
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminUser');
-        }
-        return data;
-    },
-
     getUserProfile: async function() {
         const response = await window.ApiClient.get('/api/v1/user/me');
         return response.data || response;
@@ -39,7 +27,7 @@ window.AuthService = {
         sessionStorage.removeItem('authRole');
         localStorage.removeItem('adminToken');
         localStorage.removeItem('adminUser');
-        window.location.href = '/admin-login.html';
+        window.location.href = '/sso/logout';
     },
 
     logoutUser: async function() {
@@ -51,6 +39,6 @@ window.AuthService = {
         sessionStorage.removeItem('authRole');
         localStorage.removeItem('userToken');
         localStorage.removeItem('userData');
-        window.location.href = '/user-login.html';
+        window.location.href = '/sso/logout';
     }
 };

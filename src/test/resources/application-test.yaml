@@ -21,8 +21,3 @@ announcement:
 keycloak:
   admin:
     enabled: false
-
-app:
-  security:
-    local-login-enabled: true
-    sso-enabled: false

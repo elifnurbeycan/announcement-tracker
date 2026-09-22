@@ -103,10 +103,6 @@ keycloak:
 
 app:
   security:
-    local-login-enabled: ${LOCAL_LOGIN_ENABLED:false}
-    # Subscriber authentication is Keycloak-only. Keep SSO enabled for normal
-    # IDE runs as well; it can still be explicitly disabled for isolated tests.
-    sso-enabled: ${SSO_ENABLED:true}
     session-cookie:
       secure: ${SESSION_COOKIE_SECURE:false}
       same-site: ${SESSION_COOKIE_SAME_SITE:Lax}

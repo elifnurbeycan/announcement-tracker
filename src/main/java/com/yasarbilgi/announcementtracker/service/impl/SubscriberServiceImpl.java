@@ -95,7 +95,7 @@ public class SubscriberServiceImpl implements SubscriberService {
 
         try {
             emailService.sendWelcomeAndActivationEmail(
-                    saved.getEmail(), saved.getFullName(), appBaseUrl + "/user-login.html");
+                    saved.getEmail(), saved.getFullName(), appBaseUrl + "/login");
         } catch (Exception e) {
             log.error("Failed to send welcome email notification to {}: {}", saved.getEmail(), e.getMessage());
         }

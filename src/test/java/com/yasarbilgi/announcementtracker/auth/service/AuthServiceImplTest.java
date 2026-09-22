@@ -1,6 +1,6 @@
 package com.yasarbilgi.announcementtracker.auth.service;
 
-import com.yasarbilgi.announcementtracker.dto.request.LoginRequestDto;
+import com.yasarbilgi.announcementtracker.entity.AdminUser;
 import com.yasarbilgi.announcementtracker.exception.ScrapingException;
 import com.yasarbilgi.announcementtracker.repository.AdminUserRepository;
 import com.yasarbilgi.announcementtracker.service.impl.AuthServiceImpl;
@@ -10,9 +10,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
@@ -20,20 +25,19 @@ class AuthServiceImplTest {
     @Mock
     private AdminUserRepository adminUserRepository;
 
-    @Mock
-    private PasswordEncoder passwordEncoder;
-
     @InjectMocks
     private AuthServiceImpl authService;
 
     @Test
-    @DisplayName("Yanlış yerel yönetici şifresinde ScrapingException fırlatılmalı")
-    void login_InvalidPasswordOrServerDown_ShouldThrowException() {
-        LoginRequestDto request = new LoginRequestDto("admin", "wrongpassword");
+    @DisplayName("Keycloak yöneticisi ilk girişte yerel profil kaydıyla eşlenmeli")
+    void createOidcSession_NewAdmin_ShouldCreateLocalProfile() {
+        when(adminUserRepository.findByUsername("keycloak-admin")).thenReturn(Optional.empty());
+        when(adminUserRepository.save(any(AdminUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> authService.login(request))
-                .isInstanceOf(ScrapingException.class)
-                .hasMessageContaining("Geçersiz kullanıcı adı veya şifre");
+        var response = authService.createOidcSession("keycloak-admin");
+
+        assertThat(response.getUsername()).isEqualTo("keycloak-admin");
+        verify(adminUserRepository).save(any(AdminUser.class));
     }
 
     @Test

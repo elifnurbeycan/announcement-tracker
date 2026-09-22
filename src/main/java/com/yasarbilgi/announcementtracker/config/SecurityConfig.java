@@ -44,8 +44,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.spa().csrfTokenRepository(csrfTokenRepository))
             .cors(Customizer.withDefaults())
             .oauth2Login(oauth -> oauth
+                    .loginPage("/oauth2/authorization/keycloak")
                     .successHandler(oidcLoginSuccessHandler)
-                    .failureUrl("/user-login.html?ssoError=authentication"))
+                    .failureUrl("/sso-error.html?reason=authentication"))
             .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt
                     .jwtAuthenticationConverter(keycloakJwtAuthenticationConverter)))
             .exceptionHandling(exceptions -> exceptions
@@ -62,6 +63,8 @@ public class SecurityConfig {
                     "/admin-login.html",
                     "/user-login",
                     "/user-login.html",
+                    "/sso/logout",
+                    "/sso-error.html",
                     "/dashboard",
                     "/dashboard.html",
                     "/user-dashboard",
@@ -76,11 +79,7 @@ public class SecurityConfig {
                     "/api/v1/subscribers/unsubscribe",
                     "/api/v1/subscribers/unsubscribe/**"
                 ).permitAll()
-                .requestMatchers(HttpMethod.POST,
-                    "/api/v1/auth/login"
-                ).permitAll()
                 .requestMatchers(HttpMethod.GET,
-                    "/api/v1/auth/mode",
                     "/api/v1/announcements",
                     "/api/v1/announcements/**",
                     "/api/v1/sites"

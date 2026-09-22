@@ -190,11 +190,9 @@ public class KeycloakAdminService {
             String url = UriComponentsBuilder
                     .fromUriString(adminUrl("users/" + userId + "/execute-actions-email"))
                     .queryParam("client_id", applicationClientId)
-                    // Continue with the application's Authorization Code flow after the
-                    // password action. Keycloak already has an authenticated browser
-                    // session, so this normally signs the subscriber in without a
-                    // second credential prompt.
-                    .queryParam("redirect_uri", appBaseUrl + "/oauth2/authorization/keycloak")
+                    // Continue through the single application login entry point after
+                    // the password action.
+                    .queryParam("redirect_uri", appBaseUrl + "/login")
                     .queryParam("lifespan", 43_200)
                     .build()
                     .encode()

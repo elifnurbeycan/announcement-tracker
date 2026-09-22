@@ -8,17 +8,16 @@ public class ViewController {
 
     @GetMapping("/")
     public String index() {
-        return "forward:/dashboard.html";
+        return "redirect:/oauth2/authorization/keycloak";
     }
 
-    @GetMapping("/admin-login")
-    public String adminLogin() {
-        return "forward:/admin-login.html";
-    }
-
-    @GetMapping("/login")
+    @GetMapping({
+            "/login", "/login.html",
+            "/admin-login", "/admin-login.html",
+            "/user-login", "/user-login.html"
+    })
     public String login() {
-        return "forward:/admin-login.html";
+        return "redirect:/oauth2/authorization/keycloak";
     }
 
     @GetMapping("/dashboard")

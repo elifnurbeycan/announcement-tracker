@@ -21,9 +21,6 @@ public class AdminUser {
     @Column(nullable = false, unique = true)
     private String username;
 
-    @Column(nullable = false)
-    private String passwordHash;
-
     private String fullName;
 
     private LocalDateTime lastLoginAt;

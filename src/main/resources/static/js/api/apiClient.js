@@ -14,8 +14,8 @@ window.ApiClient = {
     },
 
     isProtectedRequest: function(url, method) {
-        if (url.startsWith('/api/v1/user/')) return !url.endsWith('/login');
-        if (url.startsWith('/api/v1/auth/')) return !url.endsWith('/login') && !url.endsWith('/mode');
+        if (url.startsWith('/api/v1/user/')) return true;
+        if (url.startsWith('/api/v1/auth/')) return true;
         if (url.startsWith('/api/v1/admin/')) return true;
         if (url.startsWith('/api/v1/settings/')) return true;
         if (url.startsWith('/api/v1/departments')) return true;
@@ -26,9 +26,7 @@ window.ApiClient = {
     },
 
     redirectToLogin: function(url) {
-        const savedRole = sessionStorage.getItem('authRole');
-        const userRequest = url.startsWith('/api/v1/user/') || window.location.pathname.includes('user-dashboard');
-        const target = (savedRole === 'USER' || userRequest) ? '/user-login.html' : '/admin-login.html';
+        const target = '/login';
 
         sessionStorage.removeItem('authRole');
         localStorage.removeItem('userToken');
