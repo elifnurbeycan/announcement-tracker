@@ -1,7 +1,6 @@
 package com.yasarbilgi.announcementtracker.model;
 
 import com.yasarbilgi.announcementtracker.dto.ScrapedAnnouncementDto;
-import com.yasarbilgi.announcementtracker.dto.request.LoginRequestDto;
 import com.yasarbilgi.announcementtracker.dto.request.SubscriberRequestDto;
 import com.yasarbilgi.announcementtracker.dto.response.*;
 import com.yasarbilgi.announcementtracker.entity.AdminUser;
@@ -65,13 +64,6 @@ class ModelAndEnumTest {
                 .sourceSite(SiteType.EBELGE_GIB)
                 .build();
         assertThat(scraped.getTitle()).isEqualTo("Title");
-
-        // LoginRequestDto
-        LoginRequestDto loginReq = new LoginRequestDto("user", "pass");
-        loginReq.setUsername("admin");
-        loginReq.setPassword("123");
-        assertThat(loginReq.getUsername()).isEqualTo("admin");
-        assertThat(loginReq.getPassword()).isEqualTo("123");
 
         // SubscriberRequestDto
         SubscriberRequestDto subReq = SubscriberRequestDto.builder()
@@ -148,7 +140,6 @@ class ModelAndEnumTest {
         AdminUser admin = AdminUser.builder()
                 .id(1L)
                 .username("admin")
-                .passwordHash("hash")
                 .fullName("Admin")
                 .lastLoginAt(LocalDateTime.now())
                 .build();

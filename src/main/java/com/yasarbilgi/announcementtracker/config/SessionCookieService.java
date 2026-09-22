@@ -16,6 +16,7 @@ public class SessionCookieService {
 
     public static final String ADMIN_COOKIE = "ADMIN_SESSION";
     public static final String USER_COOKIE = "USER_SESSION";
+    private static final String OIDC_LOGOUT_HINT_COOKIE = "OIDC_LOGOUT_HINT";
 
     private final boolean secure;
     private final String sameSite;
@@ -43,6 +44,18 @@ public class SessionCookieService {
 
     public void clearUserSession(HttpServletResponse response) {
         clearCookie(response, USER_COOKIE);
+    }
+
+    public void setOidcLogoutHint(HttpServletResponse response, String idToken) {
+        addSessionCookie(response, OIDC_LOGOUT_HINT_COOKIE, idToken, Duration.ofHours(12));
+    }
+
+    public String resolveOidcLogoutHint(HttpServletRequest request) {
+        return resolveCookie(request, OIDC_LOGOUT_HINT_COOKIE);
+    }
+
+    public void clearOidcLogoutHint(HttpServletResponse response) {
+        clearCookie(response, OIDC_LOGOUT_HINT_COOKIE);
     }
 
     public String resolveAdminSession(HttpServletRequest request) {

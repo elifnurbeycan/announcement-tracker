@@ -1,6 +1,5 @@
 package com.yasarbilgi.announcementtracker.service.impl;
 
-import com.yasarbilgi.announcementtracker.dto.request.LoginRequestDto;
 import com.yasarbilgi.announcementtracker.dto.response.AdminUserDto;
 import com.yasarbilgi.announcementtracker.dto.response.LoginResponseDto;
 import com.yasarbilgi.announcementtracker.entity.AdminUser;
@@ -9,7 +8,6 @@ import com.yasarbilgi.announcementtracker.repository.AdminUserRepository;
 import com.yasarbilgi.announcementtracker.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,43 +23,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AuthServiceImpl implements AuthService {
 
     private final AdminUserRepository adminUserRepository;
-    private final PasswordEncoder passwordEncoder;
 
     private final Map<String, SessionInfo> activeSessions = new ConcurrentHashMap<>();
 
     private record SessionInfo(AdminUserDto userDto, LocalDateTime expiresAt) {}
-
-    @Override
-    @Transactional
-    public LoginResponseDto login(LoginRequestDto request) {
-        log.info("SuperAdmin login attempt for username: {}", request.getUsername());
-
-        // This endpoint is an explicitly enabled local break-glass login. Keycloak users
-        // authenticate through the authorization-code SSO flow, never by password grant.
-        AdminUser admin = adminUserRepository.findByUsername(request.getUsername()).orElse(null);
-        if (admin != null && admin.getPasswordHash() != null) {
-            boolean valid = passwordEncoder.matches(request.getPassword(), admin.getPasswordHash());
-            if (valid) {
-                log.info("Authenticated Admin '{}' via verified BCrypt DB password.", request.getUsername());
-                AdminUserDto dto = AdminUserDto.builder()
-                        .username(admin.getUsername())
-                        .fullName(admin.getFullName())
-                        .lastLoginAt(LocalDateTime.now())
-                        .build();
-
-                String sessionToken = "SA-TOKEN-" + UUID.randomUUID();
-                activeSessions.put(sessionToken, new SessionInfo(dto, LocalDateTime.now().plusHours(24)));
-
-                return LoginResponseDto.builder()
-                        .token(sessionToken)
-                        .username(admin.getUsername())
-                        .fullName(admin.getFullName())
-                        .build();
-            }
-        }
-
-        throw new ScrapingException("Geçersiz kullanıcı adı veya şifre.");
-    }
 
     @Override
     public void logout(String token) {
@@ -75,11 +40,15 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public LoginResponseDto createOidcSession(String username) {
         AdminUser admin = adminUserRepository.findByUsername(username)
-                .orElseThrow(() -> new ScrapingException("OIDC kullanıcısı yerel yönetici kaydıyla eşleşmiyor."));
+                .orElseGet(() -> AdminUser.builder()
+                        .username(username)
+                        .fullName(username)
+                        .build());
         admin.setLastLoginAt(LocalDateTime.now());
-        adminUserRepository.save(admin);
+        admin = adminUserRepository.save(admin);
 
         String sessionToken = "SA-TOKEN-" + UUID.randomUUID();
         AdminUserDto dto = mapToDto(admin);

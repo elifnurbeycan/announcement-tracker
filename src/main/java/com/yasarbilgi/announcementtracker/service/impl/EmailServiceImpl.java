@@ -269,7 +269,7 @@ public class EmailServiceImpl implements EmailService {
 
             String setPasswordUrl = (passwordResetUrlOrToken != null && passwordResetUrlOrToken.startsWith("http"))
                     ? passwordResetUrlOrToken
-                    : appBaseUrl + "/user-login.html";
+                    : appBaseUrl + "/login";
 
             String name = (fullName != null && !fullName.isBlank()) ? fullName : email.split("@")[0];
 
@@ -303,7 +303,7 @@ public class EmailServiceImpl implements EmailService {
             mailSender.send(mimeMessage);
             log.info("Welcome & password setup email sent to: {}", email);
         } catch (Exception e) {
-            log.warn("SMTP email send failed (local SMTP settings may be unconfigured). Direct login: {}/user-login.html", appBaseUrl);
+            log.warn("SMTP email send failed (local SMTP settings may be unconfigured). Direct login: {}/login", appBaseUrl);
             log.error("Failed to send welcome email to {}: {}", email, e.getMessage());
         }
     }

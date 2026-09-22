@@ -34,14 +34,15 @@
       "serviceAccountsEnabled": false,
       "redirectUris": [
         "http://localhost:8080/login/oauth2/code/keycloak",
-        "http://localhost:8080/user-login.html",
-        "http://localhost:8080/oauth2/authorization/keycloak"
+        "http://localhost:8080/login"
       ],
       "webOrigins": [
         "http://localhost:8080"
       ],
       "attributes": {
-        "pkce.code.challenge.method": "S256"
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8080/login",
+        "logout.confirmation.enabled": "false"
       },
       "protocolMappers": [
         {

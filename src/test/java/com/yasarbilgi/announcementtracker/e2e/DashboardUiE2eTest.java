@@ -16,8 +16,6 @@ import static org.assertj.core.api.Assertions.assertThat;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "keycloak.admin.enabled=false",
-                "app.security.sso-enabled=true",
-                "app.security.local-login-enabled=true",
                 "announcement.tracker.enabled=false"
         })
 @ActiveProfiles("test")
@@ -70,20 +68,10 @@ class DashboardUiE2eTest {
     }
 
     @org.springframework.beans.factory.annotation.Autowired
-    private com.yasarbilgi.announcementtracker.repository.AdminUserRepository adminUserRepository;
-
-    private static final org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder TEST_PASSWORD_ENCODER = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+    private com.yasarbilgi.announcementtracker.service.AuthService authService;
 
     @BeforeEach
     void createContextAndPage() {
-        com.yasarbilgi.announcementtracker.entity.AdminUser admin = adminUserRepository.findByUsername("admin")
-                .orElseGet(() -> com.yasarbilgi.announcementtracker.entity.AdminUser.builder().username("admin").build());
-        if (admin.getPasswordHash() == null || !TEST_PASSWORD_ENCODER.matches("admin123", admin.getPasswordHash())) {
-            admin.setPasswordHash(TEST_PASSWORD_ENCODER.encode("admin123"));
-            admin.setFullName("System Admin");
-            adminUserRepository.save(admin);
-        }
-
         context = browser.newContext();
         page = context.newPage();
     }
@@ -93,29 +81,15 @@ class DashboardUiE2eTest {
     }
 
     private void performSuperAdminLogin() {
-        page.navigate(baseUrl() + "/admin-login.html");
-        // Production UI is SSO-only. Tests use the explicitly enabled local test
-        // endpoint programmatically, without exposing a password form to users.
-        page.evaluate("""
-                async () => {
-                    await window.AuthService.loginAdmin('admin', 'admin123');
-                    window.location.href = '/dashboard.html';
-                }
-                """);
+        String token = authService.createOidcSession("admin").getToken();
+        context.addCookies(java.util.List.of(
+                new com.microsoft.playwright.options.Cookie(
+                        com.yasarbilgi.announcementtracker.config.SessionCookieService.ADMIN_COOKIE,
+                        token
+                ).setUrl(baseUrl())
+        ));
+        page.navigate(baseUrl() + "/dashboard.html");
         page.waitForURL("**/dashboard.html");
-    }
-
-    @Test
-    @DisplayName("E2E: Admin giriş sayfası yalnızca kurumsal SSO gösterir")
-    void testAdminLoginAndErrorHandling() {
-        page.navigate(baseUrl() + "/admin-login.html");
-
-        assertThat(page.title()).contains("Super Admin Giriş Paneli");
-        assertThat(page.locator("h2").innerText()).contains("Yönetici Girişi");
-
-        assertThat(page.getByText("Kurumsal SSO (Keycloak Admin) ile Giriş Yap").isVisible()).isTrue();
-        assertThat(page.locator("input[type='text']").count()).isZero();
-        assertThat(page.locator("input[type='password']").count()).isZero();
     }
 
     @Test
@@ -157,7 +131,7 @@ class DashboardUiE2eTest {
     }
 
     @Test
-    @DisplayName("E2E: Kullanıcı girişi yalnızca kurumsal SSO sunar")
+    @DisplayName("E2E: Yönetici menüsü rol bazlı olarak izole edilir")
     void testRoleBasedNavigation() {
         // Super Admin access
         performSuperAdminLogin();
@@ -166,14 +140,6 @@ class DashboardUiE2eTest {
         assertThat(page.locator(".sidebar").innerText()).doesNotContain("Profilim");
         assertThat(page.locator(".sidebar").innerText()).contains("Departmanlar");
 
-        // Kullanıcı parolası uygulamaya verilmez; giriş Keycloak Authorization Code akışına yönlenir.
-        Page userPage = context.newPage();
-        userPage.navigate(baseUrl() + "/user-login.html");
-        Locator ssoLink = userPage.locator("a:has-text('Kurumsal SSO ile Giriş Yap')");
-        ssoLink.waitFor();
-        assertThat(ssoLink.getAttribute("href")).isEqualTo("/oauth2/authorization/keycloak");
-        assertThat(userPage.locator("input[type='email']").count()).isZero();
-        assertThat(userPage.locator("input[type='password']").count()).isZero();
     }
 
     @Test
@@ -302,7 +268,7 @@ class DashboardUiE2eTest {
         page.click(".user-trigger");
         page.click(".dropdown-item.danger");
 
-        page.waitForURL("**/admin-login.html");
-        assertThat(page.url()).contains("/admin-login.html");
+        page.waitForURL("**/protocol/openid-connect/auth**");
+        assertThat(page.url()).contains("/protocol/openid-connect/auth");
     }
 }

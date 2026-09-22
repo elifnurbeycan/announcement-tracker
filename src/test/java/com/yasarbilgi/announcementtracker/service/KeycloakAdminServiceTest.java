@@ -98,7 +98,7 @@ class KeycloakAdminServiceTest {
                         "/users/user-123/execute-actions-email?client_id=announcement-tracker-app")))
                 .andExpect(method(HttpMethod.PUT))
                 .andExpect(request -> assertThat(request.getURI().getQuery())
-                        .contains("redirect_uri=http://localhost:8080/oauth2/authorization/keycloak")
+                        .contains("redirect_uri=http://localhost:8080/login")
                         .contains("lifespan=43200"))
                 .andExpect(content().json("[\"UPDATE_PASSWORD\"]"))
                 .andRespond(withNoContent());
