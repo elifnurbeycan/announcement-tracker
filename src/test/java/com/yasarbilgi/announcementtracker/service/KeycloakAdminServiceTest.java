@@ -30,6 +30,8 @@ class KeycloakAdminServiceTest {
         ReflectionTestUtils.setField(service, "enabled", true);
         ReflectionTestUtils.setField(service, "keycloakServerUrl", "http://keycloak.test");
         ReflectionTestUtils.setField(service, "keycloakRealm", "announcement-tracker-realm");
+        ReflectionTestUtils.setField(service, "applicationClientId", "announcement-tracker-app");
+        ReflectionTestUtils.setField(service, "appBaseUrl", "http://localhost:8080");
         ReflectionTestUtils.setField(service, "adminClientId", "announcement-tracker-admin");
         ReflectionTestUtils.setField(service, "adminClientSecret", "test-secret");
         RestTemplate restTemplate = (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate");
@@ -78,6 +80,31 @@ class KeycloakAdminServiceTest {
         service.provisionSubscriber("user@example.com", "User", true);
 
         assertThat(service.isEnabled()).isFalse();
+        server.verify();
+    }
+
+    @Test
+    void passwordSetupEmailUsesRequiredActionAndReturnsToApplication() {
+        server.expect(once(), requestTo("http://keycloak.test/realms/announcement-tracker-realm/protocol/openid-connect/token"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"access_token\":\"service-token\"}", MediaType.APPLICATION_JSON));
+
+        server.expect(once(), requestTo(containsString(
+                        "http://keycloak.test/admin/realms/announcement-tracker-realm/users?email=user@example.com&exact=true")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("[{\"id\":\"user-123\",\"email\":\"user@example.com\"}]", MediaType.APPLICATION_JSON));
+
+        server.expect(once(), requestTo(containsString(
+                        "/users/user-123/execute-actions-email?client_id=announcement-tracker-app")))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(request -> assertThat(request.getURI().getQuery())
+                        .contains("redirect_uri=http://localhost:8080/oauth2/authorization/keycloak")
+                        .contains("lifespan=43200"))
+                .andExpect(content().json("[\"UPDATE_PASSWORD\"]"))
+                .andRespond(withNoContent());
+
+        service.triggerKeycloakResetPasswordEmail("USER@example.com");
+
         server.verify();
     }
 }

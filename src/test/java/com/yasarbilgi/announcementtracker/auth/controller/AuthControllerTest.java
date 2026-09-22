@@ -18,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,6 +49,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("POST /api/v1/auth/login - Doğru bilgilerle giriş yapma HTTP 200")
     void login_ValidCredentials_ShouldReturnOk() {
+        ReflectionTestUtils.setField(authController, "localLoginEnabled", true);
         LoginRequestDto requestDto = new LoginRequestDto("admin", "admin123");
         LoginResponseDto loginResponse = LoginResponseDto.builder()
                 .token("SA-TOKEN-12345")

@@ -51,6 +51,7 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
   jpa:
+    open-in-view: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: validate
@@ -80,6 +81,9 @@ announcement:
     cron: "${ANNOUNCEMENT_CRON:0 0 * * * *}"
     enabled: ${ANNOUNCEMENT_SCHEDULER_ENABLED:true}
     app-base-url: ${APP_BASE_URL:http://localhost:8080}
+    unsubscribe:
+      secret: ${UNSUBSCRIBE_TOKEN_SECRET:local-development-unsubscribe-key-change-me}
+      validity: ${UNSUBSCRIBE_TOKEN_VALIDITY:30d}
     email:
       from: ${MAIL_FROM:noreply@announcementtracker.com}
       default-recipient: ${DEFAULT_RECIPIENT:admin@example.com}
@@ -99,8 +103,10 @@ keycloak:
 
 app:
   security:
-    local-login-enabled: ${LOCAL_LOGIN_ENABLED:true}
-    sso-enabled: ${SSO_ENABLED:false}
+    local-login-enabled: ${LOCAL_LOGIN_ENABLED:false}
+    # Subscriber authentication is Keycloak-only. Keep SSO enabled for normal
+    # IDE runs as well; it can still be explicitly disabled for isolated tests.
+    sso-enabled: ${SSO_ENABLED:true}
     session-cookie:
       secure: ${SESSION_COOKIE_SECURE:false}
       same-site: ${SESSION_COOKIE_SAME_SITE:Lax}

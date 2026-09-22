@@ -14,11 +14,10 @@
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="/css/dashboard.css">
 
-    <!-- React 18 & Babel & Lucide Icons -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Local Vendor Scripts (React 18, Babel, Lucide) -->
+    <script src="/vendor/react.production.min.js"></script>
+    <script src="/vendor/react-dom.production.min.js"></script>
+    <script src="/vendor/lucide.min.js"></script>
 </head>
 <body>
 
@@ -30,15 +29,15 @@
     <script src="/js/services/announcementService.js"></script>
 
     <!-- UI Components (JSX) -->
-    <script type="text/babel" src="/js/components/Sidebar.js"></script>
-    <script type="text/babel" src="/js/components/Header.js"></script>
+    <script src="/js/dist/components/Sidebar.js"></script>
+    <script src="/js/dist/components/Header.js"></script>
 
     <!-- Page Components (JSX) -->
-    <script type="text/babel" src="/js/pages/AnnouncementsPage.js"></script>
-    <script type="text/babel" src="/js/pages/ProfilePage.js"></script>
+    <script src="/js/dist/pages/AnnouncementsPage.js"></script>
+    <script src="/js/dist/pages/ProfilePage.js"></script>
 
     <!-- User Dashboard Application Container -->
-    <script type="text/babel" src="/js/userApp.js"></script>
+    <script src="/js/dist/userApp.js"></script>
 
 </body>
 </html>

@@ -24,15 +24,4 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
-
-    @Bean(name = "scraperExecutor")
-    public Executor scraperExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(4);
-        executor.setMaxPoolSize(8);
-        executor.setQueueCapacity(50);
-        executor.setThreadNamePrefix("scraper-async-");
-        executor.initialize();
-        return executor;
-    }
 }

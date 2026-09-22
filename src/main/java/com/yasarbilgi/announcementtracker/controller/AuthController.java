@@ -27,11 +27,11 @@ public class AuthController {
     private final AuthService authService;
     private final SessionCookieService sessionCookieService;
 
-    @Value("${app.security.local-login-enabled:true}")
-    private boolean localLoginEnabled = true;
+    @Value("${app.security.local-login-enabled:false}")
+    private boolean localLoginEnabled = false;
 
-    @Value("${app.security.sso-enabled:false}")
-    private boolean ssoEnabled = false;
+    @Value("${app.security.sso-enabled:true}")
+    private boolean ssoEnabled = true;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponseDto<LoginResponseDto>> login(

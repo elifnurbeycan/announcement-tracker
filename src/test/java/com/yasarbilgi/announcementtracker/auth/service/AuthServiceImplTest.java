@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -19,11 +20,14 @@ class AuthServiceImplTest {
     @Mock
     private AdminUserRepository adminUserRepository;
 
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
     @InjectMocks
     private AuthServiceImpl authService;
 
     @Test
-    @DisplayName("Keycloak sunucusuna ulaşılamadığında veya yanlış şifre girildiğinde ScrapingException fırlatılmalı")
+    @DisplayName("Yanlış yerel yönetici şifresinde ScrapingException fırlatılmalı")
     void login_InvalidPasswordOrServerDown_ShouldThrowException() {
         LoginRequestDto request = new LoginRequestDto("admin", "wrongpassword");
 

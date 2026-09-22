@@ -30,6 +30,10 @@ window.SubscriberService = {
         return await window.ApiClient.patch(`/api/v1/subscribers/${id}/status?active=${newStatus}`);
     },
 
+    sendPasswordSetupEmail: async function(id) {
+        return await window.ApiClient.post(`/api/v1/subscribers/${id}/password-setup-email`, {});
+    },
+
     importExcel: async function(formData) {
         const headers = window.ApiClient.getCsrfHeader();
 

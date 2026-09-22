@@ -17,8 +17,12 @@ foreach ($line in Get-Content -LiteralPath $EnvironmentFile) {
     }
 }
 
-$adminUsername = $settings["KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME"]
-$adminPassword = $settings["KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD"]
+$adminUsername = $settings["KEYCLOAK_CONSOLE_ADMIN_USERNAME"]
+$adminPassword = $settings["KEYCLOAK_CONSOLE_ADMIN_PASSWORD"]
+if ([string]::IsNullOrWhiteSpace($adminUsername) -or [string]::IsNullOrWhiteSpace($adminPassword)) {
+    $adminUsername = $settings["KEYCLOAK_BOOTSTRAP_ADMIN_USERNAME"]
+    $adminPassword = $settings["KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD"]
+}
 $clientId = $settings["KEYCLOAK_ADMIN_CLIENT_ID"]
 $clientSecret = $settings["KEYCLOAK_ADMIN_CLIENT_SECRET"]
 
@@ -41,6 +45,43 @@ $masterToken = Invoke-RestMethod -Method Post `
 
 $headers = @{ Authorization = "Bearer $($masterToken.access_token)" }
 
+# Brand every Keycloak login/required-action screen with the application's theme.
+# Configure Keycloak's own SMTP sender as well: password setup links must be
+# generated and delivered by Keycloak, never reconstructed by the application.
+$realmConfig = Invoke-RestMethod -Method Get `
+    -Uri "$ServerUrl/admin/realms/$Realm" `
+    -Headers $headers
+$realmConfig | Add-Member -NotePropertyName "loginTheme" -NotePropertyValue "announcement-tracker" -Force
+
+$mailHost = $settings["SPRING_MAIL_HOST"]
+$mailPort = $settings["SPRING_MAIL_PORT"]
+$mailUsername = $settings["SPRING_MAIL_USERNAME"]
+$mailPassword = $settings["SPRING_MAIL_PASSWORD"]
+$mailFrom = $settings["MAIL_FROM"]
+if (-not [string]::IsNullOrWhiteSpace($mailHost) -and
+    -not [string]::IsNullOrWhiteSpace($mailUsername) -and
+    -not [string]::IsNullOrWhiteSpace($mailPassword) -and
+    -not [string]::IsNullOrWhiteSpace($mailFrom)) {
+    $smtpConfig = @{
+        host = $mailHost
+        port = $(if ([string]::IsNullOrWhiteSpace($mailPort)) { "587" } else { $mailPort })
+        from = $mailFrom
+        fromDisplayName = "e-Duyuru Takip"
+        auth = "true"
+        starttls = "true"
+        ssl = "false"
+        user = $mailUsername
+        password = $mailPassword
+    }
+    $realmConfig | Add-Member -NotePropertyName "smtpServer" -NotePropertyValue $smtpConfig -Force
+}
+
+Invoke-RestMethod -Method Put `
+    -Uri "$ServerUrl/admin/realms/$Realm" `
+    -Headers $headers `
+    -ContentType "application/json" `
+    -Body ($realmConfig | ConvertTo-Json -Depth 20)
+
 # Ensure the browser/API client emits an explicit audience claim so bearer
 # tokens can be validated by the Spring resource server.
 $applicationClients = @(Invoke-RestMethod -Method Get `
@@ -53,6 +94,24 @@ if ($applicationClients.Count -eq 0) {
     throw "Keycloak application client announcement-tracker-app was not found."
 }
 $applicationClientUuid = [string]$applicationClients[0].id
+$applicationClient = Invoke-RestMethod -Method Get `
+    -Uri "$ServerUrl/admin/realms/$Realm/clients/$applicationClientUuid" `
+    -Headers $headers
+$appBaseUrl = $settings["APP_BASE_URL"]
+if ([string]::IsNullOrWhiteSpace($appBaseUrl) -or $appBaseUrl -like "*example.com*") {
+    $appBaseUrl = "http://localhost:8080"
+}
+$passwordActionRedirect = "$($appBaseUrl.TrimEnd('/'))/user-login.html"
+$passwordActionContinue = "$($appBaseUrl.TrimEnd('/'))/oauth2/authorization/keycloak"
+$redirectUris = @($applicationClient.redirectUris)
+if ($redirectUris -notcontains $passwordActionRedirect -or $redirectUris -notcontains $passwordActionContinue) {
+    $applicationClient.redirectUris = @($redirectUris + $passwordActionRedirect + $passwordActionContinue | Select-Object -Unique)
+    Invoke-RestMethod -Method Put `
+        -Uri "$ServerUrl/admin/realms/$Realm/clients/$applicationClientUuid" `
+        -Headers $headers `
+        -ContentType "application/json" `
+        -Body ($applicationClient | ConvertTo-Json -Depth 20)
+}
 $protocolMappers = @(Invoke-RestMethod -Method Get `
     -Uri "$ServerUrl/admin/realms/$Realm/clients/$applicationClientUuid/protocol-mappers/models" `
     -Headers $headers)
@@ -75,6 +134,28 @@ if (-not $audienceMapper) {
                 "id.token.claim" = "false"
                 "access.token.claim" = "true"
                 "introspection.token.claim" = "true"
+            }
+        } | ConvertTo-Json -Depth 6)
+}
+
+$realmRolesMapper = $protocolMappers | Where-Object { $_.name -eq "announcement-tracker-realm-roles" }
+if (-not $realmRolesMapper) {
+    Invoke-RestMethod -Method Post `
+        -Uri "$ServerUrl/admin/realms/$Realm/clients/$applicationClientUuid/protocol-mappers/models" `
+        -Headers $headers `
+        -ContentType "application/json" `
+        -Body (@{
+            name = "announcement-tracker-realm-roles"
+            protocol = "openid-connect"
+            protocolMapper = "oidc-usermodel-realm-role-mapper"
+            consentRequired = $false
+            config = @{
+                "multivalued" = "true"
+                "userinfo.token.claim" = "true"
+                "id.token.claim" = "true"
+                "access.token.claim" = "true"
+                "claim.name" = "realm_access.roles"
+                "jsonType.label" = "String"
             }
         } | ConvertTo-Json -Depth 6)
 }
@@ -140,7 +221,7 @@ if ($realmManagementClients.Count -eq 1 -and $realmManagementClients[0] -is [Sys
 $realmManagementClient = $realmManagementClients[0]
 
 $roles = @()
-foreach ($roleName in @("manage-users", "query-users", "view-users")) {
+foreach ($roleName in @("manage-users", "query-users", "view-users", "view-realm")) {
     $roles += Invoke-RestMethod -Method Get `
         -Uri "$ServerUrl/admin/realms/$Realm/clients/$($realmManagementClient.id)/roles/$roleName" `
         -Headers $headers

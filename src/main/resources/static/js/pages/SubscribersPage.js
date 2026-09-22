@@ -7,6 +7,7 @@ window.SubscribersPage = function SubscribersPage({
     onOpenEditModal,
     onOpenImportModal,
     onToggleStatus,
+    onSendPasswordSetupEmail,
     onDeleteSubscriber,
     onBulkDeleteSubscribers
 }) {
@@ -216,6 +217,15 @@ window.SubscribersPage = function SubscribersPage({
                                             </td>
                                             <td style={{ textAlign: 'right' }}>
                                                 <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                                    <button
+                                                        className="btn-sm-action"
+                                                        style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', borderColor: 'rgba(16, 185, 129, 0.3)' }}
+                                                        onClick={() => onSendPasswordSetupEmail(sub)}
+                                                        title="Tek kullanımlık ve süreli şifre belirleme bağlantısını gönder"
+                                                    >
+                                                        <i data-lucide="mail-key" style={{ width: '14px', height: '14px' }}></i>
+                                                        Şifre Bağlantısı
+                                                    </button>
                                                     <button 
                                                         className="btn-sm-action" 
                                                         style={{ background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', borderColor: 'rgba(59, 130, 246, 0.3)' }}

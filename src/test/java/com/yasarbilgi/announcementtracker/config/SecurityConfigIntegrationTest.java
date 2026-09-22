@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.ActiveProfiles;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -16,6 +17,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 class SecurityConfigIntegrationTest {
 
     @Autowired
@@ -66,6 +68,16 @@ class SecurityConfigIntegrationTest {
     void userProfile_WithForgedJwtLikeToken_IsForbidden() throws Exception {
         mockMvc.perform(get("/api/v1/user/me")
                         .cookie(new Cookie(SessionCookieService.USER_COOKIE, "forged.header.payload")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Kaldırılan kullanıcı parola girişi endpoint'i anonim kullanıma açık değildir")
+    void removedUserPasswordLogin_IsNotPublic() throws Exception {
+        mockMvc.perform(post("/api/v1/user/login")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
                 .andExpect(status().isUnauthorized());
     }
 }

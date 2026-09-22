@@ -5,6 +5,7 @@ import com.microsoft.playwright.options.AriaRole;
 import org.junit.jupiter.api.*;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.nio.file.Path;
 import java.util.UUID;
@@ -15,10 +16,11 @@ import static org.assertj.core.api.Assertions.assertThat;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "keycloak.admin.enabled=false",
-                "app.security.sso-enabled=false",
+                "app.security.sso-enabled=true",
                 "app.security.local-login-enabled=true",
                 "announcement.tracker.enabled=false"
         })
+@ActiveProfiles("test")
 class DashboardUiE2eTest {
 
     @LocalServerPort
@@ -45,9 +47,15 @@ class DashboardUiE2eTest {
                 .setSlowMo(HEADLESS ? 0 : 300);
 
         try {
-            browser = playwright.chromium().launch(launchOptions.setChannel("msedge"));
-        } catch (Exception e) {
-            browser = playwright.chromium().launch(launchOptions);
+            browser = playwright.chromium().launch(launchOptions.setChannel("chrome"));
+        } catch (Exception chromeFailure) {
+            try {
+                browser = playwright.chromium().launch(launchOptions.setChannel("msedge"));
+            } catch (Exception edgeFailure) {
+                browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
+                        .setHeadless(HEADLESS)
+                        .setSlowMo(HEADLESS ? 0 : 300));
+            }
         }
     }
 
@@ -61,8 +69,21 @@ class DashboardUiE2eTest {
         }
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.yasarbilgi.announcementtracker.repository.AdminUserRepository adminUserRepository;
+
+    private static final org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder TEST_PASSWORD_ENCODER = new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+
     @BeforeEach
     void createContextAndPage() {
+        com.yasarbilgi.announcementtracker.entity.AdminUser admin = adminUserRepository.findByUsername("admin")
+                .orElseGet(() -> com.yasarbilgi.announcementtracker.entity.AdminUser.builder().username("admin").build());
+        if (admin.getPasswordHash() == null || !TEST_PASSWORD_ENCODER.matches("admin123", admin.getPasswordHash())) {
+            admin.setPasswordHash(TEST_PASSWORD_ENCODER.encode("admin123"));
+            admin.setFullName("System Admin");
+            adminUserRepository.save(admin);
+        }
+
         context = browser.newContext();
         page = context.newPage();
     }
@@ -73,32 +94,28 @@ class DashboardUiE2eTest {
 
     private void performSuperAdminLogin() {
         page.navigate(baseUrl() + "/admin-login.html");
-        page.fill("input[type='text']", "admin");
-        page.fill("input[type='password']", "admin123");
-        page.click("button[type='submit']");
+        // Production UI is SSO-only. Tests use the explicitly enabled local test
+        // endpoint programmatically, without exposing a password form to users.
+        page.evaluate("""
+                async () => {
+                    await window.AuthService.loginAdmin('admin', 'admin123');
+                    window.location.href = '/dashboard.html';
+                }
+                """);
         page.waitForURL("**/dashboard.html");
     }
 
     @Test
-    @DisplayName("E2E: Admin Giriş Sayfası Temiz Görünüm ve Hatalı Giriş Senaryosu")
+    @DisplayName("E2E: Admin giriş sayfası yalnızca kurumsal SSO gösterir")
     void testAdminLoginAndErrorHandling() {
         page.navigate(baseUrl() + "/admin-login.html");
 
         assertThat(page.title()).contains("Super Admin Giriş Paneli");
         assertThat(page.locator("h2").innerText()).contains("Yönetici Girişi");
 
-        // Input placeholders check
-        assertThat(page.locator("input[type='text']").getAttribute("placeholder")).isEqualTo("Kullanıcı adı");
-        assertThat(page.locator("input[type='password']").getAttribute("placeholder")).isEqualTo("••••••••");
-
-        // Invalid login check
-        page.fill("input[type='text']", "admin");
-        page.fill("input[type='password']", "wrongpass");
-        page.click("button[type='submit']");
-
-        Locator errorBox = page.locator(".login-error");
-        errorBox.waitFor();
-        assertThat(errorBox.innerText()).contains("Geçersiz");
+        assertThat(page.getByText("Kurumsal SSO (Keycloak Admin) ile Giriş Yap").isVisible()).isTrue();
+        assertThat(page.locator("input[type='text']").count()).isZero();
+        assertThat(page.locator("input[type='password']").count()).isZero();
     }
 
     @Test
@@ -134,40 +151,29 @@ class DashboardUiE2eTest {
         page.waitForSelector(".page-title-badge:has-text('Sistem Ayarları')");
         assertThat(page.locator(".page-title-badge").innerText()).contains("Sistem Ayarları");
 
-        // 7. Click Profile tab
-        page.click("a:has-text('Profilim')");
-        page.waitForSelector(".page-title-badge:has-text('Kullanıcı Profilim')");
-        assertThat(page.locator(".page-title-badge").innerText()).contains("Kullanıcı Profilim");
-
         // Toggle sidebar collapse
         page.click(".toggle-btn");
         assertThat(page.locator(".sidebar").getAttribute("class")).contains("collapsed");
     }
 
     @Test
-    @DisplayName("E2E: Rol Bazlı Erişim ve Menü İzolasyonu")
+    @DisplayName("E2E: Kullanıcı girişi yalnızca kurumsal SSO sunar")
     void testRoleBasedNavigation() {
         // Super Admin access
         performSuperAdminLogin();
         assertThat(page.locator(".sidebar").innerText()).contains("Genel Bakış");
         assertThat(page.locator(".sidebar").innerText()).contains("Aboneler");
+        assertThat(page.locator(".sidebar").innerText()).doesNotContain("Profilim");
         assertThat(page.locator(".sidebar").innerText()).contains("Departmanlar");
 
-        // User Login access
-        context = browser.newContext();
+        // Kullanıcı parolası uygulamaya verilmez; giriş Keycloak Authorization Code akışına yönlenir.
         Page userPage = context.newPage();
         userPage.navigate(baseUrl() + "/user-login.html");
-        userPage.fill("input[type='email']", "test@example.com");
-        userPage.fill("input[type='password']", "password123");
-        userPage.click("button[type='submit']");
-        
-        // If login completes or redirects to user-dashboard
-        if (userPage.url().contains("user-dashboard.html")) {
-            assertThat(userPage.locator(".sidebar").innerText()).contains("Duyurular");
-            assertThat(userPage.locator(".sidebar").innerText()).contains("Profilim");
-            assertThat(userPage.locator(".sidebar").innerText()).doesNotContain("Departmanlar");
-            assertThat(userPage.locator(".sidebar").innerText()).doesNotContain("Ayarlar");
-        }
+        Locator ssoLink = userPage.locator("a:has-text('Kurumsal SSO ile Giriş Yap')");
+        ssoLink.waitFor();
+        assertThat(ssoLink.getAttribute("href")).isEqualTo("/oauth2/authorization/keycloak");
+        assertThat(userPage.locator("input[type='email']").count()).isZero();
+        assertThat(userPage.locator("input[type='password']").count()).isZero();
     }
 
     @Test
@@ -249,7 +255,9 @@ class DashboardUiE2eTest {
         assertThat(toast.innerText()).contains("Departman oluşturuldu");
 
         // Verify department appears in list
-        assertThat(page.locator("td:has-text('" + deptName + "')").isVisible()).isTrue();
+        Locator departmentCell = page.locator("td:has-text('" + deptName + "')");
+        departmentCell.waitFor();
+        assertThat(departmentCell.isVisible()).isTrue();
     }
 
     @Test
@@ -284,18 +292,6 @@ class DashboardUiE2eTest {
         Locator toast = page.locator(".toast");
         toast.waitFor();
         assertThat(toast.innerText()).contains("Tarama periyodu güncellendi");
-    }
-
-    @Test
-    @DisplayName("E2E: Kullanıcı Profilim Sayfası Bilgileri")
-    void testUserProfilePage() {
-        performSuperAdminLogin();
-
-        page.click("a:has-text('Profilim')");
-        page.waitForSelector(".page-title-badge:has-text('Kullanıcı Profilim')");
-
-        assertThat(page.locator(".card h2").innerText()).contains("Kullanıcı Profili");
-        assertThat(page.locator(".card").innerText()).contains("Süper Admin");
     }
 
     @Test

@@ -14,18 +14,6 @@ window.AuthService = {
         return data;
     },
 
-    loginUser: async function(email, password) {
-        const data = await window.ApiClient.post('/api/v1/user/login', { email, password });
-        if (data.success && data.data) {
-            sessionStorage.setItem('authRole', 'USER');
-            localStorage.removeItem('adminToken');
-            localStorage.removeItem('adminUser');
-            localStorage.removeItem('userToken');
-            localStorage.removeItem('userData');
-        }
-        return data;
-    },
-
     getUserProfile: async function() {
         const response = await window.ApiClient.get('/api/v1/user/me');
         return response.data || response;

@@ -9,16 +9,9 @@ import com.yasarbilgi.announcementtracker.repository.AdminUserRepository;
 import com.yasarbilgi.announcementtracker.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -32,16 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AuthServiceImpl implements AuthService {
 
     private final AdminUserRepository adminUserRepository;
-    private final RestTemplate restTemplate = new RestTemplate();
-
-    @Value("${keycloak.auth-server-url:http://localhost:8180}")
-    private String keycloakServerUrl;
-
-    @Value("${keycloak.realm:announcement-tracker-realm}")
-    private String keycloakRealm;
-
-    @Value("${keycloak.client-id:announcement-tracker-app}")
-    private String keycloakClientId;
+    private final PasswordEncoder passwordEncoder;
 
     private final Map<String, SessionInfo> activeSessions = new ConcurrentHashMap<>();
 
@@ -52,29 +36,16 @@ public class AuthServiceImpl implements AuthService {
     public LoginResponseDto login(LoginRequestDto request) {
         log.info("SuperAdmin login attempt for username: {}", request.getUsername());
 
-        try {
-            String tokenUrl = String.format("%s/realms/%s/protocol/openid-connect/token", keycloakServerUrl, keycloakRealm);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-            params.add("grant_type", "password");
-            params.add("client_id", keycloakClientId);
-            params.add("username", request.getUsername());
-            params.add("password", request.getPassword());
-
-            HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(params, headers);
-            ResponseEntity<Map> response = restTemplate.postForEntity(tokenUrl, entity, Map.class);
-
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null && response.getBody().containsKey("access_token")) {
-                log.info("Successfully authenticated SuperAdmin '{}' via Keycloak OAuth2.", request.getUsername());
-
-                AdminUser admin = adminUserRepository.findByUsername(request.getUsername()).orElse(null);
-                String fullName = admin != null ? admin.getFullName() : request.getUsername();
-
+        // This endpoint is an explicitly enabled local break-glass login. Keycloak users
+        // authenticate through the authorization-code SSO flow, never by password grant.
+        AdminUser admin = adminUserRepository.findByUsername(request.getUsername()).orElse(null);
+        if (admin != null && admin.getPasswordHash() != null) {
+            boolean valid = passwordEncoder.matches(request.getPassword(), admin.getPasswordHash());
+            if (valid) {
+                log.info("Authenticated Admin '{}' via verified BCrypt DB password.", request.getUsername());
                 AdminUserDto dto = AdminUserDto.builder()
-                        .username(request.getUsername())
-                        .fullName(fullName)
+                        .username(admin.getUsername())
+                        .fullName(admin.getFullName())
                         .lastLoginAt(LocalDateTime.now())
                         .build();
 
@@ -83,31 +54,10 @@ public class AuthServiceImpl implements AuthService {
 
                 return LoginResponseDto.builder()
                         .token(sessionToken)
-                        .username(request.getUsername())
-                        .fullName(fullName)
+                        .username(admin.getUsername())
+                        .fullName(admin.getFullName())
                         .build();
             }
-        } catch (Exception e) {
-            log.error("Keycloak OAuth2 authentication failed for SuperAdmin '{}': {}", request.getUsername(), e.getMessage());
-        }
-
-        AdminUser admin = adminUserRepository.findByUsername(request.getUsername()).orElse(null);
-        if (admin != null) {
-            log.info("Keycloak server offline/bypassed. Authenticating Admin '{}' via local DB context.", request.getUsername());
-            AdminUserDto dto = AdminUserDto.builder()
-                    .username(admin.getUsername())
-                    .fullName(admin.getFullName())
-                    .lastLoginAt(LocalDateTime.now())
-                    .build();
-
-            String sessionToken = "SA-TOKEN-" + UUID.randomUUID();
-            activeSessions.put(sessionToken, new SessionInfo(dto, LocalDateTime.now().plusHours(24)));
-
-            return LoginResponseDto.builder()
-                    .token(sessionToken)
-                    .username(admin.getUsername())
-                    .fullName(admin.getFullName())
-                    .build();
         }
 
         throw new ScrapingException("Geçersiz kullanıcı adı veya şifre.");

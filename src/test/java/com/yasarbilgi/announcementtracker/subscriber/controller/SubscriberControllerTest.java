@@ -102,6 +102,15 @@ class SubscriberControllerTest {
     }
 
     @Test
+    @DisplayName("POST /api/v1/subscribers/{id}/password-setup-email - Şifre bağlantısı gönderme HTTP 200")
+    void sendPasswordSetupEmail_ShouldReturnOk() {
+        ResponseEntity<ApiResponseDto<Void>> response = subscriberController.sendPasswordSetupEmail(1L);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(subscriberService).sendPasswordSetupEmail(1L);
+    }
+
+    @Test
     @DisplayName("PATCH /api/v1/subscribers/{id}/sites - Site tercihleri güncelleme HTTP 200")
     void updateSitePreferences_ShouldReturnOk() {
         Set<SiteType> sites = Set.of(SiteType.KOSGEB);
@@ -139,10 +148,10 @@ class SubscriberControllerTest {
 
     @Test
     @DisplayName("POST /api/v1/subscribers/unsubscribe - Abonelik iptal API")
-    void unsubscribeApi_ValidEmail_ShouldReturnSuccess() {
-        when(subscriberService.unsubscribeByEmail("test@example.com")).thenReturn(true);
+    void unsubscribeApi_ValidToken_ShouldReturnSuccess() {
+        when(subscriberService.unsubscribeByToken("valid-token")).thenReturn(true);
 
-        ResponseEntity<ApiResponseDto<Boolean>> response = subscriberController.unsubscribeApi("test@example.com");
+        ResponseEntity<ApiResponseDto<Boolean>> response = subscriberController.unsubscribeApi("valid-token");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
@@ -154,22 +163,22 @@ class SubscriberControllerTest {
     void unsubscribeHtml_ShouldNotChangeSubscription() {
         DefaultCsrfToken csrfToken = new DefaultCsrfToken("X-XSRF-TOKEN", "_csrf", "csrf-value");
 
-        ResponseEntity<String> response = subscriberController.unsubscribeHtml("test@example.com", csrfToken);
+        ResponseEntity<String> response = subscriberController.unsubscribeHtml("valid-token", csrfToken);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("Abonelikten Çık", "csrf-value", "method='post'");
-        verify(subscriberService, never()).unsubscribeByEmail(anyString());
+        verify(subscriberService, never()).unsubscribeByToken(anyString());
     }
 
     @Test
     @DisplayName("POST /api/v1/subscribers/unsubscribe/confirm - Onay sonrası aboneliği iptal eder")
     void unsubscribeConfirm_ShouldDeactivateSubscriber() {
-        when(subscriberService.unsubscribeByEmail("test@example.com")).thenReturn(true);
+        when(subscriberService.unsubscribeByToken("valid-token")).thenReturn(true);
 
-        ResponseEntity<String> response = subscriberController.unsubscribeConfirm("test@example.com");
+        ResponseEntity<String> response = subscriberController.unsubscribeConfirm("valid-token");
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("Abonelik İptal Edildi");
-        verify(subscriberService).unsubscribeByEmail("test@example.com");
+        verify(subscriberService).unsubscribeByToken("valid-token");
     }
 }

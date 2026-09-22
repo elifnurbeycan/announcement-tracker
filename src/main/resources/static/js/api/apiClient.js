@@ -14,7 +14,7 @@ window.ApiClient = {
     },
 
     isProtectedRequest: function(url, method) {
-        if (url.startsWith('/api/v1/user/')) return !url.endsWith('/login') && !url.endsWith('/set-password');
+        if (url.startsWith('/api/v1/user/')) return !url.endsWith('/login');
         if (url.startsWith('/api/v1/auth/')) return !url.endsWith('/login') && !url.endsWith('/mode');
         if (url.startsWith('/api/v1/admin/')) return true;
         if (url.startsWith('/api/v1/settings/')) return true;

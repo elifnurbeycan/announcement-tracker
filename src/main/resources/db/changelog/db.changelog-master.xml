@@ -9,5 +9,6 @@
     <include file="db/changelog/changes/v1.1.0-add-subscriber-auth-fields.xml"/>
     <include file="db/changelog/changes/v1.2.0-add-department-support.xml"/>
     <include file="db/changelog/changes/v1.3.0-add-email-delivery-outbox.xml"/>
+    <include file="db/changelog/changes/005-remove-legacy-subscriber-columns.xml"/>
 
 </databaseChangeLog>

@@ -7,6 +7,8 @@
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
+  "bruteForceProtected": true,
+  "loginTheme": "announcement-tracker",
   "roles": {
     "realm": [
       {
@@ -26,12 +28,14 @@
       "description": "Client for Announcement Tracker web portal and REST API",
       "enabled": true,
       "publicClient": true,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "serviceAccountsEnabled": false,
       "redirectUris": [
-        "http://localhost:8080/login/oauth2/code/keycloak"
+        "http://localhost:8080/login/oauth2/code/keycloak",
+        "http://localhost:8080/user-login.html",
+        "http://localhost:8080/oauth2/authorization/keycloak"
       ],
       "webOrigins": [
         "http://localhost:8080"
@@ -40,6 +44,20 @@
         "pkce.code.challenge.method": "S256"
       },
       "protocolMappers": [
+        {
+          "name": "announcement-tracker-realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        },
         {
           "name": "announcement-tracker-api-audience",
           "protocol": "openid-connect",
@@ -85,7 +103,8 @@
         "realm-management": [
           "manage-users",
           "query-users",
-          "view-users"
+          "view-users",
+          "view-realm"
         ]
       }
     }
