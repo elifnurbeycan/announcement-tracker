@@ -1,7 +1,7 @@
 package com.yasarbilgi.announcementtracker.service.impl;
 
 import com.yasarbilgi.announcementtracker.dto.response.AdminUserDto;
-import com.yasarbilgi.announcementtracker.dto.response.LoginResponseDto;
+import com.yasarbilgi.announcementtracker.dto.session.SessionToken;
 import com.yasarbilgi.announcementtracker.entity.AdminUser;
 import com.yasarbilgi.announcementtracker.exception.ScrapingException;
 import com.yasarbilgi.announcementtracker.repository.AdminUserRepository;
@@ -41,12 +41,14 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public LoginResponseDto createOidcSession(String username) {
-        AdminUser admin = adminUserRepository.findByUsername(username)
-                .orElseGet(() -> AdminUser.builder()
-                        .username(username)
-                        .fullName(username)
-                        .build());
+    public SessionToken createOidcSession(String keycloakSubject, String username) {
+        requireIdentity(keycloakSubject, "Keycloak kullanıcı kimliği");
+        requireIdentity(username, "Kullanıcı adı");
+
+        AdminUser admin = adminUserRepository.findByKeycloakSubject(keycloakSubject)
+                .orElseGet(() -> findLegacyAdminOrCreate(keycloakSubject, username));
+        admin.setKeycloakSubject(keycloakSubject);
+        admin.setUsername(username);
         admin.setLastLoginAt(LocalDateTime.now());
         admin = adminUserRepository.save(admin);
 
@@ -54,11 +56,29 @@ public class AuthServiceImpl implements AuthService {
         AdminUserDto dto = mapToDto(admin);
         activeSessions.put(sessionToken, new SessionInfo(dto, LocalDateTime.now().plusHours(24)));
 
-        return LoginResponseDto.builder()
-                .token(sessionToken)
-                .username(admin.getUsername())
-                .fullName(admin.getFullName())
-                .build();
+        return new SessionToken(sessionToken);
+    }
+
+    private AdminUser findLegacyAdminOrCreate(String keycloakSubject, String username) {
+        return adminUserRepository.findByUsername(username)
+                .map(admin -> {
+                    if (admin.getKeycloakSubject() != null
+                            && !admin.getKeycloakSubject().isBlank()
+                            && !admin.getKeycloakSubject().equals(keycloakSubject)) {
+                        throw new ScrapingException("Bu yönetici hesabı farklı bir Keycloak kimliğiyle eşleştirilmiş.");
+                    }
+                    return admin;
+                })
+                .orElseGet(() -> AdminUser.builder()
+                        .username(username)
+                        .fullName(username)
+                        .build());
+    }
+
+    private void requireIdentity(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new ScrapingException(fieldName + " alınamadı.");
+        }
     }
 
     @Override

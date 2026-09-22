@@ -7,6 +7,7 @@ import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
 import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
+import com.yasarbilgi.announcementtracker.exception.ScrapingException;
 import com.yasarbilgi.announcementtracker.repository.AnnouncementRepository;
 import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
@@ -384,5 +385,17 @@ class SubscriberServiceImplTest {
         assertThatThrownBy(() -> subscriberService.importSubscribersFromExcel(emptyFile))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("boş olamaz");
+    }
+
+    @Test
+    @DisplayName("E-posta başka Keycloak kimliğine bağlıysa kullanıcı eşlemesi değiştirilmemeli")
+    void createOidcSession_ExistingSubscriberWithDifferentSubject_ShouldRejectLogin() {
+        subscriber.setKeycloakSubject("original-subject");
+        when(subscriberRepository.findByKeycloakSubject("different-subject")).thenReturn(Optional.empty());
+        when(subscriberRepository.findByEmail("test@example.com")).thenReturn(Optional.of(subscriber));
+
+        assertThatThrownBy(() -> subscriberService.createOidcSession("different-subject", "test@example.com"))
+                .isInstanceOf(ScrapingException.class)
+                .hasMessageContaining("farklı bir Keycloak kimliği");
     }
 }

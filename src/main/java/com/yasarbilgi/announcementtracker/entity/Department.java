@@ -3,6 +3,7 @@ package com.yasarbilgi.announcementtracker.entity;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -17,20 +18,19 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Department {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(nullable = false, unique = true)
     private String name;
 
+    @Column(length = 500)
     private String description;
 
-    @ElementCollection(targetClass = SiteType.class, fetch = FetchType.EAGER)
+    @ElementCollection(targetClass = SiteType.class, fetch = FetchType.LAZY)
     @CollectionTable(name = "department_sites", joinColumns = @JoinColumn(name = "department_id"))
     @OnDelete(action = OnDeleteAction.CASCADE)
     @Enumerated(EnumType.STRING)
@@ -54,5 +54,22 @@ public class Department {
         if (this.subscribers == null) {
             this.subscribers = new HashSet<>();
         }
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null || Hibernate.getClass(this) != Hibernate.getClass(other)) {
+            return false;
+        }
+        Department that = (Department) other;
+        return id != null && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Hibernate.getClass(this).hashCode();
     }
 }

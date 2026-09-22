@@ -15,6 +15,5 @@ import lombok.NoArgsConstructor;
 public class ScrapeSettingsDto {
 
     private int intervalMinutes;
-    private int intervalHours;
     private boolean enabled;
 }

@@ -56,7 +56,7 @@ class SecurityConfigIntegrationTest {
     @Test
     @DisplayName("Abone kayıt endpoint'i kimlik doğrulaması olmadan kullanılamaz")
     void subscribers_RegisterWithoutAuthentication_IsUnauthorized() throws Exception {
-        mockMvc.perform(post("/api/v1/subscribers/register")
+        mockMvc.perform(post("/api/v1/subscribers")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
@@ -66,7 +66,7 @@ class SecurityConfigIntegrationTest {
     @Test
     @DisplayName("Değişiklik yapan istek CSRF token olmadan reddedilir")
     void subscribers_RegisterWithoutCsrf_IsForbidden() throws Exception {
-        mockMvc.perform(post("/api/v1/subscribers/register")
+        mockMvc.perform(post("/api/v1/subscribers")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isForbidden());

@@ -15,7 +15,9 @@ import java.time.format.DateTimeParseException;
 import java.util.Collections;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Predicate;
+import com.yasarbilgi.announcementtracker.enums.SiteType;
 
 @Slf4j
 public abstract class AbstractAnnouncementScraper implements AnnouncementScraper {
@@ -67,11 +69,33 @@ public abstract class AbstractAnnouncementScraper implements AnnouncementScraper
     }
 
     /**
+     * Produces a stable announcement identity. A permanent detail/attachment URL is preferred;
+     * otherwise a normalized title and an optional, actually parsed date are used. The current
+     * date is deliberately never injected because that would create a new hash on every day.
+     */
+    protected String calculateAnnouncementHash(
+            SiteType siteType, String stableUrl, String title, LocalDate parsedDate) {
+        String identity;
+        if (stableUrl != null && !stableUrl.isBlank()) {
+            identity = "url:" + stableUrl.trim();
+        } else {
+            String normalizedTitle = title == null
+                    ? ""
+                    : title.trim().replaceAll("\\s+", " ").toLowerCase(Locale.forLanguageTag("tr-TR"));
+            identity = "title:" + normalizedTitle;
+            if (parsedDate != null) {
+                identity += ":date:" + parsedDate;
+            }
+        }
+        return calculateHash(siteType.name() + ":" + identity);
+    }
+
+    /**
      * Helper to safely parse Turkish date format DD.MM.YYYY
      */
     protected LocalDate parseDate(String dateStr) {
         if (dateStr == null || dateStr.isBlank()) {
-            return LocalDate.now();
+            return null;
         }
         String cleanStr = dateStr.trim().replaceAll("[^0-9./-]", "");
         for (String pattern : new String[]{"dd.MM.yyyy", "d.M.yyyy", "dd/MM/yyyy", "d/M/yyyy", "yyyy-MM-dd"}) {
@@ -80,8 +104,8 @@ public abstract class AbstractAnnouncementScraper implements AnnouncementScraper
             } catch (DateTimeParseException ignored) {
             }
         }
-        log.warn("Could not parse date string: {}. Defaulting to current date.", dateStr);
-        return LocalDate.now();
+        log.warn("Could not parse date string: {}. Announcement date will be left empty.", dateStr);
+        return null;
     }
 
     /**

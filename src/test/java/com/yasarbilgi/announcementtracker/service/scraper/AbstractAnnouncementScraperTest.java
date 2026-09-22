@@ -34,6 +34,10 @@ class AbstractAnnouncementScraperTest {
             return parseDate(dateStr);
         }
 
+        public String testAnnouncementHash(String url, String title, LocalDate date) {
+            return calculateAnnouncementHash(getSiteType(), url, title, date);
+        }
+
         public String testResolveAbsoluteUrl(String baseUrl, String relativeOrAbsoluteUrl) {
             return resolveAbsoluteUrl(baseUrl, relativeOrAbsoluteUrl);
         }
@@ -60,17 +64,30 @@ class AbstractAnnouncementScraperTest {
     }
 
     @Test
-    @DisplayName("parseDate - Çeşitli Türkçe ve ISO tarih formatlarını doğru ayrıştırmalı, geçersiz tarihte bugünün tarihini vermeli")
+    @DisplayName("parseDate - Çeşitli tarih formatlarını ayrıştırmalı, geçersiz tarihte null vermeli")
     void parseDate_Tests() {
-        assertThat(testScraper.testParseDate(null)).isEqualTo(LocalDate.now());
-        assertThat(testScraper.testParseDate("")).isEqualTo(LocalDate.now());
+        assertThat(testScraper.testParseDate(null)).isNull();
+        assertThat(testScraper.testParseDate("")).isNull();
 
         assertThat(testScraper.testParseDate("15.09.2026")).isEqualTo(LocalDate.of(2026, 9, 15));
         assertThat(testScraper.testParseDate("5/9/2026")).isEqualTo(LocalDate.of(2026, 9, 5));
         assertThat(testScraper.testParseDate("2026-09-15")).isEqualTo(LocalDate.of(2026, 9, 15));
         assertThat(testScraper.testParseDate("Tarih: 15.09.2026")).isEqualTo(LocalDate.of(2026, 9, 15));
 
-        assertThat(testScraper.testParseDate("geçersiz_tarih")).isEqualTo(LocalDate.now());
+        assertThat(testScraper.testParseDate("geçersiz_tarih")).isNull();
+    }
+
+    @Test
+    void announcementHash_UsesStableUrlAndDoesNotDependOnFallbackDate() {
+        String byUrlToday = testScraper.testAnnouncementHash(
+                "https://example.com/announcements/42", "İlk başlık", LocalDate.now());
+        String byUrlTomorrow = testScraper.testAnnouncementHash(
+                "https://example.com/announcements/42", "Başlık değişmiş", LocalDate.now().plusDays(1));
+        String withoutDate = testScraper.testAnnouncementHash(null, "  Aynı   Duyuru ", null);
+        String normalizedTitle = testScraper.testAnnouncementHash(null, "aynı duyuru", null);
+
+        assertThat(byUrlToday).isEqualTo(byUrlTomorrow);
+        assertThat(withoutDate).isEqualTo(normalizedTitle);
     }
 
     @Test

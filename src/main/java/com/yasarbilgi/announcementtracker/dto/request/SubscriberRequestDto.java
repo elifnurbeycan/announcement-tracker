@@ -22,7 +22,8 @@ public class SubscriberRequestDto {
     @Size(max = 255, message = "E-posta adresi en fazla 255 karakter olabilir")
     private String email;
 
-    @Size(max = 100, message = "Ad Soyad en fazla 100 karakter olabilir")
+    @NotBlank(message = "Ad Soyad zorunludur")
+    @Size(min = 2, max = 100, message = "Ad Soyad 2 ile 100 karakter arasında olmalıdır")
     private String fullName;
 
     private Set<SiteType> subscribedSites;

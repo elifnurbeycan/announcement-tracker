@@ -7,7 +7,6 @@ import com.yasarbilgi.announcementtracker.enums.SiteType;
 import com.yasarbilgi.announcementtracker.service.AnnouncementService;
 import com.yasarbilgi.announcementtracker.service.SubscriberService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import com.yasarbilgi.announcementtracker.config.SessionCookieService;
@@ -19,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Set;
 
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/user")
 @RequiredArgsConstructor

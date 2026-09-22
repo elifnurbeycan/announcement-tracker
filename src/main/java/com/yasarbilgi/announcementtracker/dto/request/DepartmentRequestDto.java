@@ -21,5 +21,5 @@ public class DepartmentRequestDto {
     @Size(max = 500, message = "Departman açıklaması en fazla 500 karakter olabilir.")
     private String description;
 
-    private Set<SiteType> siteTypes;
+    private Set<SiteType> sites;
 }

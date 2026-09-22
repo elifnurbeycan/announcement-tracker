@@ -4,6 +4,7 @@ import com.yasarbilgi.announcementtracker.enums.SiteType;
 import jakarta.persistence.*;
 import lombok.*;
 
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
@@ -19,23 +20,25 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Subscriber {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(nullable = false, length = 100)
     private String fullName;
+
+    @Column(name = "keycloak_subject", unique = true, length = 255)
+    private String keycloakSubject;
 
     @Builder.Default
     private boolean active = true;
 
-    @ElementCollection(targetClass = SiteType.class, fetch = FetchType.EAGER)
+    @ElementCollection(targetClass = SiteType.class, fetch = FetchType.LAZY)
     @CollectionTable(name = "subscriber_site_preferences", joinColumns = @JoinColumn(name = "subscriber_id"))
     @OnDelete(action = OnDeleteAction.CASCADE)
     @Enumerated(EnumType.STRING)
@@ -43,7 +46,7 @@ public class Subscriber {
     @Builder.Default
     private Set<SiteType> subscribedSites = new HashSet<>();
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "subscriber_departments",
         joinColumns = @JoinColumn(name = "subscriber_id"),
@@ -84,5 +87,22 @@ public class Subscriber {
             }
         }
         return effective;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (other == null || Hibernate.getClass(this) != Hibernate.getClass(other)) {
+            return false;
+        }
+        Subscriber that = (Subscriber) other;
+        return id != null && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Hibernate.getClass(this).hashCode();
     }
 }

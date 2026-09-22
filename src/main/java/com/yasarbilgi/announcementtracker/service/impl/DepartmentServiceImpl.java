@@ -31,7 +31,7 @@ public class DepartmentServiceImpl implements DepartmentService {
 
     @Override
     public List<DepartmentResponseDto> getAllDepartments() {
-        return departmentRepository.findAll().stream()
+        return departmentRepository.findAllWithDetails().stream()
                 .map(this::mapToResponseDto)
                 .toList();
     }
@@ -47,11 +47,11 @@ public class DepartmentServiceImpl implements DepartmentService {
     @Transactional
     public DepartmentResponseDto createDepartment(DepartmentRequestDto dto) {
         String cleanName = dto.getName() != null ? dto.getName().trim() : "";
-        if (departmentRepository.existsByName(cleanName)) {
+        if (departmentRepository.existsByNameIgnoreCase(cleanName)) {
             throw new ScrapingException("'" + cleanName + "' adında bir departman zaten mevcut. Lütfen farklı bir isim giriniz.");
         }
 
-        Set<SiteType> sites = dto.getSiteTypes() != null ? new HashSet<>(dto.getSiteTypes()) : new HashSet<>();
+        Set<SiteType> sites = dto.getSites() != null ? new HashSet<>(dto.getSites()) : new HashSet<>();
 
         Department department = Department.builder()
                 .name(cleanName)
@@ -71,14 +71,14 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Departman bulunamadı, ID: " + id));
 
         String cleanName = dto.getName() != null ? dto.getName().trim() : "";
-        if (departmentRepository.existsByNameAndIdNot(cleanName, id)) {
+        if (departmentRepository.existsByNameIgnoreCaseAndIdNot(cleanName, id)) {
             throw new ScrapingException("'" + cleanName + "' adında başka bir departman zaten mevcut.");
         }
 
         dept.setName(cleanName);
         dept.setDescription(dto.getDescription() != null ? dto.getDescription().trim() : null);
-        if (dto.getSiteTypes() != null) {
-            dept.setSites(new HashSet<>(dto.getSiteTypes()));
+        if (dto.getSites() != null) {
+            dept.setSites(new HashSet<>(dto.getSites()));
         }
 
         Department updated = departmentRepository.save(dept);
@@ -167,10 +167,9 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .email(entity.getEmail())
                 .fullName(entity.getFullName())
                 .active(entity.isActive())
-                .hasPasswordSet(entity.isActive())
                 .subscribedSites(entity.getSubscribedSites())
                 .departments(deptSummaries)
-                .isGeneralEmployee(entity.isGeneralEmployee())
+                .generalEmployee(entity.isGeneralEmployee())
                 .effectiveSites(entity.getEffectiveSites(allSites))
                 .createdAt(entity.getCreatedAt())
                 .build();

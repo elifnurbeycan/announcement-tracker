@@ -61,7 +61,7 @@ public class NotificationOutboxService {
 
     @Transactional(readOnly = true)
     public DeliveryPayload getPayload(Long deliveryId) {
-        EmailDelivery delivery = deliveryRepository.findById(deliveryId)
+        EmailDelivery delivery = deliveryRepository.findWithAnnouncementById(deliveryId)
                 .orElseThrow(() -> new IllegalStateException("Outbox delivery not found: " + deliveryId));
         return new DeliveryPayload(
                 delivery.getId(), delivery.getAnnouncement(), delivery.getRecipientEmail());
@@ -90,11 +90,15 @@ public class NotificationOutboxService {
             long delayMinutes = Math.min(360, 1L << Math.min(delivery.getAttemptCount(), 8));
             delivery.setNextAttemptAt(LocalDateTime.now().plusMinutes(delayMinutes));
         } else {
+            delivery.setStatus(EmailDeliveryStatus.DEAD);
             delivery.setNextAttemptAt(null);
             log.error("E-posta teslimatı kalıcı olarak başarısız oldu. deliveryId={}, recipient={}, attempts={}",
                     delivery.getId(), delivery.getRecipientEmail(), delivery.getAttemptCount());
         }
         deliveryRepository.save(delivery);
+        if (delivery.getStatus() == EmailDeliveryStatus.DEAD) {
+            updateAnnouncementCompletion(delivery.getAnnouncement().getId());
+        }
     }
 
     @Transactional
@@ -110,8 +114,8 @@ public class NotificationOutboxService {
 
     private void updateAnnouncementCompletion(Long announcementId) {
         long deliveryCount = deliveryRepository.countByAnnouncementId(announcementId);
-        long unfinishedCount = deliveryRepository.countByAnnouncementIdAndStatusNot(
-                announcementId, EmailDeliveryStatus.SENT);
+        long unfinishedCount = deliveryRepository.countByAnnouncementIdAndStatusNotIn(
+                announcementId, List.of(EmailDeliveryStatus.SENT, EmailDeliveryStatus.DEAD));
         if (deliveryCount == 0 || unfinishedCount != 0) {
             return;
         }
@@ -128,6 +132,9 @@ public class NotificationOutboxService {
         if (message == null || message.isBlank()) {
             message = exception.getClass().getSimpleName();
         }
+        message = message
+                .replaceAll("(?i)(password|secret|token|authorization)\\s*[:=]\\s*[^\\s,;]+", "$1=[REDACTED]")
+                .replaceAll("(?i)(smtps?://)[^/@\\s]+@", "$1[REDACTED]@");
         return message.length() > 1000 ? message.substring(0, 1000) : message;
     }
 

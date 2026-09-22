@@ -81,7 +81,7 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
 
             // Metinden başlık ve benzersiz içerik karması (hash) türetir
             String title = extractTitleFromText(text);
-            String contentHash = calculateHash(getSiteType().name() + ":" + date.toString() + ":" + title);
+            String contentHash = calculateAnnouncementHash(getSiteType(), attachmentUrl, title, date);
 
             if (hashExistsPredicate != null && hashExistsPredicate.test(contentHash)) {
                 consecutiveExistingCount++;
@@ -126,18 +126,16 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
 
                 LocalDate date = parseDate(dateStr);
                 String title = extractTitleFromText(text);
-                String contentHash = calculateHash(getSiteType().name() + ":" + date.toString() + ":" + title);
+                Element linkElement = nextElement.selectFirst("a[href]");
+                String attachmentUrl = null;
+                if (linkElement != null) {
+                    attachmentUrl = resolveAbsoluteUrl(DOMAIN_BASE, linkElement.attr("href"));
+                }
+                String contentHash = calculateAnnouncementHash(getSiteType(), attachmentUrl, title, date);
 
                 // Mükerrer kayıt oluşmasını engeller
                 boolean exists = results.stream().anyMatch(r -> r.getContentHash().equals(contentHash));
                 if (!exists) {
-                    Element linkElement = nextElement.selectFirst("a[href]");
-                    String attachmentUrl = null;
-                    if (linkElement != null) {
-                        String href = linkElement.attr("href");
-                        attachmentUrl = resolveAbsoluteUrl(DOMAIN_BASE, href);
-                    }
-
                     ScrapedAnnouncementDto dto = ScrapedAnnouncementDto.builder()
                             .title(title)
                             .content(text)
@@ -175,7 +173,7 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
             return matcher.group(1);
         }
 
-        return LocalDate.now().toString();
+        return null;
     }
 
     /**

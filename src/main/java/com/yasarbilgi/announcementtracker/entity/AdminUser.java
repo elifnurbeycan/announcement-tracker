@@ -21,6 +21,9 @@ public class AdminUser {
     @Column(nullable = false, unique = true)
     private String username;
 
+    @Column(name = "keycloak_subject", unique = true, length = 255)
+    private String keycloakSubject;
+
     private String fullName;
 
     private LocalDateTime lastLoginAt;

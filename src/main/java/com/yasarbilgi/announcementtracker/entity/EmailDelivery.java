@@ -45,7 +45,7 @@ public class EmailDelivery {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "announcement_id", nullable = false)
     private Announcement announcement;
 

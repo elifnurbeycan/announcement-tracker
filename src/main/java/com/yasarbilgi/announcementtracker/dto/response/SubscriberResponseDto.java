@@ -20,10 +20,9 @@ public class SubscriberResponseDto {
     private String email;
     private String fullName;
     private boolean active;
-    private boolean hasPasswordSet;
     private Set<SiteType> subscribedSites;
     private List<DepartmentSummaryDto> departments;
-    private boolean isGeneralEmployee;
+    private boolean generalEmployee;
     private Set<SiteType> departmentSites;
     private Set<SiteType> effectiveSites;
     private LocalDateTime createdAt;

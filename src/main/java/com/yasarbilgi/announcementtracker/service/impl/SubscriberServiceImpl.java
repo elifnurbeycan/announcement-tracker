@@ -4,7 +4,7 @@ import com.yasarbilgi.announcementtracker.dto.request.SubscriberRequestDto;
 import com.yasarbilgi.announcementtracker.dto.response.DepartmentSummaryDto;
 import com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto;
 import com.yasarbilgi.announcementtracker.dto.response.SubscriberResponseDto;
-import com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto;
+import com.yasarbilgi.announcementtracker.dto.session.SessionToken;
 import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
@@ -90,7 +90,12 @@ public class SubscriberServiceImpl implements SubscriberService {
             log.info("New subscriber registered: {} with preferences: {}", saved.getEmail(), preferredSites);
         }
 
-        keycloakAdminService.provisionSubscriber(saved.getEmail(), saved.getFullName(), saved.isActive());
+        String keycloakSubject = keycloakAdminService.provisionSubscriber(
+                saved.getEmail(), saved.getFullName(), saved.isActive());
+        if (keycloakSubject != null && !keycloakSubject.isBlank()) {
+            saved.setKeycloakSubject(keycloakSubject);
+            saved = subscriberRepository.save(saved);
+        }
         keycloakAdminService.triggerKeycloakResetPasswordEmail(saved.getEmail());
 
         try {
@@ -134,8 +139,11 @@ public class SubscriberServiceImpl implements SubscriberService {
             subscriber.setDepartments(newDepts);
         }
 
-        keycloakAdminService.updateSubscriber(
+        String keycloakSubject = keycloakAdminService.updateSubscriber(
                 previousEmail, subscriber.getEmail(), subscriber.getFullName(), subscriber.isActive());
+        if (keycloakSubject != null && !keycloakSubject.isBlank()) {
+            subscriber.setKeycloakSubject(keycloakSubject);
+        }
         Subscriber updated = subscriberRepository.save(subscriber);
         log.info("Subscriber ID: {} updated successfully.", id);
         return mapToDto(updated);
@@ -176,8 +184,11 @@ public class SubscriberServiceImpl implements SubscriberService {
     public void toggleSubscriberStatus(Long id, boolean active) {
         Subscriber subscriber = subscriberRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
-        keycloakAdminService.provisionSubscriber(
+        String keycloakSubject = keycloakAdminService.provisionSubscriber(
                 subscriber.getEmail(), subscriber.getFullName(), active);
+        if (keycloakSubject != null && !keycloakSubject.isBlank()) {
+            subscriber.setKeycloakSubject(keycloakSubject);
+        }
         subscriber.setActive(active);
         subscriberRepository.save(subscriber);
         log.info("Updated subscriber status ID: {} active: {}", id, active);
@@ -190,8 +201,12 @@ public class SubscriberServiceImpl implements SubscriberService {
         if (!subscriber.isActive()) {
             throw new ScrapingException("Pasif abonelere şifre belirleme bağlantısı gönderilemez.");
         }
-        keycloakAdminService.provisionSubscriber(
+        String keycloakSubject = keycloakAdminService.provisionSubscriber(
                 subscriber.getEmail(), subscriber.getFullName(), true);
+        if (keycloakSubject != null && !keycloakSubject.isBlank()) {
+            subscriber.setKeycloakSubject(keycloakSubject);
+            subscriberRepository.save(subscriber);
+        }
         keycloakAdminService.triggerKeycloakResetPasswordEmail(subscriber.getEmail());
     }
 
@@ -238,8 +253,11 @@ public class SubscriberServiceImpl implements SubscriberService {
         var opt = subscriberRepository.findByEmail(cleaned);
         if (opt.isPresent()) {
             Subscriber sub = opt.get();
-            keycloakAdminService.provisionSubscriber(
+            String keycloakSubject = keycloakAdminService.provisionSubscriber(
                     sub.getEmail(), sub.getFullName(), false);
+            if (keycloakSubject != null && !keycloakSubject.isBlank()) {
+                sub.setKeycloakSubject(keycloakSubject);
+            }
             sub.setActive(false);
             subscriberRepository.save(sub);
             log.info("Abonelik başarıyla iptal edildi: {}", cleaned);
@@ -355,9 +373,14 @@ public class SubscriberServiceImpl implements SubscriberService {
         }
 
         if (!importedList.isEmpty()) {
+            importedList.forEach(subscriber -> {
+                String keycloakSubject = keycloakAdminService.provisionSubscriber(
+                        subscriber.getEmail(), subscriber.getFullName(), subscriber.isActive());
+                if (keycloakSubject != null && !keycloakSubject.isBlank()) {
+                    subscriber.setKeycloakSubject(keycloakSubject);
+                }
+            });
             subscriberRepository.saveAll(importedList);
-            importedList.forEach(subscriber -> keycloakAdminService.provisionSubscriber(
-                    subscriber.getEmail(), subscriber.getFullName(), subscriber.isActive()));
             log.info("Toplu yükleme ile {} yeni/güncel abone kaydedildi. Atanan siteler: {}", importedList.size(), sitesToAssign);
         }
 
@@ -375,6 +398,14 @@ public class SubscriberServiceImpl implements SubscriberService {
             return;
         }
         String cleanEmail = email.trim().toLowerCase();
+        String cleanFullName = fullName == null ? "" : fullName.trim();
+        if (cleanFullName.isBlank()) {
+            cleanFullName = cleanEmail.substring(0, cleanEmail.indexOf('@'));
+        }
+        if (cleanFullName.length() > 100) {
+            errorsList.add("Satır " + rowNum + ": Ad Soyad en fazla 100 karakter olabilir.");
+            return;
+        }
 
         Set<Department> departments = new HashSet<>();
         if (rawDepts != null && !rawDepts.isBlank()) {
@@ -410,6 +441,7 @@ public class SubscriberServiceImpl implements SubscriberService {
         var existingOpt = subscriberRepository.findByEmail(cleanEmail);
         if (existingOpt.isPresent()) {
             Subscriber existing = existingOpt.get();
+            existing.setFullName(cleanFullName);
             existing.setSubscribedSites(effectiveSubscribedSites);
             existing.setDepartments(departments);
             if (!existing.isActive()) {
@@ -419,7 +451,7 @@ public class SubscriberServiceImpl implements SubscriberService {
         } else {
             Subscriber newSub = Subscriber.builder()
                     .email(cleanEmail)
-                    .fullName(fullName.isBlank() ? cleanEmail.split("@")[0] : fullName)
+                    .fullName(cleanFullName)
                     .subscribedSites(effectiveSubscribedSites)
                     .departments(departments)
                     .active(true)
@@ -457,24 +489,34 @@ public class SubscriberServiceImpl implements SubscriberService {
     }
 
     @Override
-    public UserLoginResponseDto createOidcSession(String email) {
+    @Transactional
+    public SessionToken createOidcSession(String keycloakSubject, String email) {
+        if (keycloakSubject == null || keycloakSubject.isBlank()) {
+            throw new ScrapingException("Keycloak kullanıcı kimliği alınamadı.");
+        }
         String cleanEmail = email == null ? "" : email.trim().toLowerCase();
-        Subscriber subscriber = subscriberRepository.findByEmail(cleanEmail)
-                .orElseThrow(() -> new ScrapingException("OIDC kullanıcısı yerel çalışan kaydıyla eşleşmiyor."));
+        Subscriber subscriber = subscriberRepository.findByKeycloakSubject(keycloakSubject)
+                .orElseGet(() -> subscriberRepository.findByEmail(cleanEmail)
+                        .map(existing -> {
+                            if (existing.getKeycloakSubject() != null
+                                    && !existing.getKeycloakSubject().isBlank()
+                                    && !existing.getKeycloakSubject().equals(keycloakSubject)) {
+                                throw new ScrapingException("Bu çalışan hesabı farklı bir Keycloak kimliğiyle eşleştirilmiş.");
+                            }
+                            return existing;
+                        })
+                        .orElseThrow(() -> new ScrapingException(
+                                "OIDC kullanıcısı yerel çalışan kaydıyla eşleşmiyor.")));
         if (!subscriber.isActive()) {
             throw new ScrapingException("Aboneliğiniz pasif durumdadır.");
         }
+        subscriber.setKeycloakSubject(keycloakSubject);
+        subscriberRepository.save(subscriber);
 
         String sessionToken = "USER-TOKEN-" + UUID.randomUUID();
         activeUserSessions.put(sessionToken, new UserSessionInfo(subscriber.getId(), LocalDateTime.now().plusDays(7)));
 
-        return UserLoginResponseDto.builder()
-                .token(sessionToken)
-                .id(subscriber.getId())
-                .email(subscriber.getEmail())
-                .fullName(subscriber.getFullName())
-                .subscribedSites(subscriber.getSubscribedSites())
-                .build();
+        return new SessionToken(sessionToken);
     }
 
     @Override
@@ -512,10 +554,9 @@ public class SubscriberServiceImpl implements SubscriberService {
                 .email(entity.getEmail())
                 .fullName(entity.getFullName())
                 .active(entity.isActive())
-                .hasPasswordSet(entity.isActive())
                 .subscribedSites(entity.getSubscribedSites())
                 .departments(deptSummaries)
-                .isGeneralEmployee(entity.isGeneralEmployee())
+                .generalEmployee(entity.isGeneralEmployee())
                 .departmentSites(deptSites)
                 .effectiveSites(entity.getEffectiveSites(allSites))
                 .createdAt(entity.getCreatedAt())

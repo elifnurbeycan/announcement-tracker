@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Dinamik sistem ayarlarının veritabanında saklanmasını ve okunmasını sağlayan servis uygulaması.
- * Dakika ve saat bazlı tarama zamanlamalarını destekler.
+ * Tarama zamanlamasını dakika bazında yönetir.
  */
 @Slf4j
 @Service
@@ -56,11 +56,6 @@ public class SettingsServiceImpl implements SettingsService {
     }
 
     @Override
-    public int getScrapeIntervalHours() {
-        return getScrapeIntervalMinutes() / 60;
-    }
-
-    @Override
     public boolean isSchedulerEnabled() {
         return systemSettingRepository.findById(KEY_SCHEDULER_ENABLED)
                 .map(setting -> Boolean.parseBoolean(setting.getSettingValue()))
@@ -72,7 +67,6 @@ public class SettingsServiceImpl implements SettingsService {
         int minutes = getScrapeIntervalMinutes();
         return ScrapeSettingsDto.builder()
                 .intervalMinutes(minutes)
-                .intervalHours(minutes / 60)
                 .enabled(isSchedulerEnabled())
                 .build();
     }
@@ -85,7 +79,6 @@ public class SettingsServiceImpl implements SettingsService {
         }
 
         saveSetting(KEY_INTERVAL_MINUTES, String.valueOf(intervalMinutes));
-        saveSetting(KEY_INTERVAL_HOURS, String.valueOf(intervalMinutes / 60));
 
         boolean isEnabled = enabled != null ? enabled : isSchedulerEnabled();
         saveSetting(KEY_SCHEDULER_ENABLED, String.valueOf(isEnabled));
@@ -94,7 +87,6 @@ public class SettingsServiceImpl implements SettingsService {
 
         return ScrapeSettingsDto.builder()
                 .intervalMinutes(intervalMinutes)
-                .intervalHours(intervalMinutes / 60)
                 .enabled(isEnabled)
                 .build();
     }
