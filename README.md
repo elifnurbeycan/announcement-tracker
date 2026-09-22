@@ -1,159 +1,332 @@
-# e-Belge & KOSGEB Duyuru Takip Servisi 🔔
+# Announcement Tracker
 
-Bu proje, Gelir İdaresi Başkanlığı (GİB) e-Belge portalı ve KOSGEB resmi duyurularını otomatik olarak izleyen, veritabanına kaydeden, performans odaklı **Spring Boot (Java 21)**, **Spring Security**, **PostgreSQL** ve **Modern Single-Page Dashboard** tabanlı kurumsal bir izleme ve e-posta bildirim sistemidir.
+GİB e-Belge ve KOSGEB gibi resmî kaynaklarda yayımlanan duyuruları düzenli olarak tarayan, tekilleştiren ve ilgili çalışanlara e-posta yoluyla ulaştıran kurumsal duyuru takip uygulaması.
 
----
+Uygulama; merkezi kimlik yönetimi, departman ve kaynak bazlı abonelik, yönetim paneli, çalışan portalı, kalıcı e-posta kuyruğu ve otomatik tarama zamanlayıcısını tek bir Spring Boot uygulamasında birleştirir.
 
-## Frontend build
+![Yönetim paneli](docs/images/dashboard-ui.png)
 
-Tarayıcıda Babel çalıştırılmaz. JSX kaynaklarında değişiklik yaptıktan sonra derlenmiş statik dosyaları güncelleyin:
+## İçindekiler
 
-```powershell
-node scripts/build-frontend.js
+- [Öne çıkan yetenekler](#öne-çıkan-yetenekler)
+- [Sistem mimarisi](#sistem-mimarisi)
+- [Teknoloji ve sürümler](#teknoloji-ve-sürümler)
+- [Kimlik doğrulama ve yetkilendirme](#kimlik-doğrulama-ve-yetkilendirme)
+- [Kurulum](#kurulum)
+- [Yapılandırma](#yapılandırma)
+- [Frontend geliştirme](#frontend-geliştirme)
+- [Testler](#testler)
+- [Yeni duyuru kaynağı ekleme](#yeni-duyuru-kaynağı-ekleme)
+- [Proje yapısı](#proje-yapısı)
+- [Canlı ortam notları](#canlı-ortam-notları)
+
+## Öne çıkan yetenekler
+
+| Alan | Açıklama |
+|---|---|
+| Çoklu kaynak tarama | GİB e-Belge ve KOSGEB duyuruları Jsoup tabanlı bağımsız scraper stratejileriyle taranır. |
+| Duyuru tekilleştirme | Kalıcı kaynak URL'si veya normalize edilmiş duyuru bilgileri üzerinden SHA-256 kimliği üretilir. |
+| Paralel tarama | Kayıtlı kaynaklar `CompletableFuture` ile eş zamanlı işlenir. |
+| Dinamik zamanlama | Tarama periyodu ve zamanlayıcının aktiflik durumu yönetim panelinden değiştirilebilir. |
+| Abone yönetimi | Çalışanlar tek tek veya Excel/CSV dosyasından eklenebilir; departman ve kaynak tercihleri yönetilebilir. |
+| Departman modeli | Departmanlara varsayılan duyuru kaynakları atanabilir; çalışanların etkin kapsamı bu ilişkilerden hesaplanır. |
+| Merkezi kimlik yönetimi | Yönetici ve çalışan girişleri Keycloak Authorization Code + PKCE akışıyla gerçekleştirilir. |
+| Kullanıcı yaşam döngüsü | Abone oluşturma, güncelleme, pasifleştirme ve silme işlemleri Keycloak ile senkronize edilir. |
+| Güvenli parola kurulumu | Yeni çalışanlara Keycloak tarafından imzalı ve süreli parola belirleme bağlantısı gönderilir. |
+| Kalıcı e-posta outbox'ı | Teslimatlar PostgreSQL'de izlenir; geçici hatalar artan gecikmeyle yeniden denenir, kalıcı hatalar `DEAD` durumuna alınır. |
+| Yönetim ve çalışan portalları | Yönetici operasyonları ile çalışanların duyuru ve tercih ekranları rol bazlı olarak ayrılır. |
+| Güvenli abonelikten çıkma | İmzalı, süreli token ve CSRF doğrulamasıyla abonelikten çıkma akışı sağlanır. |
+
+## Sistem mimarisi
+
+```mermaid
+flowchart LR
+    A[Resmî duyuru kaynakları] --> B[Scraper Registry]
+    B --> C[Kaynak scraper'ları]
+    C --> D[SHA-256 tekilleştirme]
+    D --> E[(PostgreSQL)]
+    E --> F[E-posta outbox]
+    F --> G[SMTP sunucusu]
+    G --> H[Çalışanlar]
+
+    I[Yönetici / Çalışan] --> J[Keycloak]
+    J --> K[Spring Security]
+    K --> L[Yönetim paneli]
+    K --> M[Çalışan portalı]
+
+    L --> E
+    M --> E
+    L --> N[Keycloak Admin API]
+    N --> J
 ```
 
-Derlenmiş çıktılar `src/main/resources/static/js/dist` altında tutulur ve uygulama bu dosyaları sunar.
+Temel işlem akışı:
 
----
+1. Zamanlayıcı veya yönetici talebi kaynak taramasını başlatır.
+2. Her kaynak kendi scraper implementasyonu tarafından ayrıştırılır.
+3. Duyurular sabit bir içerik kimliğiyle tekilleştirilerek PostgreSQL'e kaydedilir.
+4. Aktif abonelerin departman ve kişisel tercihleri değerlendirilir.
+5. Her duyuru–alıcı çifti için kalıcı bir outbox teslimatı oluşturulur.
+6. Teslimatlar SMTP üzerinden gönderilir; başarısız işlemler kontrollü biçimde yeniden denenir.
 
-## 🚀 Temel Özellikler
+## Teknoloji ve sürümler
 
-- **🌐 Çoklu Kaynak Web Kazıma (Multi-Source Scraping)**: GİB e-Belge ve KOSGEB portalı duyuruları, ek dosyaları (.pdf, .zip vb.) ve görselleri otomatik taranır.
-- **⚡ Akıllı Erken Çıkış (3 Üst Üste Var Olan Duyuru Kuralı)**: Taramalar esnasında veritabanında daha önce kaydedilmiş 3 üst üste duyuruya rastlandığında tarama anında sonlandırılır.
-- **🔀 Paralel Eş Zamanlı Kazıma**: `CompletableFuture` mimarisi ile tüm resmi siteler eş zamanlı (paralel) olarak taranır.
-- **🔐 Güvenli Oturum Altyapısı**: Oturum kimlikleri JavaScript'e açılmadan `HttpOnly` cookie'de tutulur; değiştirici istekler CSRF token'ıyla doğrulanır.
-- **🏢 Departman ve Abone Portalı**:
-  - **Super Admin Paneli (`dashboard.html`)**: Duyuruları, aboneleri, departmanları, tarama sıklığını ve kaynakları yönetme.
-  - **Abone Portalı (`user-dashboard.html`)**: Çalışanların kendi takip tercihlerini ve ilgili duyuruları görüntüleyebildiği özel portal.
-- **🗑️ Toplu Seçim ve Silme (Bulk Delete)**: "Toplu Seç" düğmeli modüler arayüz ve koyu temalı `ConfirmModal` onay pop-up'ı ile toplu abone ve departman silme.
-- **✉️ Kalıcı E-Posta Outbox'ı**: Her duyuru–alıcı teslimatı PostgreSQL'de `PENDING/SENDING/SENT/FAILED` durumlarıyla izlenir; SMTP hataları artan gecikmeyle yeniden denenir ve uygulama yeniden başlasa bile teslimatlar kaybolmaz.
-- **📦 Hibernate JDBC Batching**: Toplu duyuru eklemeleri `batch_size: 50` ile tek bir SQL paketinde iletilerek veritabanı yükü %90 azaltılır.
-- **📊 Dinamik Tarama Periyodu**: Tarama sıklığı (ör. 15 dk, 30 dk, 1 saat) yönetim panelinden anlık değiştirilebilir.
-- **📁 Toplu Abone Aktarımı**: Excel (.xlsx, .xls) ve CSV dosyalarından toplu abone içe aktarma ve şablon indirme desteği.
-- **🧪 Otomatik E2E UI ve Unit Test Kapsamı**: Playwright Java SDK ile uçtan uca UI testleri ve 98 adet unit/entegrasyon testi.
+| Katman | Teknoloji | Sürüm |
+|---|---|---:|
+| Programlama dili | Java | 21 |
+| Uygulama çatısı | Spring Boot | 4.1.1 |
+| Kimlik ve erişim yönetimi | Keycloak | 26.7.4 |
+| Veritabanı | PostgreSQL | 17 |
+| ORM ve veri erişimi | Spring Data JPA / Hibernate | Spring Boot tarafından yönetiliyor |
+| Şema yönetimi | Liquibase | 5.0.3 |
+| Web scraping | Jsoup | 1.18.3 |
+| Excel işleme | Apache POI | 5.2.5 |
+| Frontend | React (vendored) | 18.3.1 |
+| UI ikonları | Lucide | Yerel vendored dağıtım |
+| E2E test | Playwright Java | 1.49.0 |
+| Entegrasyon testleri | Testcontainers PostgreSQL | 1.21.4 |
+| Build aracı | Maven Wrapper | Proje ile birlikte |
 
----
+Frontend için ayrı bir Node paket ağacı veya çalışma zamanı sunucusu kullanılmaz. React, Babel ve Lucide dosyaları uygulama kaynaklarında yerel olarak tutulur; derlenmiş tarayıcı dosyaları Spring Boot tarafından statik içerik olarak sunulur.
 
-## 🛠️ Mimari ve Yeni Kaynak (Site) Ekleme
+## Kimlik doğrulama ve yetkilendirme
 
-Proje **Strategy Pattern** ve **Spring Bean Auto-Registration** mimarisinde kurgulanmıştır. Yeni bir duyuru kaynağı eklemek için:
+Uygulama parolaları kendi veritabanında saklamaz. Parola doğrulama ve parola yenileme tamamen Keycloak tarafından yönetilir.
 
-1. **`SiteType` Enum'ına Ekleme** (`src/main/java/com/yasarbilgi/announcementtracker/enums/SiteType.java`):
-   ```java
-   EBELGE_GIB("e-Belge GİB", "https://ebelge.gib.gov.tr/duyurular.html"),
-   KOSGEB("KOSGEB Duyuruları", "https://www.kosgeb.gov.tr/site/tr/genel/duyurular"),
-   YENI_KAYNAK("Yeni Kaynak", "https://ornek-site.gov.tr/duyurular");
-   ```
+| Rol | Yetki alanı |
+|---|---|
+| `ROLE_SUPER_ADMIN` | Duyuru, abone, departman, kaynak ve sistem ayarlarının yönetimi |
+| `ROLE_ADMIN` | Yönetim API'lerine erişim |
+| `ROLE_SUBSCRIBER` | Çalışan portalı, kişisel tercihler ve ilgili duyurular |
 
-2. **Scraper Sınıfı Oluşturma** (`src/main/java/com/yasarbilgi/announcementtracker/service/scraper/impl/`):
-   `AbstractAnnouncementScraper` sınıfından türeterek `@Component` eklemeniz yeterlidir:
-   ```java
-   @Component
-   public class YeniKaynakScraper extends AbstractAnnouncementScraper {
+Güvenlik modelinin başlıca bileşenleri:
 
-       @Override
-       public SiteType getSiteType() {
-           return SiteType.YENI_KAYNAK;
-       }
+- OAuth 2.0 / OpenID Connect Authorization Code akışı ve PKCE
+- `HttpOnly`, `Secure` ve `SameSite` seçenekleriyle sunucu tarafı oturum cookie'leri
+- Durum değiştiren isteklerde CSRF koruması
+- Keycloak realm rollerinin Spring Security rollerine dönüştürülmesi
+- Kullanıcı adı veya e-posta yerine değişmeyen Keycloak `sub` kimliğiyle hesap eşleştirme
+- Backend kullanıcı yönetimi için sınırlı yetkili Keycloak servis hesabı
+- Public registration, Direct Access Grant ve Implicit Flow'un kapalı olması
 
-       @Override
-       public List<ScrapedAnnouncementDto> scrape(Predicate<String> hashExistsPredicate) {
-           Document doc = fetchDocument(getSiteType().getBaseUrl());
-           List<ScrapedAnnouncementDto> results = new ArrayList<>();
-           // Ayrıştırma ve hashExistsPredicate.test(contentHash) ile 3 üst üste Erken Çıkış kontrolü
-           return results;
-       }
-   }
-   ```
+## Kurulum
 
----
+### Gereksinimler
 
-## 🗄️ Veritabanı ve Güvenlik Altyapısı
+- JDK 21
+- PostgreSQL 17
+- Docker Desktop veya Docker Engine
+- Git
+- Frontend kaynaklarını değiştirecekseniz Node.js
+- E2E testleri için Chrome, Edge veya Playwright Chromium
 
-- **PostgreSQL 17**: 3NF ve BCNF standartlarında ilişkisel veri modeli.
-- **`ON DELETE CASCADE`**: İlişkili tablolarda (`subscriber_site_preferences`, `subscriber_departments`) güvenli silme kısıtlaması.
-- **Performans İndeksleri**: `idx_announcement_hash`, `idx_announcement_site`, `idx_announcement_notified` ve `idx_announcement_date` indeksleri ile yüksek hızlı sorgulama.
-- **Kimlik Doğrulama**: Keycloak Authorization Code akışı ve `SessionAuthenticationFilter` ile rol tabanlı sunucu tarafı oturum doğrulaması; `HttpOnly`, `Secure`, `SameSite` cookie ve CSRF koruması. Kullanıcı parolaları uygulamaya gönderilmez.
+### 1. Projeyi klonlayın
 
----
+```bash
+git clone https://github.com/elifnurbeycan/announcement-tracker.git
+cd announcement-tracker
+```
 
-## 💻 Kullanılan Teknolojiler
+### 2. Uygulama veritabanını oluşturun
 
-- **Backend**: Java 21, Spring Boot 4, Spring Security, Spring Data JPA, Spring Async
-- **Database**: PostgreSQL 17
-- **Web Scraping**: Jsoup
-- **Testing**: Playwright Java SDK (E2E UI), JUnit 5, Mockito, AssertJ
-- **Frontend**: Modular Single-Page Application (Vanilla JS / React Standalone, Custom Glassmorphism Dark Theme)
-- **Document Processing**: Apache POI (Excel / CSV parsing)
-
----
-
-## ⚙️ Kurulum ve Çalıştırma
-
-### 1. Veritabanı Hazırlığı
-PostgreSQL üzerinde `announcement_tracker_db` veritabanını oluşturun:
 ```sql
 CREATE DATABASE announcement_tracker_db;
 ```
 
-### 2. Konfigürasyon
+Tablo ve indeksleri elle oluşturmayın. Uygulama açılırken Liquibase migration'ları otomatik olarak uygulanır; Hibernate şemayı yalnızca doğrular.
 
-Parola ve erişim anahtarlarını YAML dosyalarına yazmayın. `.env.example` içeriğini kendi ortamınızın secret yönetim sistemine aktarın. Canlı ortamda en az şu ayarlar zorunludur:
+### 3. Ortam değişkenlerini hazırlayın
 
-```bash
-SPRING_PROFILES_ACTIVE=prod
-SESSION_COOKIE_SECURE=true
-DB_PASSWORD=change-me
-SPRING_MAIL_PASSWORD=change-me
-APP_BASE_URL=https://announcements.example.com
-KEYCLOAK_CLIENT_SECRET=change-me
-LOCAL_LOGIN_ENABLED=false
-```
-
-`prod` profili HTTPS, `HttpOnly`, `Secure` ve `SameSite=Lax` oturum cookie'lerini kullanır. TLS sonlandırması reverse proxy'de yapılıyorsa proxy'nin `Forwarded` veya `X-Forwarded-*` başlıklarını doğru iletmesi gerekir.
-
-Keycloak istemcisi confidential client olarak tanımlanmalı, Standard Flow etkinleştirilmeli ve geçerli yönlendirme adresine `https://announcements.example.com/login/oauth2/code/keycloak` eklenmelidir. Yönetici hesaplarında `ADMIN`, `SUPER_ADMIN`, `ROLE_ADMIN` veya `ROLE_SUPER_ADMIN` realm rollerinden biri bulunmalıdır. Canlı profilde yerel parola girişi kapalıdır; tarayıcı Authorization Code akışıyla Keycloak'a yönlendirilir.
-
-#### Docker ile Yerel Keycloak
-
-Depodaki Compose tanımı Keycloak'ı `http://localhost:8180` adresinde, ayrı bir PostgreSQL veritabanıyla çalıştırır ve `announcement-tracker-realm` yapılandırmasını ilk açılışta içe aktarır. `keycloak-config` servisi tema, SMTP, güvenli yönlendirme adresleri ve servis hesabının en düşük kullanıcı-yönetim rollerini her açılışta idempotent olarak uygular:
+PowerShell:
 
 ```powershell
+Copy-Item .env.example .env
+```
+
+Bash:
+
+```bash
+cp .env.example .env
+```
+
+`.env` içindeki veritabanı, SMTP ve Keycloak değerlerini kendi ortamınıza göre düzenleyin. Bu dosya gizli bilgi içerdiği için Git'e eklenmemelidir.
+
+### 4. Yerel Keycloak ortamını başlatın
+
+```bash
 docker compose up -d
 docker compose logs keycloak-config
 ```
 
-Yönetim konsolu `http://localhost:8180/admin` adresindedir. İlk girişte kullanıcı adı `admin`, parola ise yukarıda verdiğiniz değerdir. `announcement-tracker-realm` içinde uygulamanın yerel yöneticisiyle aynı kullanıcı adına sahip bir kullanıcı oluşturup `ROLE_SUPER_ADMIN` rolünü atayın. Çalışan girişi için Keycloak kullanıcısının e-posta adresi uygulamadaki aktif abonenin e-posta adresiyle aynı olmalıdır.
+Compose yapılandırması:
 
-`.env` dosyasında `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`,
-`SPRING_MAIL_PASSWORD` ve `MAIL_FROM` doldurulmalıdır. Keycloak, imzalı ve süreli
-`UPDATE_PASSWORD` bağlantısını bu SMTP hesabıyla gönderir. Uygulamayı normal IDE Run
-butonuyla veya aşağıdaki komutla başlatabilirsiniz:
+- Keycloak'ı `http://localhost:8180` adresinde çalıştırır.
+- Keycloak için ayrı bir PostgreSQL 17 veritabanı başlatır.
+- `announcement-tracker-realm` tanımını ve özel giriş temasını içe aktarır.
+- Uygulama client'ını, servis hesabını, rolleri, SMTP ve yönlendirme adreslerini yapılandırır.
+
+> Compose içindeki PostgreSQL yalnızca Keycloak verileri içindir. Uygulamanın `announcement_tracker_db` veritabanı ayrıca hazırlanmalıdır.
+
+### 5. Uygulamayı başlatın
+
+Windows:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-Kalıcı yönetim konsolu hesabı `.env` içindeki `KEYCLOAK_CONSOLE_ADMIN_USERNAME` ve
-`KEYCLOAK_CONSOLE_ADMIN_PASSWORD` değerleriyle oluşturulur. Bootstrap hesabı yalnızca ilk
-kurulum içindir; canlı ortamda bu değerler `.env` yerine kurumun secret manager'ından verilmelidir.
+Linux/macOS:
 
-Yerel istemci Authorization Code + PKCE kullanır; Direct Access Grant, joker yönlendirme adresleri ve herkese açık kullanıcı kaydı kapalıdır. `start-dev` yalnızca geliştirme içindir. Canlı Keycloak kurulumu HTTPS, sabit hostname, secret yönetimi ve production `start` modu ile ayrıca yapılandırılmalıdır.
-
-Super Admin panelinden abone oluşturulduğunda backend aynı e-posta için Keycloak hesabını ve `ROLE_SUBSCRIBER` rolünü otomatik oluşturur ve tek kullanımlık şifre belirleme e-postasını gönderir. Mevcut aboneler için Aboneler tablosundaki **Şifre Bağlantısı** işlemi aynı güvenli e-postayı yeniden yollar. Ad-soyad/e-posta güncelleme, aktif-pasif yapma, Excel içe aktarma ve silme işlemleri de Keycloak'a yansıtılır. Uygulama bunun için kullanıcı parolası yerine yalnızca `manage-users`, `query-users`, `view-users` ve realm bilgisini okumak için `view-realm` rollerine sahip `announcement-tracker-admin` servis hesabını kullanır.
-
-### 3. Uygulamayı Başlatma
 ```bash
 ./mvnw spring-boot:run
 ```
-Uygulama başlatıldıktan sonra panellere erişebilirsiniz:
-- **Ortak Keycloak Girişi**: `http://localhost:8080/login`
 
-### 4. Testleri Çalıştırma (Unit + PostgreSQL + Playwright E2E UI)
+Uygulama adresleri:
 
-Test profili H2 kullanmaz. Entegrasyon testleri Testcontainers aracılığıyla geçici bir
-PostgreSQL 17 konteyneri oluşturduğu için testlerden önce Docker Desktop çalışır durumda olmalıdır.
+| Bileşen | Adres |
+|---|---|
+| Uygulama girişi | `http://localhost:8080/login` |
+| Keycloak yönetim konsolu | `http://localhost:8180/admin` |
+| OAuth callback | `http://localhost:8080/login/oauth2/code/keycloak` |
+
+## Yapılandırma
+
+Temel ortam değişkenleri:
+
+| Değişken | Amaç | Yerel varsayılan / örnek |
+|---|---|---|
+| `SPRING_PROFILES_ACTIVE` | Aktif Spring profili | `dev` |
+| `DB_URL` | Uygulama PostgreSQL bağlantısı | `jdbc:postgresql://localhost:5432/announcement_tracker_db` |
+| `DB_USERNAME` | Veritabanı kullanıcısı | `postgres` |
+| `DB_PASSWORD` | Veritabanı parolası | Zorunlu secret |
+| `KEYCLOAK_SERVER_URL` | Keycloak ana adresi | `http://localhost:8180` |
+| `KEYCLOAK_REALM` | Uygulama realm'i | `announcement-tracker-realm` |
+| `KEYCLOAK_CLIENT_ID` | Tarayıcı OIDC client'ı | `announcement-tracker-app` |
+| `KEYCLOAK_ADMIN_CLIENT_ID` | Kullanıcı yönetimi servis hesabı | `announcement-tracker-admin` |
+| `KEYCLOAK_ADMIN_CLIENT_SECRET` | Servis hesabı parolası | Zorunlu secret |
+| `SPRING_MAIL_HOST` | SMTP sunucusu | Ortama göre değişir |
+| `SPRING_MAIL_PORT` | SMTP portu | `587` |
+| `SPRING_MAIL_USERNAME` | SMTP kullanıcı adı | Zorunlu secret |
+| `SPRING_MAIL_PASSWORD` | SMTP parolası | Zorunlu secret |
+| `MAIL_FROM` | Gönderen adresi | `noreply@example.com` |
+| `APP_BASE_URL` | E-posta ve OIDC yönlendirme tabanı | `http://localhost:8080` |
+| `UNSUBSCRIBE_TOKEN_SECRET` | Abonelikten çıkma token imzası | En az 32 rastgele karakter |
+| `EMAIL_OUTBOX_MAX_ATTEMPTS` | Teslimat başına azami deneme | `8` |
+
+Tüm örnek değişkenler için [.env.example](.env.example) dosyasına bakın.
+
+## Frontend geliştirme
+
+Tarayıcıda Babel çalıştırılmaz. `src/main/resources/static/js` altındaki JSX kaynaklarını değiştirdikten sonra dağıtım dosyalarını yeniden üretin:
+
+```bash
+node scripts/build-frontend.js
+```
+
+Çıktılar `src/main/resources/static/js/dist` altında oluşturulur ve Git'e kaynaklarla birlikte eklenir.
+
+## Testler
+
+Test profili H2 kullanmaz. Spring context ve repository entegrasyon testleri Testcontainers üzerinden gerçek PostgreSQL 17 üzerinde çalışır.
+
+Windows:
+
+```powershell
+.\mvnw.cmd test
+```
+
+Linux/macOS:
 
 ```bash
 ./mvnw test
 ```
+
+Headless E2E çalıştırma:
+
+```bash
+./mvnw -Dplaywright.headless=true test
+```
+
+Test paketi aşağıdaki alanları kapsar:
+
+- Controller ve servis birim testleri
+- Spring Security ve oturum güvenliği testleri
+- PostgreSQL/Liquibase entegrasyon testi
+- Scraper ayrıştırma ve tekilleştirme testleri
+- Keycloak yönetim servisi testleri
+- Kalıcı e-posta outbox ve yeniden deneme testleri
+- Playwright yönetim paneli E2E senaryoları
+
+## Yeni duyuru kaynağı ekleme
+
+Scraper katmanı Strategy Pattern kullanır. Yeni bir kaynak için:
+
+1. Kaynağı `SiteType` enum'una ekleyin.
+2. `AbstractAnnouncementScraper` sınıfından türeyen bir `@Component` oluşturun.
+3. `getSiteType()` ve `scrape(...)` metotlarını uygulayın.
+4. Ayrıştırma ve tekilleştirme testlerini ekleyin.
+
+```java
+@Component
+public class NewSourceScraper extends AbstractAnnouncementScraper {
+
+    @Override
+    public SiteType getSiteType() {
+        return SiteType.NEW_SOURCE;
+    }
+
+    @Override
+    public List<ScrapedAnnouncementDto> scrape(Predicate<String> hashExists) {
+        Document document = fetchDocument(getSiteType().getBaseUrl());
+        // Kaynağa özgü ayrıştırma ve calculateAnnouncementHash(...) kullanımı
+        return List.of();
+    }
+}
+```
+
+`ScraperRegistry`, Spring tarafından bulunan implementasyonları otomatik kaydeder; merkezi bir `switch` bloğuna ekleme yapılması gerekmez.
+
+## Proje yapısı
+
+```text
+src/main/java/com/yasarbilgi/announcementtracker
+├── config/          Spring Security, OIDC, cookie ve oturum yapılandırması
+├── controller/      REST API ve sayfa yönlendirme katmanı
+├── dto/             Request, response ve session veri modelleri
+├── entity/          JPA entity'leri
+├── enums/           Kaynak ve teslimat durumları
+├── exception/       Uygulama hata modeli
+├── repository/      Spring Data JPA repository'leri
+├── scheduler/       Dinamik duyuru tarama zamanlayıcısı
+└── service/         İş kuralları, scraper'lar, Keycloak ve e-posta servisleri
+
+src/main/resources
+├── db/changelog/    Liquibase migration'ları
+├── static/          Yönetim paneli ve çalışan portalı
+├── application.yaml
+├── application-dev.yaml
+└── application-prod.yaml
+
+config/keycloak/     Realm tanımı ve özel Keycloak teması
+scripts/             Keycloak ve frontend yardımcı betikleri
+docs/images/         README görselleri
+```
+
+## E-posta çıktısı
+
+Bildirim e-postaları duyurunun kaynağını, tarihini, özetini, ek dosyasını, asıl kaynak bağlantısını ve güvenli abonelikten çıkma bağlantısını içerir.
+
+![Duyuru e-postası](docs/images/email-notification.png)
+
+## Canlı ortam notları
+
+- `SPRING_PROFILES_ACTIVE=prod` kullanılmalıdır.
+- Uygulama ve Keycloak yalnızca HTTPS üzerinden yayımlanmalıdır.
+- `start-dev` yerine production Keycloak çalışma modu kullanılmalıdır.
+- Parolalar ve client secret'ları `.env` yerine kurumun secret manager çözümünden sağlanmalıdır.
+- Reverse proxy `Forwarded` veya `X-Forwarded-*` başlıklarını doğru aktarmalıdır.
+- Keycloak redirect URI ve post-logout redirect URI değerleri tam adreslerle sınırlandırılmalıdır.
+- PostgreSQL ve Keycloak için düzenli yedekleme, gözlemleme ve log saklama politikası tanımlanmalıdır.
+- SMTP, Keycloak Admin API ve scraper erişimleri için zaman aşımı ve alarm mekanizmaları izlenmelidir.
+
+Bu depo için henüz açık kaynak lisansı tanımlanmamıştır. Kullanım ve dağıtım koşulları proje sahibi tarafından belirlenmelidir.
