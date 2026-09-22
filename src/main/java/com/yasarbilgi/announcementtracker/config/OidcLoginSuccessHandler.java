@@ -1,7 +1,6 @@
 package com.yasarbilgi.announcementtracker.config;
 
-import com.yasarbilgi.announcementtracker.dto.response.LoginResponseDto;
-import com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto;
+import com.yasarbilgi.announcementtracker.dto.session.SessionToken;
 import com.yasarbilgi.announcementtracker.service.AuthService;
 import com.yasarbilgi.announcementtracker.service.SubscriberService;
 import jakarta.servlet.ServletException;
@@ -48,15 +47,15 @@ public class OidcLoginSuccessHandler implements AuthenticationSuccessHandler {
                 String username = firstNonBlank(
                         oidcUser.getClaimAsString("preferred_username"),
                         oidcUser.getEmail());
-                LoginResponseDto session = authService.createOidcSession(username);
-                sessionCookieService.setAdminSession(response, session.getToken());
+                SessionToken session = authService.createOidcSession(oidcUser.getSubject(), username);
+                sessionCookieService.setAdminSession(response, session.value());
                 clearTemporaryOauthSession(request);
                 response.sendRedirect("/dashboard.html");
                 return;
             }
 
-            UserLoginResponseDto session = subscriberService.createOidcSession(oidcUser.getEmail());
-            sessionCookieService.setUserSession(response, session.getToken());
+            SessionToken session = subscriberService.createOidcSession(oidcUser.getSubject(), oidcUser.getEmail());
+            sessionCookieService.setUserSession(response, session.value());
             clearTemporaryOauthSession(request);
             response.sendRedirect("/user-dashboard.html");
         } catch (RuntimeException exception) {

@@ -12,7 +12,7 @@ window.ProfilePage = function ProfilePage({
   const email = user.email || (user.username ? `${user.username}@kurum.com` : 'admin@kurum.com');
   const roleText = isAdmin ? 'Süper Admin (Yönetici)' : 'Normal Çalışan (Abone)';
   const normalizedSites = availableSites.map(site => typeof site === 'string' ? site : site.name);
-  const isGeneralEmployee = user.isGeneralEmployee ?? user.generalEmployee ?? (user.departments || []).length === 0;
+  const isGeneralEmployee = user.generalEmployee ?? (user.departments || []).length === 0;
   const departmentSites = new Set(isGeneralEmployee ? normalizedSites : user.departmentSites || (user.departments || []).flatMap(department => department.sites || []));
   const [selectedAdditionalSites, setSelectedAdditionalSites] = React.useState(new Set());
   const [saving, setSaving] = React.useState(false);

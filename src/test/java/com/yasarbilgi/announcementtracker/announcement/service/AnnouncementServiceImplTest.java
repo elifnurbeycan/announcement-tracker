@@ -9,6 +9,7 @@ import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
 import com.yasarbilgi.announcementtracker.repository.AnnouncementRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.EmailService;
+import com.yasarbilgi.announcementtracker.service.AnnouncementPersistenceService;
 import com.yasarbilgi.announcementtracker.service.NotificationOutboxService;
 import com.yasarbilgi.announcementtracker.service.impl.AnnouncementServiceImpl;
 import com.yasarbilgi.announcementtracker.service.scraper.AnnouncementScraper;
@@ -53,6 +54,9 @@ class AnnouncementServiceImplTest {
     @Mock
     private NotificationOutboxService notificationOutboxService;
 
+    @Mock
+    private AnnouncementPersistenceService announcementPersistenceService;
+
     @InjectMocks
     private AnnouncementServiceImpl announcementService;
 
@@ -82,10 +86,10 @@ class AnnouncementServiceImplTest {
         when(scraperMock.scrape(any())).thenReturn(List.of(scrapedDto));
         when(announcementRepository.existsByContentHash("hash123")).thenReturn(false);
 
-        when(announcementRepository.saveAllAndFlush(anyList())).thenAnswer(invocation -> {
-            List<Announcement> list = invocation.getArgument(0);
-            list.forEach(a -> a.setId(1L));
-            return list;
+        when(announcementPersistenceService.saveAndFlush(any(Announcement.class))).thenAnswer(invocation -> {
+            Announcement announcement = invocation.getArgument(0);
+            announcement.setId(1L);
+            return announcement;
         });
 
         Announcement savedEntity = Announcement.builder()
@@ -113,7 +117,7 @@ class AnnouncementServiceImplTest {
         assertThat(results).hasSize(1);
         assertThat(results.get(0).getTitle()).isEqualTo("Yeni GİB Duyurusu");
 
-        verify(announcementRepository).saveAllAndFlush(anyList());
+        verify(announcementPersistenceService).saveAndFlush(any(Announcement.class));
         verify(notificationOutboxService).enqueue(savedEntity, "sub1@gib.com");
         verify(notificationOutboxService, never()).enqueue(savedEntity, "sub2@kosgeb.com");
     }
@@ -130,7 +134,7 @@ class AnnouncementServiceImplTest {
         List<AnnouncementResponseDto> results = announcementService.triggerScrapeAll();
 
         assertThat(results).isEmpty();
-        verify(announcementRepository, never()).saveAllAndFlush(anyList());
+        verify(announcementPersistenceService, never()).saveAndFlush(any());
     }
 
     @Test
@@ -143,7 +147,7 @@ class AnnouncementServiceImplTest {
         List<AnnouncementResponseDto> results = announcementService.triggerScrapeSite(SiteType.EBELGE_GIB);
 
         assertThat(results).isEmpty();
-        verify(announcementRepository, never()).saveAllAndFlush(anyList());
+        verify(announcementPersistenceService, never()).saveAndFlush(any());
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.yasarbilgi.announcementtracker.service;
 
 import com.yasarbilgi.announcementtracker.dto.request.SubscriberRequestDto;
 import com.yasarbilgi.announcementtracker.dto.response.SubscriberResponseDto;
+import com.yasarbilgi.announcementtracker.dto.session.SessionToken;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -41,7 +42,7 @@ public interface SubscriberService {
 
     com.yasarbilgi.announcementtracker.dto.response.ExcelImportResultDto importSubscribersFromExcelDetailed(MultipartFile file, Set<SiteType> targetSites);
 
-    com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto createOidcSession(String email);
+    SessionToken createOidcSession(String keycloakSubject, String email);
 
     void logoutUser(String token);
 

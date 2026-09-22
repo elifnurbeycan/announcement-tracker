@@ -11,11 +11,7 @@ public class ViewController {
         return "redirect:/oauth2/authorization/keycloak";
     }
 
-    @GetMapping({
-            "/login", "/login.html",
-            "/admin-login", "/admin-login.html",
-            "/user-login", "/user-login.html"
-    })
+    @GetMapping("/login")
     public String login() {
         return "redirect:/oauth2/authorization/keycloak";
     }

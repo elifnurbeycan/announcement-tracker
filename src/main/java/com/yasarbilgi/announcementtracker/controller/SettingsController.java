@@ -28,18 +28,9 @@ public class SettingsController {
 
     @PostMapping("/scrape")
     public ResponseEntity<ApiResponseDto<ScrapeSettingsDto>> updateScrapeSettings(
-            @RequestParam(required = false) Integer intervalMinutes,
-            @RequestParam(required = false) Integer intervalHours,
+            @RequestParam Integer intervalMinutes,
             @RequestParam(required = false) Boolean enabled) {
-
-        int minutes = 60;
-        if (intervalMinutes != null && intervalMinutes > 0) {
-            minutes = intervalMinutes;
-        } else if (intervalHours != null && intervalHours > 0) {
-            minutes = intervalHours * 60;
-        }
-
-        ScrapeSettingsDto updated = settingsService.updateScrapeSettings(minutes, enabled);
+        ScrapeSettingsDto updated = settingsService.updateScrapeSettings(intervalMinutes, enabled);
         return ResponseEntity.ok(ApiResponseDto.ok(
                 "Tarama aralığı başarıyla " + updated.getIntervalMinutes() + " dakika olarak güncellendi.",
                 updated

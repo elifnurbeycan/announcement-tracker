@@ -5,7 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Data
 @Builder
@@ -17,7 +18,7 @@ public class ApiResponseDto<T> {
     private String message;
     private T data;
     @Builder.Default
-    private LocalDateTime timestamp = LocalDateTime.now();
+    private OffsetDateTime timestamp = OffsetDateTime.now(ZoneOffset.UTC);
 
     public static <T> ApiResponseDto<T> ok(String message, T data) {
         return ApiResponseDto.<T>builder()

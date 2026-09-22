@@ -63,9 +63,9 @@ public class KeycloakAdminService {
         }
     }
 
-    public void provisionSubscriber(String email, String fullName, boolean active) {
+    public String provisionSubscriber(String email, String fullName, boolean active) {
         if (!enabled) {
-            return;
+            return null;
         }
 
         try {
@@ -83,6 +83,7 @@ public class KeycloakAdminService {
 
             assignRealmRole(userId, SUBSCRIBER_ROLE, token);
             log.info("Keycloak subscriber synchronized: {}", normalizedEmail);
+            return userId;
         } catch (IdentityProviderException | IllegalArgumentException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -90,9 +91,9 @@ public class KeycloakAdminService {
         }
     }
 
-    public void updateSubscriber(String previousEmail, String email, String fullName, boolean active) {
+    public String updateSubscriber(String previousEmail, String email, String fullName, boolean active) {
         if (!enabled) {
-            return;
+            return null;
         }
 
         try {
@@ -104,14 +105,14 @@ public class KeycloakAdminService {
             }
 
             if (existing.isEmpty()) {
-                provisionSubscriber(normalizedEmail, fullName, active);
-                return;
+                return provisionSubscriber(normalizedEmail, fullName, active);
             }
 
             String userId = String.valueOf(existing.get().get("id"));
             updateUser(userId, normalizedEmail, fullName, active, token);
             assignRealmRole(userId, SUBSCRIBER_ROLE, token);
             log.info("Keycloak subscriber updated: {} -> {}", previousEmail, normalizedEmail);
+            return userId;
         } catch (IdentityProviderException | IllegalArgumentException exception) {
             throw exception;
         } catch (Exception exception) {

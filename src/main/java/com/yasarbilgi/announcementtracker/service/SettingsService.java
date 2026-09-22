@@ -9,8 +9,6 @@ public interface SettingsService {
 
     int getScrapeIntervalMinutes();
 
-    int getScrapeIntervalHours();
-
     boolean isSchedulerEnabled();
 
     ScrapeSettingsDto getScrapeSettings();

@@ -3,6 +3,7 @@ package com.yasarbilgi.announcementtracker.model;
 import com.yasarbilgi.announcementtracker.dto.ScrapedAnnouncementDto;
 import com.yasarbilgi.announcementtracker.dto.request.SubscriberRequestDto;
 import com.yasarbilgi.announcementtracker.dto.response.*;
+import com.yasarbilgi.announcementtracker.dto.session.SessionToken;
 import com.yasarbilgi.announcementtracker.entity.AdminUser;
 import com.yasarbilgi.announcementtracker.entity.Announcement;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
@@ -85,22 +86,17 @@ class ModelAndEnumTest {
         ApiResponseDto<String> errResp = ApiResponseDto.error("Fail");
         assertThat(errResp.isSuccess()).isFalse();
 
-        // LoginResponseDto
-        LoginResponseDto loginRes = LoginResponseDto.builder()
-                .token("tok")
-                .username("admin")
-                .fullName("Super Admin")
-                .build();
-        assertThat(loginRes.getToken()).isEqualTo("tok");
+        // SessionToken
+        SessionToken sessionToken = new SessionToken("tok");
+        assertThat(sessionToken.value()).isEqualTo("tok");
 
         // ScrapeSettingsDto
         ScrapeSettingsDto settingsDto = ScrapeSettingsDto.builder()
                 .enabled(true)
-                .intervalHours(2)
                 .intervalMinutes(120)
                 .build();
         assertThat(settingsDto.isEnabled()).isTrue();
-        assertThat(settingsDto.getIntervalHours()).isEqualTo(2);
+        assertThat(settingsDto.getIntervalMinutes()).isEqualTo(120);
 
         // SiteDto
         SiteDto siteDto = SiteDto.builder()

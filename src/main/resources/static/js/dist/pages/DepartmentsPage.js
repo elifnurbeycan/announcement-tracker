@@ -152,7 +152,7 @@ window.DepartmentsPage = function DepartmentsPage({
   }, "Kay\u0131tl\u0131 departman bulunmuyor.")) : departments.map(dept => {
     const isSelected = selectedIds.includes(dept.id);
     const memberCount = getDeptMemberCount(dept.id);
-    const sites = dept.assignedSites || [];
+    const sites = dept.sites || [];
     return React.createElement("tr", {
       key: dept.id,
       style: {

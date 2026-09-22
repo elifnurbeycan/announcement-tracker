@@ -81,7 +81,7 @@ class DashboardUiE2eTest {
     }
 
     private void performSuperAdminLogin() {
-        String token = authService.createOidcSession("admin").getToken();
+        String token = authService.createOidcSession("e2e-admin-subject", "admin").value();
         context.addCookies(java.util.List.of(
                 new com.microsoft.playwright.options.Cookie(
                         com.yasarbilgi.announcementtracker.config.SessionCookieService.ADMIN_COOKIE,

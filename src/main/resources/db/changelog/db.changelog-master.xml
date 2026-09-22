@@ -11,5 +11,6 @@
     <include file="db/changelog/changes/v1.3.0-add-email-delivery-outbox.xml"/>
     <include file="db/changelog/changes/005-remove-legacy-subscriber-columns.xml"/>
     <include file="db/changelog/changes/006-remove-legacy-admin-password.xml"/>
+    <include file="db/changelog/changes/007-production-identity-and-data-hardening.xml"/>
 
 </databaseChangeLog>

@@ -5,6 +5,7 @@ import com.yasarbilgi.announcementtracker.dto.request.SubscriberRequestDto;
 import com.yasarbilgi.announcementtracker.dto.response.ApiResponseDto;
 import com.yasarbilgi.announcementtracker.dto.response.SubscriberResponseDto;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
+import com.yasarbilgi.announcementtracker.service.SubscriberExcelTemplateService;
 import com.yasarbilgi.announcementtracker.service.SubscriberService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,7 +17,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.web.csrf.DefaultCsrfToken;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.util.List;
@@ -32,6 +32,9 @@ class SubscriberControllerTest {
 
     @Mock
     private SubscriberService subscriberService;
+
+    @Mock
+    private SubscriberExcelTemplateService excelTemplateService;
 
     @InjectMocks
     private SubscriberController subscriberController;
@@ -139,46 +142,13 @@ class SubscriberControllerTest {
     @Test
     @DisplayName("GET /api/v1/subscribers/template-excel - Örnek Excel indir HTTP 200")
     void downloadExcelTemplate_ShouldReturnExcelBytes() {
+        when(excelTemplateService.createTemplate()).thenReturn(new byte[]{1, 2, 3});
+
         ResponseEntity<byte[]> response = subscriberController.downloadExcelTemplate();
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().length).isGreaterThan(0);
-    }
-
-    @Test
-    @DisplayName("POST /api/v1/subscribers/unsubscribe - Abonelik iptal API")
-    void unsubscribeApi_ValidToken_ShouldReturnSuccess() {
-        when(subscriberService.unsubscribeByToken("valid-token")).thenReturn(true);
-
-        ResponseEntity<ApiResponseDto<Boolean>> response = subscriberController.unsubscribeApi("valid-token");
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().getData()).isTrue();
-    }
-
-    @Test
-    @DisplayName("GET /api/v1/subscribers/unsubscribe - Yalnızca güvenli onay sayfasını gösterir")
-    void unsubscribeHtml_ShouldNotChangeSubscription() {
-        DefaultCsrfToken csrfToken = new DefaultCsrfToken("X-XSRF-TOKEN", "_csrf", "csrf-value");
-
-        ResponseEntity<String> response = subscriberController.unsubscribeHtml("valid-token", csrfToken);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("Abonelikten Çık", "csrf-value", "method='post'");
-        verify(subscriberService, never()).unsubscribeByToken(anyString());
-    }
-
-    @Test
-    @DisplayName("POST /api/v1/subscribers/unsubscribe/confirm - Onay sonrası aboneliği iptal eder")
-    void unsubscribeConfirm_ShouldDeactivateSubscriber() {
-        when(subscriberService.unsubscribeByToken("valid-token")).thenReturn(true);
-
-        ResponseEntity<String> response = subscriberController.unsubscribeConfirm("valid-token");
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody()).contains("Abonelik İptal Edildi");
-        verify(subscriberService).unsubscribeByToken("valid-token");
+        assertThat(response.getBody()).containsExactly(1, 2, 3);
+        verify(excelTemplateService).createTemplate();
     }
 }

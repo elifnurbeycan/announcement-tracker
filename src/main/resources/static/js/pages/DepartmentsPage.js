@@ -140,7 +140,7 @@ window.DepartmentsPage = function DepartmentsPage({
                                 departments.map(dept => {
                                     const isSelected = selectedIds.includes(dept.id);
                                     const memberCount = getDeptMemberCount(dept.id);
-                                    const sites = dept.assignedSites || [];
+                                    const sites = dept.sites || [];
 
                                     return (
                                         <tr key={dept.id} style={{ background: isSelected ? 'rgba(239, 68, 68, 0.08)' : undefined }}>

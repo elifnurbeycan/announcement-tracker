@@ -33,7 +33,6 @@ class SettingsControllerTest {
     void setUp() {
         sampleDto = ScrapeSettingsDto.builder()
                 .intervalMinutes(30)
-                .intervalHours(0)
                 .enabled(true)
                 .build();
     }
@@ -57,7 +56,7 @@ class SettingsControllerTest {
         when(settingsService.updateScrapeSettings(anyInt(), anyBoolean())).thenReturn(sampleDto);
 
         ResponseEntity<ApiResponseDto<ScrapeSettingsDto>> response = 
-                settingsController.updateScrapeSettings(30, null, true);
+                settingsController.updateScrapeSettings(30, true);
 
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         assertThat(response.getBody()).isNotNull();

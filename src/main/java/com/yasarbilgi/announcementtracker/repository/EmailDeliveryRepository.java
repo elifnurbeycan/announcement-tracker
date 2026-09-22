@@ -5,9 +5,13 @@ import com.yasarbilgi.announcementtracker.enums.EmailDeliveryStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
+
+import jakarta.persistence.QueryHint;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -18,12 +22,17 @@ public interface EmailDeliveryRepository extends JpaRepository<EmailDelivery, Lo
     boolean existsByAnnouncementIdAndRecipientEmailIgnoreCase(Long announcementId, String recipientEmail);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints(@QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
     List<EmailDelivery> findTop100ByStatusInAndNextAttemptAtLessThanEqualAndAttemptCountLessThanOrderByCreatedAtAsc(
             Collection<EmailDeliveryStatus> statuses, LocalDateTime dueAt, int maxAttempts);
 
+    @EntityGraph(attributePaths = "announcement")
+    @Query("select delivery from EmailDelivery delivery where delivery.id = :id")
+    java.util.Optional<EmailDelivery> findWithAnnouncementById(@Param("id") Long id);
+
     long countByAnnouncementId(Long announcementId);
 
-    long countByAnnouncementIdAndStatusNot(Long announcementId, EmailDeliveryStatus status);
+    long countByAnnouncementIdAndStatusNotIn(Long announcementId, Collection<EmailDeliveryStatus> statuses);
 
     @Modifying
     @Query("""

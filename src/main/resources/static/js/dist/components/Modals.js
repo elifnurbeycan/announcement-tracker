@@ -190,7 +190,7 @@ window.DepartmentModal = function DepartmentModal({
 }) {
   if (!isOpen) return null;
   const [name, setName] = React.useState(editDept ? editDept.name : '');
-  const [selectedSites, setSelectedSites] = React.useState(editDept ? editDept.assignedSites || [] : []);
+  const [selectedSites, setSelectedSites] = React.useState(editDept ? editDept.sites || [] : []);
   const [error, setError] = React.useState('');
   React.useEffect(() => {
     if (window.lucide) window.lucide.createIcons();
@@ -209,7 +209,7 @@ window.DepartmentModal = function DepartmentModal({
       await onSave({
         id: editDept ? editDept.id : null,
         name,
-        assignedSites: selectedSites
+        sites: selectedSites
       });
     } catch (err) {
       setError(err.message || 'Departman kaydedilirken hata oluştu');

@@ -9,6 +9,7 @@ import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
 import com.yasarbilgi.announcementtracker.repository.AnnouncementRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.AnnouncementService;
+import com.yasarbilgi.announcementtracker.service.AnnouncementPersistenceService;
 import com.yasarbilgi.announcementtracker.service.EmailService;
 import com.yasarbilgi.announcementtracker.service.NotificationOutboxService;
 import com.yasarbilgi.announcementtracker.service.scraper.AnnouncementScraper;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -44,6 +46,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private final ScraperRegistry scraperRegistry;
     private final EmailService emailService;
     private final NotificationOutboxService notificationOutboxService;
+    private final AnnouncementPersistenceService announcementPersistenceService;
 
     @Value("${announcement.tracker.email.default-recipient:admin@example.com}")
     private String defaultRecipient;
@@ -113,7 +116,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
      */
     private List<AnnouncementResponseDto> processScrapingForScraper(AnnouncementScraper scraper) {
         List<ScrapedAnnouncementDto> scrapedDtos = scraper.scrape(announcementRepository::existsByContentHash);
-        List<Announcement> newEntities = new ArrayList<>();
+        List<AnnouncementResponseDto> savedAnnouncements = new ArrayList<>();
 
         for (ScrapedAnnouncementDto dto : scrapedDtos) {
             if (!announcementRepository.existsByContentHash(dto.getContentHash())) {
@@ -129,14 +132,20 @@ public class AnnouncementServiceImpl implements AnnouncementService {
                         .isNotified(false)
                         .build();
 
-                newEntities.add(entity);
+                try {
+                    Announcement saved = announcementPersistenceService.saveAndFlush(entity);
+                    savedAnnouncements.add(mapToResponseDto(saved));
+                } catch (DataIntegrityViolationException duplicate) {
+                    log.info("Duyuru başka bir tarama işlemi tarafından kaydedildi, atlanıyor: {}",
+                            dto.getContentHash());
+                }
             }
         }
 
-        if (!newEntities.isEmpty()) {
-            List<Announcement> savedEntities = announcementRepository.saveAllAndFlush(newEntities);
-            log.info("{} kaynağı için {} yeni duyuru veritabanına kaydedildi.", scraper.getSiteType(), savedEntities.size());
-            return savedEntities.stream().map(this::mapToResponseDto).toList();
+        if (!savedAnnouncements.isEmpty()) {
+            log.info("{} kaynağı için {} yeni duyuru veritabanına kaydedildi.",
+                    scraper.getSiteType(), savedAnnouncements.size());
+            return savedAnnouncements;
         } else {
             log.info("{} kaynağında yeni duyuru bulunamadı.", scraper.getSiteType());
             return List.of();

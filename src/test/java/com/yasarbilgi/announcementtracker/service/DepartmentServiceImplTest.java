@@ -54,10 +54,10 @@ class DepartmentServiceImplTest {
         DepartmentRequestDto requestDto = DepartmentRequestDto.builder()
                 .name("Java")
                 .description("Java Ekibi")
-                .siteTypes(Set.of(SiteType.EBELGE_GIB))
+                .sites(Set.of(SiteType.EBELGE_GIB))
                 .build();
 
-        when(departmentRepository.existsByName("Java")).thenReturn(false);
+        when(departmentRepository.existsByNameIgnoreCase("Java")).thenReturn(false);
         when(departmentRepository.save(any(Department.class))).thenReturn(sampleDepartment);
 
         DepartmentResponseDto response = departmentService.createDepartment(requestDto);
@@ -75,7 +75,7 @@ class DepartmentServiceImplTest {
                 .description("Java Ekibi")
                 .build();
 
-        when(departmentRepository.existsByName("Java")).thenReturn(true);
+        when(departmentRepository.existsByNameIgnoreCase("Java")).thenReturn(true);
 
         ScrapingException exception = assertThrows(ScrapingException.class, () ->
                 departmentService.createDepartment(requestDto)
@@ -91,11 +91,11 @@ class DepartmentServiceImplTest {
         DepartmentRequestDto requestDto = DepartmentRequestDto.builder()
                 .name("Java & Spring")
                 .description("Güncellendi")
-                .siteTypes(Set.of(SiteType.EBELGE_GIB, SiteType.KOSGEB))
+                .sites(Set.of(SiteType.EBELGE_GIB, SiteType.KOSGEB))
                 .build();
 
         when(departmentRepository.findById(1L)).thenReturn(Optional.of(sampleDepartment));
-        when(departmentRepository.existsByNameAndIdNot("Java & Spring", 1L)).thenReturn(false);
+        when(departmentRepository.existsByNameIgnoreCaseAndIdNot("Java & Spring", 1L)).thenReturn(false);
         when(departmentRepository.save(any(Department.class))).thenReturn(sampleDepartment);
 
         DepartmentResponseDto response = departmentService.updateDepartment(1L, requestDto);

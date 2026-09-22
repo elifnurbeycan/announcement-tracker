@@ -1,7 +1,6 @@
 package com.yasarbilgi.announcementtracker.config;
 
-import com.yasarbilgi.announcementtracker.dto.response.LoginResponseDto;
-import com.yasarbilgi.announcementtracker.dto.response.UserLoginResponseDto;
+import com.yasarbilgi.announcementtracker.dto.session.SessionToken;
 import com.yasarbilgi.announcementtracker.service.AuthService;
 import com.yasarbilgi.announcementtracker.service.SubscriberService;
 import org.junit.jupiter.api.Test;
@@ -41,8 +40,9 @@ class OidcLoginSuccessHandlerTest {
         when(oidcUser.getIdToken()).thenReturn(oidcIdToken);
         when(oidcIdToken.getTokenValue()).thenReturn("header.payload.signature");
         when(oidcUser.getClaimAsMap("realm_access")).thenReturn(Map.of("roles", List.of("ROLE_ADMIN")));
+        when(oidcUser.getSubject()).thenReturn("keycloak-admin-subject");
         when(oidcUser.getClaimAsString("preferred_username")).thenReturn("admin");
-        when(authService.createOidcSession("admin")).thenReturn(LoginResponseDto.builder().token("opaque-admin-session").build());
+        when(authService.createOidcSession("keycloak-admin-subject", "admin")).thenReturn(new SessionToken("opaque-admin-session"));
 
         handler.onAuthenticationSuccess(request, response, authentication);
 
@@ -61,9 +61,10 @@ class OidcLoginSuccessHandlerTest {
         when(oidcUser.getIdToken()).thenReturn(oidcIdToken);
         when(oidcIdToken.getTokenValue()).thenReturn("header.payload.signature");
         when(oidcUser.getClaimAsMap("realm_access")).thenReturn(Map.of("roles", List.of("ROLE_USER")));
+        when(oidcUser.getSubject()).thenReturn("keycloak-user-subject");
         when(oidcUser.getEmail()).thenReturn("employee@example.com");
-        when(subscriberService.createOidcSession("employee@example.com"))
-                .thenReturn(UserLoginResponseDto.builder().token("opaque-user-session").build());
+        when(subscriberService.createOidcSession("keycloak-user-subject", "employee@example.com"))
+                .thenReturn(new SessionToken("opaque-user-session"));
 
         handler.onAuthenticationSuccess(request, response, authentication);
 

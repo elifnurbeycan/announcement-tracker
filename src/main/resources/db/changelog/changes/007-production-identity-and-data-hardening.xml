@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="007-add-stable-keycloak-subjects" author="announcement-tracker">
+        <addColumn tableName="admin_users">
+            <column name="keycloak_subject" type="VARCHAR(255)"/>
+        </addColumn>
+        <addColumn tableName="subscribers">
+            <column name="keycloak_subject" type="VARCHAR(255)"/>
+        </addColumn>
+        <addUniqueConstraint tableName="admin_users"
+                             columnNames="keycloak_subject"
+                             constraintName="uk_admin_users_keycloak_subject"/>
+        <addUniqueConstraint tableName="subscribers"
+                             columnNames="keycloak_subject"
+                             constraintName="uk_subscribers_keycloak_subject"/>
+    </changeSet>
+
+    <changeSet id="007-require-subscriber-full-name" author="announcement-tracker">
+        <sql>
+            UPDATE subscribers
+               SET full_name = LEFT(COALESCE(NULLIF(BTRIM(full_name), ''), email), 100)
+             WHERE full_name IS NULL OR BTRIM(full_name) = '' OR LENGTH(full_name) &gt; 100;
+        </sql>
+        <modifyDataType tableName="subscribers" columnName="full_name" newDataType="VARCHAR(100)"/>
+        <addNotNullConstraint tableName="subscribers"
+                              columnName="full_name"
+                              columnDataType="VARCHAR(100)"/>
+    </changeSet>
+
+    <changeSet id="007-case-insensitive-department-name" author="announcement-tracker">
+        <preConditions onFail="HALT" onError="HALT">
+            <sqlCheck expectedResult="0">
+                SELECT COUNT(*)
+                  FROM (
+                      SELECT LOWER(BTRIM(name))
+                        FROM departments
+                       GROUP BY LOWER(BTRIM(name))
+                      HAVING COUNT(*) &gt; 1
+                  ) duplicate_names
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            CREATE UNIQUE INDEX uk_departments_name_lower
+                ON departments (LOWER(BTRIM(name)));
+        </sql>
+    </changeSet>
+
+    <changeSet id="007-remove-redundant-announcement-hash-index" author="announcement-tracker">
+        <preConditions onFail="MARK_RAN">
+            <and>
+                <indexExists tableName="announcements" indexName="idx_announcement_hash"/>
+                <!-- Legacy Hibernate installations may have created this name as the
+                     backing index of a UNIQUE constraint. Such an index must be kept;
+                     only the independently-created duplicate index is removable. -->
+                <sqlCheck expectedResult="0">
+                    SELECT COUNT(*)
+                      FROM pg_constraint constraint_info
+                      JOIN pg_class index_info ON index_info.oid = constraint_info.conindid
+                      JOIN pg_namespace namespace_info ON namespace_info.oid = index_info.relnamespace
+                     WHERE namespace_info.nspname = CURRENT_SCHEMA()
+                       AND index_info.relname = 'idx_announcement_hash'
+                </sqlCheck>
+            </and>
+        </preConditions>
+        <dropIndex tableName="announcements" indexName="idx_announcement_hash"/>
+    </changeSet>
+
+</databaseChangeLog>

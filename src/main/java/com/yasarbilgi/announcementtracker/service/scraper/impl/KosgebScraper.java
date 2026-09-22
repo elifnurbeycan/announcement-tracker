@@ -77,7 +77,7 @@ public class KosgebScraper extends AbstractAnnouncementScraper {
             LocalDate announcementDate = parseKosgebDate(dateText);
 
             String content = title; // KOSGEB başlığı içerik özeti olarak kullanılır
-            String contentHash = calculateHash(getSiteType().name() + ":" + title + ":" + announcementDate.toString());
+            String contentHash = calculateAnnouncementHash(getSiteType(), detailUrl, title, announcementDate);
 
             if (hashExistsPredicate != null && hashExistsPredicate.test(contentHash)) {
                 consecutiveExistingCount++;
@@ -109,7 +109,7 @@ public class KosgebScraper extends AbstractAnnouncementScraper {
 
     private LocalDate parseKosgebDate(String rawText) {
         if (rawText == null || rawText.isBlank()) {
-            return LocalDate.now();
+            return null;
         }
         try {
             String cleaned = rawText.replaceAll("\\s+", " ").trim();
@@ -124,6 +124,6 @@ public class KosgebScraper extends AbstractAnnouncementScraper {
         } catch (Exception e) {
             log.warn("KOSGEB tarih ayrıştırma hatası [{}]: {}", rawText, e.getMessage());
         }
-        return LocalDate.now();
+        return null;
     }
 }

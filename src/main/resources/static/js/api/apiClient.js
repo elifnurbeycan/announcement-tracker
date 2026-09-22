@@ -20,7 +20,7 @@ window.ApiClient = {
         if (url.startsWith('/api/v1/settings/')) return true;
         if (url.startsWith('/api/v1/departments')) return true;
         if (url.startsWith('/api/v1/subscribers')) {
-            return !url.endsWith('/register') && !url.includes('/unsubscribe');
+            return !url.includes('/unsubscribe');
         }
         return method !== 'GET' && url.startsWith('/api/v1/announcements');
     },
