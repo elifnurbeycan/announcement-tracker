@@ -50,11 +50,6 @@ public interface AnnouncementService {
     AnnouncementResponseDto getAnnouncementById(Long id);
 
     /**
-     * Dispatches pending un-notified announcements to subscribers.
-     */
-    int notifyPendingAnnouncements();
-
-    /**
      * Sends a instant test email with the latest announcement to active subscribers.
      */
     void sendTestEmail();

@@ -18,7 +18,14 @@ public class ScraperRegistry {
 
     public ScraperRegistry(List<AnnouncementScraper> scraperList) {
         for (AnnouncementScraper scraper : scraperList) {
-            scrapers.put(scraper.getSiteType(), scraper);
+            SiteType siteType = scraper.getSiteType();
+            AnnouncementScraper existing = scrapers.putIfAbsent(siteType, scraper);
+            if (existing != null) {
+                throw new IllegalStateException(
+                        "Aynı kaynak türü için birden fazla scraper tanımlandı: " + siteType
+                                + " (" + existing.getClass().getSimpleName()
+                                + ", " + scraper.getClass().getSimpleName() + ")");
+            }
             log.info("Registered Scraper strategy: {} for SiteType: {}", scraper.getClass().getSimpleName(), scraper.getSiteType());
         }
     }

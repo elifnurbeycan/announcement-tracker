@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.function.Predicate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -22,7 +23,7 @@ class AbstractAnnouncementScraperTest {
         }
 
         @Override
-        public List<ScrapedAnnouncementDto> scrape() {
+        public List<ScrapedAnnouncementDto> scrape(Predicate<String> hashExistsPredicate) {
             return List.of();
         }
 
@@ -73,6 +74,9 @@ class AbstractAnnouncementScraperTest {
         assertThat(testScraper.testParseDate("5/9/2026")).isEqualTo(LocalDate.of(2026, 9, 5));
         assertThat(testScraper.testParseDate("2026-09-15")).isEqualTo(LocalDate.of(2026, 9, 15));
         assertThat(testScraper.testParseDate("Tarih: 15.09.2026")).isEqualTo(LocalDate.of(2026, 9, 15));
+        assertThat(testScraper.testParseDate("Tarih: 15.09.2026 saat 12:30"))
+                .isEqualTo(LocalDate.of(2026, 9, 15));
+        assertThat(testScraper.testParseDate("15-09-2026")).isEqualTo(LocalDate.of(2026, 9, 15));
 
         assertThat(testScraper.testParseDate("geçersiz_tarih")).isNull();
     }
@@ -107,5 +111,13 @@ class AbstractAnnouncementScraperTest {
 
         assertThat(testScraper.testResolveAbsoluteUrl("https://example.com/", "duyuru/1"))
                 .isEqualTo("https://example.com/duyuru/1");
+
+        assertThat(testScraper.testResolveAbsoluteUrl(
+                "https://example.com/path/page.html", "../dosya.pdf"))
+                .isEqualTo("https://example.com/dosya.pdf");
+        assertThat(testScraper.testResolveAbsoluteUrl("https://example.com", "//cdn.example.com/file.pdf"))
+                .isEqualTo("https://cdn.example.com/file.pdf");
+        assertThat(testScraper.testResolveAbsoluteUrl("https://example.com", "javascript:alert(1)"))
+                .isNull();
     }
 }

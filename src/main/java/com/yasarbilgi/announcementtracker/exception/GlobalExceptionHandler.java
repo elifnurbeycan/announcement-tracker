@@ -68,7 +68,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponseDto<Void>> handleValidationException(MethodArgumentNotValidException ex) {
         String errors = ex.getBindingResult().getFieldErrors().stream()
-                .map(err -> err.getDefaultMessage())
+                .map(err -> err.getField() + ": " + err.getDefaultMessage())
                 .collect(Collectors.joining(", "));
         log.warn("Doğrulama (Validation) hatası: {}", errors);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -113,7 +113,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponseDto<Void>> handleScrapingException(ScrapingException ex) {
         log.error("Scraping hatası: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponseDto.error(ex.getMessage()));
+                .body(ApiResponseDto.error(
+                        "Duyuru kaynağı taranırken bir hata oluştu. Lütfen daha sonra tekrar deneyin."));
     }
 
     @ExceptionHandler(IdentityProviderException.class)

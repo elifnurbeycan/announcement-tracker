@@ -7,8 +7,8 @@ import com.yasarbilgi.announcementtracker.dto.response.SubscriberResponseDto;
 import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
+import com.yasarbilgi.announcementtracker.exception.AlreadyExistsException;
 import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
-import com.yasarbilgi.announcementtracker.exception.ScrapingException;
 import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.DepartmentService;
@@ -47,8 +47,9 @@ public class DepartmentServiceImpl implements DepartmentService {
     @Transactional
     public DepartmentResponseDto createDepartment(DepartmentRequestDto dto) {
         String cleanName = dto.getName() != null ? dto.getName().trim() : "";
+        requireDepartmentName(cleanName);
         if (departmentRepository.existsByNameIgnoreCase(cleanName)) {
-            throw new ScrapingException("'" + cleanName + "' adında bir departman zaten mevcut. Lütfen farklı bir isim giriniz.");
+            throw new AlreadyExistsException("'" + cleanName + "' adında bir departman zaten mevcut. Lütfen farklı bir isim giriniz.");
         }
 
         Set<SiteType> sites = dto.getSites() != null ? new HashSet<>(dto.getSites()) : new HashSet<>();
@@ -71,8 +72,9 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Departman bulunamadı, ID: " + id));
 
         String cleanName = dto.getName() != null ? dto.getName().trim() : "";
+        requireDepartmentName(cleanName);
         if (departmentRepository.existsByNameIgnoreCaseAndIdNot(cleanName, id)) {
-            throw new ScrapingException("'" + cleanName + "' adında başka bir departman zaten mevcut.");
+            throw new AlreadyExistsException("'" + cleanName + "' adında başka bir departman zaten mevcut.");
         }
 
         dept.setName(cleanName);
@@ -107,11 +109,7 @@ public class DepartmentServiceImpl implements DepartmentService {
     public void deleteDepartmentsBatch(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return;
         for (Long id : ids) {
-            try {
-                deleteDepartment(id);
-            } catch (Exception e) {
-                log.warn("Toplu silme sırasında departman ID: {} silinemedi: {}", id, e.getMessage());
-            }
+            deleteDepartment(id);
         }
         log.info("Toplu departman silme tamamlandı. Toplam talep edilen: {}", ids.size());
     }
@@ -148,6 +146,12 @@ public class DepartmentServiceImpl implements DepartmentService {
                 .subscriberCount(subCount)
                 .createdAt(dept.getCreatedAt())
                 .build();
+    }
+
+    private void requireDepartmentName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Departman adı boş olamaz.");
+        }
     }
 
     private SubscriberResponseDto mapSubscriberToDto(Subscriber entity) {

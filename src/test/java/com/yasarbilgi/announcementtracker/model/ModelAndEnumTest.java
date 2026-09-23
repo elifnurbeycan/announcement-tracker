@@ -8,7 +8,6 @@ import com.yasarbilgi.announcementtracker.entity.AdminUser;
 import com.yasarbilgi.announcementtracker.entity.Announcement;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.entity.SystemSetting;
-import com.yasarbilgi.announcementtracker.enums.ScrapingStatus;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
 import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
 import com.yasarbilgi.announcementtracker.exception.ScrapingException;
@@ -24,14 +23,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ModelAndEnumTest {
 
     @Test
-    @DisplayName("SiteType ve ScrapingStatus enum testleri")
+    @DisplayName("SiteType enum testi")
     void enum_Tests() {
         assertThat(SiteType.EBELGE_GIB.getDisplayName()).isEqualTo("e-Belge GİB");
         assertThat(SiteType.EBELGE_GIB.getBaseUrl()).contains("ebelge.gib.gov.tr");
         assertThat(SiteType.valueOf("EBELGE_GIB")).isEqualTo(SiteType.EBELGE_GIB);
-
-        assertThat(ScrapingStatus.SUCCESS.name()).isEqualTo("SUCCESS");
-        assertThat(ScrapingStatus.valueOf("FAILED")).isEqualTo(ScrapingStatus.FAILED);
     }
 
     @Test

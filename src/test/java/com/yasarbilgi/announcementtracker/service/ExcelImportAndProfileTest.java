@@ -5,7 +5,7 @@ import com.yasarbilgi.announcementtracker.dto.response.SubscriberResponseDto;
 import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
-import com.yasarbilgi.announcementtracker.exception.ScrapingException;
+import com.yasarbilgi.announcementtracker.exception.UnauthorizedException;
 import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.impl.SubscriberServiceImpl;
@@ -165,14 +165,14 @@ class ExcelImportAndProfileTest {
 
     @Test
     @DisplayName("Güvenlik: Geçersiz token ile profile erişim engellenir")
-    void security_InvalidToken_ThrowsScrapingException() {
-        assertThrows(ScrapingException.class, () -> subscriberService.validateUserToken("INVALID_TOKEN"));
+    void security_InvalidToken_ThrowsUnauthorizedException() {
+        assertThrows(UnauthorizedException.class, () -> subscriberService.validateUserToken("INVALID_TOKEN"));
     }
 
     @Test
     @DisplayName("Güvenlik: İmzası doğrulanmamış JWT benzeri token kullanıcı oturumu sayılmaz")
-    void security_ForgedJwtLikeToken_ThrowsScrapingException() {
-        assertThrows(ScrapingException.class,
+    void security_ForgedJwtLikeToken_ThrowsUnauthorizedException() {
+        assertThrows(UnauthorizedException.class,
                 () -> subscriberService.validateUserToken("Bearer forged.header.payload"));
     }
 }

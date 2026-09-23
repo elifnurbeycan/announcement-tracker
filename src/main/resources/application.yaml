@@ -78,8 +78,9 @@ spring:
 
 announcement:
   tracker:
-    cron: "${ANNOUNCEMENT_CRON:0 0 * * * *}"
     enabled: ${ANNOUNCEMENT_SCHEDULER_ENABLED:true}
+    scheduler:
+      initial-delay-seconds: ${ANNOUNCEMENT_INITIAL_DELAY_SECONDS:30}
     app-base-url: ${APP_BASE_URL:http://localhost:8080}
     unsubscribe:
       secret: ${UNSUBSCRIBE_TOKEN_SECRET:local-development-unsubscribe-key-change-me}
@@ -87,6 +88,7 @@ announcement:
     email:
       from: ${MAIL_FROM:noreply@announcementtracker.com}
       default-recipient: ${DEFAULT_RECIPIENT:admin@example.com}
+      suppress-initial-backfill: ${SUPPRESS_INITIAL_BACKFILL_NOTIFICATIONS:true}
       outbox:
         poll-interval-ms: ${EMAIL_OUTBOX_POLL_INTERVAL_MS:30000}
         initial-delay-ms: ${EMAIL_OUTBOX_INITIAL_DELAY_MS:10000}

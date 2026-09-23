@@ -23,13 +23,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -53,6 +53,9 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     @Value("${announcement.tracker.email.default-recipient:admin@example.com}")
     private String defaultRecipient;
 
+    @Value("${announcement.tracker.email.suppress-initial-backfill:true}")
+    private boolean suppressInitialBackfill;
+
     /**
      * Sistemde kayıtlı tüm duyuru kaynaklarını (scrapers) paralel olarak tarar ve yeni duyuruları kaydeder.
      */
@@ -65,6 +68,10 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         if (scrapers.isEmpty()) {
             return List.of();
         }
+
+        Map<SiteType, Boolean> initializedSources = new EnumMap<>(SiteType.class);
+        scrapers.forEach(scraper -> initializedSources.put(
+                scraper.getSiteType(), announcementRepository.existsBySourceSite(scraper.getSiteType())));
 
         // Tüm kazıyıcılar için eş zamanlı CompletableFuture görevleri oluşturulur
         List<CompletableFuture<List<AnnouncementResponseDto>>> futures = scrapers.stream()
@@ -90,7 +97,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         // Yalnızca bu taramada eklenen duyurular için bildirim oluşturulur.
         // Eski "bildirilmedi" kayıtların tamamını tekrar kuyruğa almak toplu e-postaya yol açar.
         if (!newAnnouncements.isEmpty()) {
-            notifyNewAnnouncements(newAnnouncements);
+            notifyNewAnnouncements(filterNotifiableAnnouncements(newAnnouncements, initializedSources));
         }
 
         return newAnnouncements;
@@ -104,11 +111,13 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     public List<AnnouncementResponseDto> triggerScrapeSite(SiteType siteType) {
         log.info("Belirtilen site için web kazıma başlatılıyor: {}", siteType);
         AnnouncementScraper scraper = scraperRegistry.getRequiredScraper(siteType);
+        boolean sourceInitialized = announcementRepository.existsBySourceSite(siteType);
 
         List<AnnouncementResponseDto> newAnnouncements = processScrapingForScraper(scraper);
 
         if (!newAnnouncements.isEmpty()) {
-            notifyNewAnnouncements(newAnnouncements);
+            notifyNewAnnouncements(filterNotifiableAnnouncements(
+                    newAnnouncements, Map.of(siteType, sourceInitialized)));
         }
 
         return newAnnouncements;
@@ -207,30 +216,6 @@ public class AnnouncementServiceImpl implements AnnouncementService {
         return mapToResponseDto(entity);
     }
 
-    /**
-     * Henüz bildirim gönderilmemiş duyuruları aktif abonelere toplu e-posta olarak iletir.
-     */
-    @Override
-    @Transactional
-    public int notifyPendingAnnouncements() {
-        List<Announcement> pending = announcementRepository.findByIsNotifiedFalse();
-        if (pending.isEmpty()) {
-            return 0;
-        }
-
-        LocalDate today = LocalDate.now();
-        // Bugün yayımlanan duyuruları öncelikli olarak filtreler
-        List<Announcement> todaysAnnouncements = pending.stream()
-                .filter(a -> a.getAnnouncementDate() != null && (a.getAnnouncementDate().isEqual(today) || a.getAnnouncementDate().isAfter(today)))
-                .toList();
-
-        List<Announcement> toNotify = !todaysAnnouncements.isEmpty()
-                ? todaysAnnouncements
-                : pending;
-
-        return enqueueAnnouncements(toNotify);
-    }
-
     private int notifyNewAnnouncements(List<AnnouncementResponseDto> newAnnouncements) {
         List<Long> ids = newAnnouncements.stream()
                 .map(AnnouncementResponseDto::getId)
@@ -240,6 +225,24 @@ public class AnnouncementServiceImpl implements AnnouncementService {
             return 0;
         }
         return enqueueAnnouncements(announcementRepository.findAllById(ids));
+    }
+
+    private List<AnnouncementResponseDto> filterNotifiableAnnouncements(
+            List<AnnouncementResponseDto> newAnnouncements,
+            Map<SiteType, Boolean> initializedSources) {
+        if (!suppressInitialBackfill) {
+            return newAnnouncements;
+        }
+
+        List<AnnouncementResponseDto> notifiable = newAnnouncements.stream()
+                .filter(item -> Boolean.TRUE.equals(initializedSources.get(item.getSourceSite())))
+                .toList();
+        int suppressedCount = newAnnouncements.size() - notifiable.size();
+        if (suppressedCount > 0) {
+            log.info("İlk kaynak senkronizasyonunda bulunan {} geçmiş duyuru için bildirim oluşturulmadı.",
+                    suppressedCount);
+        }
+        return notifiable;
     }
 
     private int enqueueAnnouncements(List<Announcement> announcements) {
@@ -281,7 +284,7 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     @Override
     public void sendTestEmail() {
         List<String> recipients = getRecipientEmails();
-        var latest = announcementRepository.findAll().stream().findFirst();
+        Optional<Announcement> latest = announcementRepository.findTopByOrderByCreatedAtDesc();
         if (latest.isPresent()) {
             log.info("Sending test notification to {} recipients...", recipients.size());
             emailService.sendSingleAnnouncementNotification(latest.get(), recipients);
@@ -293,7 +296,9 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     private List<String> getRecipientEmails() {
         List<Subscriber> activeSubscribers = subscriberRepository.findByActiveTrue();
         if (activeSubscribers.isEmpty()) {
-            return List.of(defaultRecipient);
+            return defaultRecipient == null || defaultRecipient.isBlank()
+                    ? List.of()
+                    : List.of(defaultRecipient);
         }
         return activeSubscribers.stream().map(Subscriber::getEmail).toList();
     }

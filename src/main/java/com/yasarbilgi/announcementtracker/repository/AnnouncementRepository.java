@@ -18,9 +18,9 @@ public interface AnnouncementRepository extends JpaRepository<Announcement, Long
 
     boolean existsByContentHash(String contentHash);
 
-    Optional<Announcement> findByContentHash(String contentHash);
+    boolean existsBySourceSite(SiteType sourceSite);
 
-    List<Announcement> findByIsNotifiedFalse();
+    Optional<Announcement> findTopByOrderByCreatedAtDesc();
 
     @Query("""
             SELECT a FROM Announcement a

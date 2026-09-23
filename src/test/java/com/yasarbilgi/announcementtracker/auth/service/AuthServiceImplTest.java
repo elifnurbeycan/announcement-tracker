@@ -1,7 +1,7 @@
 package com.yasarbilgi.announcementtracker.auth.service;
 
 import com.yasarbilgi.announcementtracker.entity.AdminUser;
-import com.yasarbilgi.announcementtracker.exception.ScrapingException;
+import com.yasarbilgi.announcementtracker.exception.UnauthorizedException;
 import com.yasarbilgi.announcementtracker.repository.AdminUserRepository;
 import com.yasarbilgi.announcementtracker.service.impl.AuthServiceImpl;
 import org.junit.jupiter.api.DisplayName;
@@ -53,15 +53,15 @@ class AuthServiceImplTest {
         when(adminUserRepository.findByUsername("keycloak-admin")).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> authService.createOidcSession("different-subject", "keycloak-admin"))
-                .isInstanceOf(ScrapingException.class)
+                .isInstanceOf(UnauthorizedException.class)
                 .hasMessageContaining("farklı bir Keycloak kimliği");
     }
 
     @Test
-    @DisplayName("Geçersiz token doğrulamasında ScrapingException fırlatılmalı")
+    @DisplayName("Geçersiz token doğrulamasında UnauthorizedException fırlatılmalı")
     void validateToken_InvalidToken_ShouldThrowException() {
         assertThatThrownBy(() -> authService.validateToken("Bearer INVALID_TOKEN_123"))
-                .isInstanceOf(ScrapingException.class)
+                .isInstanceOf(UnauthorizedException.class)
                 .hasMessageContaining("Oturum süreniz doldu");
     }
 
@@ -69,7 +69,7 @@ class AuthServiceImplTest {
     @DisplayName("İmzası doğrulanmamış JWT benzeri token admin oturumu olarak kabul edilmemeli")
     void validateToken_ForgedJwtLikeToken_ShouldThrowException() {
         assertThatThrownBy(() -> authService.validateToken("Bearer forged.header.payload"))
-                .isInstanceOf(ScrapingException.class)
+                .isInstanceOf(UnauthorizedException.class)
                 .hasMessageContaining("Oturum süreniz doldu");
     }
 }

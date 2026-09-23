@@ -68,6 +68,16 @@ class TaklitTagsisScraperTest {
         assertTrue(exception.getMessage().contains("Sunucu hatası"));
     }
 
+    @Test
+    void rejectsUnreasonableRemoteRecordCount() throws Exception {
+        StubTaklitTagsisScraper scraper = new StubTaklitTagsisScraper(objectMapper, Map.of(
+                "304:0", page(100_001, record("Firma A", "Marka A", "Ürün A", "Neden A", "P-1"))));
+
+        ScrapingException exception = assertThrows(ScrapingException.class, scraper::scrape);
+
+        assertTrue(exception.getMessage().contains("güvenli kayıt sınırını"));
+    }
+
     private JsonNode page(int total, JsonNode... records) throws Exception {
         var data = objectMapper.createArrayNode();
         for (JsonNode record : records) {

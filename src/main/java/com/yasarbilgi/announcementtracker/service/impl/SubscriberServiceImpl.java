@@ -8,9 +8,10 @@ import com.yasarbilgi.announcementtracker.dto.session.SessionToken;
 import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
+import com.yasarbilgi.announcementtracker.exception.AlreadyExistsException;
+import com.yasarbilgi.announcementtracker.exception.InvalidTokenException;
 import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
-import com.yasarbilgi.announcementtracker.exception.ScrapingException;
-import com.yasarbilgi.announcementtracker.repository.AnnouncementRepository;
+import com.yasarbilgi.announcementtracker.exception.UnauthorizedException;
 import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.EmailService;
@@ -36,7 +37,6 @@ public class SubscriberServiceImpl implements SubscriberService {
 
     private final SubscriberRepository subscriberRepository;
     private final DepartmentRepository departmentRepository;
-    private final AnnouncementRepository announcementRepository;
     private final EmailService emailService;
     private final KeycloakAdminService keycloakAdminService;
     private final UnsubscribeTokenService unsubscribeTokenService;
@@ -52,12 +52,8 @@ public class SubscriberServiceImpl implements SubscriberService {
     @Transactional
     public SubscriberResponseDto addSubscriber(SubscriberRequestDto dto) {
         String normalizedEmail = dto.getEmail().trim().toLowerCase(Locale.ROOT);
-        dto.setEmail(normalizedEmail);
         Subscriber saved;
-        Set<Department> assignedDepts = new HashSet<>();
-        if (dto.getDepartmentIds() != null && !dto.getDepartmentIds().isEmpty()) {
-            assignedDepts = new HashSet<>(departmentRepository.findAllById(dto.getDepartmentIds()));
-        }
+        Set<Department> assignedDepts = resolveDepartments(dto.getDepartmentIds());
 
         Set<SiteType> preferredSites;
         if (dto.getSubscribedSites() != null && !dto.getSubscribedSites().isEmpty()) {
@@ -80,8 +76,8 @@ public class SubscriberServiceImpl implements SubscriberService {
             saved = subscriberRepository.saveAndFlush(saved);
         } else {
             Subscriber subscriber = Subscriber.builder()
-                    .email(dto.getEmail())
-                    .fullName(dto.getFullName())
+                    .email(normalizedEmail)
+                    .fullName(dto.getFullName().trim())
                     .subscribedSites(preferredSites)
                     .departments(assignedDepts)
                     .active(true)
@@ -118,13 +114,13 @@ public class SubscriberServiceImpl implements SubscriberService {
     @Transactional
     public SubscriberResponseDto updateSubscriber(Long id, SubscriberRequestDto dto) {
         Subscriber subscriber = subscriberRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Abone bulunamadı, ID: " + id));
         String previousEmail = subscriber.getEmail();
 
         if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
             String newEmail = dto.getEmail().trim().toLowerCase();
             if (!newEmail.equalsIgnoreCase(subscriber.getEmail()) && subscriberRepository.existsByEmail(newEmail)) {
-                throw new ScrapingException("'" + newEmail + "' adında bir e-posta adresi zaten kullanımda.");
+                throw new AlreadyExistsException("'" + newEmail + "' e-posta adresi zaten kullanımda.");
             }
             subscriber.setEmail(newEmail);
         }
@@ -138,11 +134,7 @@ public class SubscriberServiceImpl implements SubscriberService {
         }
 
         if (dto.getDepartmentIds() != null) {
-            Set<Department> newDepts = new HashSet<>();
-            if (!dto.getDepartmentIds().isEmpty()) {
-                newDepts = new HashSet<>(departmentRepository.findAllById(dto.getDepartmentIds()));
-            }
-            subscriber.setDepartments(newDepts);
+            subscriber.setDepartments(resolveDepartments(dto.getDepartmentIds()));
         }
 
         String keycloakSubject = keycloakAdminService.updateSubscriber(
@@ -164,7 +156,7 @@ public class SubscriberServiceImpl implements SubscriberService {
     @Transactional
     public void deleteSubscriber(Long id) {
         Subscriber subscriber = subscriberRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Abone bulunamadı, ID: " + id));
 
         subscriberRepository.delete(subscriber);
         subscriberRepository.flush();
@@ -177,11 +169,7 @@ public class SubscriberServiceImpl implements SubscriberService {
     public void deleteSubscribersBatch(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return;
         for (Long id : ids) {
-            try {
-                deleteSubscriber(id);
-            } catch (Exception e) {
-                log.warn("Toplu silme sırasında abone ID: {} silinemedi: {}", id, e.getMessage());
-            }
+            deleteSubscriber(id);
         }
         log.info("Toplu abone silme tamamlandı. Toplam talep edilen: {}", ids.size());
     }
@@ -190,7 +178,7 @@ public class SubscriberServiceImpl implements SubscriberService {
     @Transactional
     public void toggleSubscriberStatus(Long id, boolean active) {
         Subscriber subscriber = subscriberRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Abone bulunamadı, ID: " + id));
         String keycloakSubject = keycloakAdminService.provisionSubscriber(
                 subscriber.getEmail(), subscriber.getFullName(), active);
         if (keycloakSubject != null && !keycloakSubject.isBlank()) {
@@ -204,9 +192,9 @@ public class SubscriberServiceImpl implements SubscriberService {
     @Override
     public void sendPasswordSetupEmail(Long id) {
         Subscriber subscriber = subscriberRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Abone bulunamadı, ID: " + id));
         if (!subscriber.isActive()) {
-            throw new ScrapingException("Pasif abonelere şifre belirleme bağlantısı gönderilemez.");
+            throw new IllegalArgumentException("Pasif abonelere şifre belirleme bağlantısı gönderilemez.");
         }
         String keycloakSubject = keycloakAdminService.provisionSubscriber(
                 subscriber.getEmail(), subscriber.getFullName(), true);
@@ -221,7 +209,7 @@ public class SubscriberServiceImpl implements SubscriberService {
     @Transactional
     public SubscriberResponseDto updateSitePreferences(Long id, Set<SiteType> siteTypes) {
         Subscriber subscriber = subscriberRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Abone bulunamadı, ID: " + id));
 
         Set<SiteType> newPreferences = siteTypes != null
                 ? new HashSet<>(siteTypes)
@@ -237,13 +225,9 @@ public class SubscriberServiceImpl implements SubscriberService {
     @Transactional
     public SubscriberResponseDto updateSubscriberDepartments(Long id, Set<Long> departmentIds) {
         Subscriber subscriber = subscriberRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Subscriber not found with ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Abone bulunamadı, ID: " + id));
 
-        Set<Department> newDepts = new HashSet<>();
-        if (departmentIds != null && !departmentIds.isEmpty()) {
-            newDepts = new HashSet<>(departmentRepository.findAllById(departmentIds));
-        }
-
+        Set<Department> newDepts = resolveDepartments(departmentIds);
         subscriber.setDepartments(newDepts);
         Subscriber updated = subscriberRepository.save(subscriber);
         log.info("Updated departments for subscriber ID: {} -> {}", id, newDepts.stream().map(Department::getName).toList());
@@ -283,11 +267,15 @@ public class SubscriberServiceImpl implements SubscriberService {
     @Transactional
     public boolean unsubscribeByToken(String token) {
         if (token == null || token.isBlank()) {
-            return false;
+            throw new InvalidTokenException("Abonelikten çıkma bağlantısı geçersiz veya süresi dolmuş.");
         }
-        return unsubscribeTokenService.verifyAndExtractEmail(token)
-                .map(this::unsubscribeByEmail)
-                .orElse(false);
+        String email = unsubscribeTokenService.verifyAndExtractEmail(token)
+                .orElseThrow(() -> new InvalidTokenException(
+                        "Abonelikten çıkma bağlantısı geçersiz veya süresi dolmuş."));
+        if (!unsubscribeByEmail(email)) {
+            throw new InvalidTokenException("Bu bağlantıyla eşleşen aktif bir abonelik bulunamadı.");
+        }
+        return true;
     }
 
     @Override
@@ -467,11 +455,32 @@ public class SubscriberServiceImpl implements SubscriberService {
         }
     }
 
+    private Set<Department> resolveDepartments(Set<Long> departmentIds) {
+        if (departmentIds == null || departmentIds.isEmpty()) {
+            return new HashSet<>();
+        }
+        if (departmentIds.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("Departman ID değeri boş olamaz.");
+        }
+
+        List<Department> foundDepartments = departmentRepository.findAllById(departmentIds);
+        Set<Long> foundIds = foundDepartments.stream()
+                .map(Department::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<Long> missingIds = new TreeSet<>(departmentIds);
+        missingIds.removeAll(foundIds);
+        if (!missingIds.isEmpty()) {
+            throw new ResourceNotFoundException("Departman bulunamadı, ID: " + missingIds);
+        }
+        return new HashSet<>(foundDepartments);
+    }
+
 
     @Override
     public SubscriberResponseDto validateUserToken(String userToken) {
         if (userToken == null || userToken.isBlank()) {
-            throw new ScrapingException("Oturum jetonu bulunamadı.");
+            throw new UnauthorizedException("Oturum jetonu bulunamadı. Lütfen giriş yapın.");
         }
         if (userToken.startsWith("Bearer ")) {
             userToken = userToken.substring(7);
@@ -483,7 +492,7 @@ public class SubscriberServiceImpl implements SubscriberService {
             if (subscriber != null) {
                 if (!subscriber.isActive()) {
                     activeUserSessions.remove(userToken);
-                    throw new ScrapingException("Aboneliğiniz pasif durumdadır. Lütfen yönetici ile iletişime geçin.");
+                    throw new UnauthorizedException("Aboneliğiniz pasif durumdadır. Lütfen yönetici ile iletişime geçin.");
                 }
                 return mapToDto(subscriber);
             }
@@ -492,14 +501,14 @@ public class SubscriberServiceImpl implements SubscriberService {
         if (session != null) {
             activeUserSessions.remove(userToken);
         }
-        throw new ScrapingException("Oturum süreniz doldu. Lütfen tekrar giriş yapın.");
+        throw new UnauthorizedException("Oturum süreniz doldu. Lütfen tekrar giriş yapın.");
     }
 
     @Override
     @Transactional
     public SessionToken createOidcSession(String keycloakSubject, String email) {
         if (keycloakSubject == null || keycloakSubject.isBlank()) {
-            throw new ScrapingException("Keycloak kullanıcı kimliği alınamadı.");
+            throw new UnauthorizedException("Keycloak kullanıcı kimliği alınamadı.");
         }
         String cleanEmail = email == null ? "" : email.trim().toLowerCase();
         Subscriber subscriber = subscriberRepository.findByKeycloakSubject(keycloakSubject)
@@ -508,14 +517,14 @@ public class SubscriberServiceImpl implements SubscriberService {
                             if (existing.getKeycloakSubject() != null
                                     && !existing.getKeycloakSubject().isBlank()
                                     && !existing.getKeycloakSubject().equals(keycloakSubject)) {
-                                throw new ScrapingException("Bu çalışan hesabı farklı bir Keycloak kimliğiyle eşleştirilmiş.");
+                                throw new UnauthorizedException("Bu çalışan hesabı farklı bir Keycloak kimliğiyle eşleştirilmiş.");
                             }
                             return existing;
                         })
-                        .orElseThrow(() -> new ScrapingException(
+                        .orElseThrow(() -> new UnauthorizedException(
                                 "OIDC kullanıcısı yerel çalışan kaydıyla eşleşmiyor.")));
         if (!subscriber.isActive()) {
-            throw new ScrapingException("Aboneliğiniz pasif durumdadır.");
+            throw new UnauthorizedException("Aboneliğiniz pasif durumdadır.");
         }
         subscriber.setKeycloakSubject(keycloakSubject);
         subscriberRepository.save(subscriber);

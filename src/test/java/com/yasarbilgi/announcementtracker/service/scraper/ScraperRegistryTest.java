@@ -38,4 +38,23 @@ class ScraperRegistryTest {
     void getAllScrapers_ShouldReturnAllRegisteredStrategies() {
         assertThat(registry.getAllScrapers()).hasSize(1);
     }
+
+    @Test
+    @DisplayName("Kayıtlı olmayan kaynak için açık hata verme")
+    void getRequiredScraper_MissingSite_ShouldThrowException() {
+        assertThatThrownBy(() -> registry.getRequiredScraper(SiteType.TAKLIT_TAGSIS))
+                .isInstanceOf(ScrapingException.class)
+                .hasMessageContaining("TAKLIT_TAGSIS");
+    }
+
+    @Test
+    @DisplayName("Aynı kaynak için birden fazla scraper kaydını reddetme")
+    void constructor_DuplicateSiteType_ShouldFailFast() {
+        AnnouncementScraper duplicate = mock(AnnouncementScraper.class);
+        when(duplicate.getSiteType()).thenReturn(SiteType.EBELGE_GIB);
+
+        assertThatThrownBy(() -> new ScraperRegistry(List.of(gibScraper, duplicate)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("EBELGE_GIB");
+    }
 }
