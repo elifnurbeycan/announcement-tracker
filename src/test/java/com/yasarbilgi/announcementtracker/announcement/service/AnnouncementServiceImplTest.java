@@ -66,6 +66,7 @@ class AnnouncementServiceImplTest {
     @BeforeEach
     void setUp() {
         org.springframework.test.util.ReflectionTestUtils.setField(announcementService, "defaultRecipient", "admin@example.com");
+        org.springframework.test.util.ReflectionTestUtils.setField(announcementService, "suppressInitialBackfill", true);
         scraperMock = mock(AnnouncementScraper.class);
         lenient().when(scraperMock.getSiteType()).thenReturn(SiteType.EBELGE_GIB);
 
@@ -83,6 +84,7 @@ class AnnouncementServiceImplTest {
     @DisplayName("Tüm scraper'lar tetiklendiğinde yeni duyuruların kaydedilmesi ve maillerin filtrelenerek gönderilmesi")
     void triggerScrapeAll_ShouldScrapeAndNotifySubscribersOfMatchingSite() {
         when(scraperRegistry.getAllScrapers()).thenReturn(List.of(scraperMock));
+        when(announcementRepository.existsBySourceSite(SiteType.EBELGE_GIB)).thenReturn(true);
         when(scraperMock.scrape(any())).thenReturn(List.of(scrapedDto));
         when(announcementRepository.existsByContentHash("hash123")).thenReturn(false);
 
@@ -118,9 +120,45 @@ class AnnouncementServiceImplTest {
         assertThat(results.get(0).getTitle()).isEqualTo("Yeni GİB Duyurusu");
 
         verify(announcementPersistenceService).saveAndFlush(any(Announcement.class));
-        verify(announcementRepository, never()).findByIsNotifiedFalse();
         verify(notificationOutboxService).enqueue(savedEntity, "sub1@gib.com");
         verify(notificationOutboxService, never()).enqueue(savedEntity, "sub2@other.com");
+    }
+
+    @Test
+    @DisplayName("Kaynak ilk kez senkronize edilirken geçmiş duyurular kaydedilmeli fakat e-posta kuyruğuna alınmamalı")
+    void triggerScrapeAll_InitialBackfill_ShouldNotNotify() {
+        when(scraperRegistry.getAllScrapers()).thenReturn(List.of(scraperMock));
+        when(announcementRepository.existsBySourceSite(SiteType.EBELGE_GIB)).thenReturn(false);
+        when(scraperMock.scrape(any())).thenReturn(List.of(scrapedDto));
+        when(announcementRepository.existsByContentHash("hash123")).thenReturn(false);
+        when(announcementPersistenceService.saveAndFlush(any(Announcement.class))).thenAnswer(invocation -> {
+            Announcement announcement = invocation.getArgument(0);
+            announcement.setId(1L);
+            return announcement;
+        });
+
+        List<AnnouncementResponseDto> results = announcementService.triggerScrapeAll();
+
+        assertThat(results).hasSize(1);
+        verify(notificationOutboxService, never()).enqueue(any(), anyString());
+        verify(announcementRepository, never()).findAllById(any());
+    }
+
+    @Test
+    @DisplayName("Test e-postasında en son oluşturulan duyurunun kullanılması")
+    void sendTestEmail_ShouldUseLatestAnnouncement() {
+        Announcement latest = Announcement.builder()
+                .id(5L)
+                .title("Son duyuru")
+                .sourceSite(SiteType.EBELGE_GIB)
+                .build();
+        when(announcementRepository.findTopByOrderByCreatedAtDesc()).thenReturn(Optional.of(latest));
+        when(subscriberRepository.findByActiveTrue()).thenReturn(List.of());
+
+        announcementService.sendTestEmail();
+
+        verify(emailService).sendSingleAnnouncementNotification(latest, List.of("admin@example.com"));
+        verify(announcementRepository, never()).findAll();
     }
 
     @Test

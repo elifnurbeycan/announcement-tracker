@@ -3,7 +3,7 @@ package com.yasarbilgi.announcementtracker.service.impl;
 import com.yasarbilgi.announcementtracker.dto.response.AdminUserDto;
 import com.yasarbilgi.announcementtracker.dto.session.SessionToken;
 import com.yasarbilgi.announcementtracker.entity.AdminUser;
-import com.yasarbilgi.announcementtracker.exception.ScrapingException;
+import com.yasarbilgi.announcementtracker.exception.UnauthorizedException;
 import com.yasarbilgi.announcementtracker.repository.AdminUserRepository;
 import com.yasarbilgi.announcementtracker.service.AuthService;
 import lombok.RequiredArgsConstructor;
@@ -65,7 +65,7 @@ public class AuthServiceImpl implements AuthService {
                     if (admin.getKeycloakSubject() != null
                             && !admin.getKeycloakSubject().isBlank()
                             && !admin.getKeycloakSubject().equals(keycloakSubject)) {
-                        throw new ScrapingException("Bu yönetici hesabı farklı bir Keycloak kimliğiyle eşleştirilmiş.");
+                        throw new UnauthorizedException("Bu yönetici hesabı farklı bir Keycloak kimliğiyle eşleştirilmiş.");
                     }
                     return admin;
                 })
@@ -77,14 +77,14 @@ public class AuthServiceImpl implements AuthService {
 
     private void requireIdentity(String value, String fieldName) {
         if (value == null || value.isBlank()) {
-            throw new ScrapingException(fieldName + " alınamadı.");
+            throw new UnauthorizedException(fieldName + " alınamadı.");
         }
     }
 
     @Override
     public AdminUserDto validateToken(String token) {
         if (token == null || token.isBlank()) {
-            throw new ScrapingException("Oturum jetonu bulunamadı. Lütfen giriş yapın.");
+            throw new UnauthorizedException("Oturum jetonu bulunamadı. Lütfen giriş yapın.");
         }
         if (token.startsWith("Bearer ")) {
             token = token.substring(7);
@@ -98,7 +98,7 @@ public class AuthServiceImpl implements AuthService {
         if (session != null) {
             activeSessions.remove(token);
         }
-        throw new ScrapingException("Oturum süreniz doldu. Lütfen tekrar giriş yapın.");
+        throw new UnauthorizedException("Oturum süreniz doldu. Lütfen tekrar giriş yapın.");
     }
 
     private AdminUserDto mapToDto(AdminUser admin) {

@@ -66,14 +66,6 @@ public class AnnouncementController {
         ));
     }
 
-    @PostMapping("/notify-pending")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
-    public ResponseEntity<ApiResponseDto<Integer>> notifyPending() {
-        int count = announcementService.notifyPendingAnnouncements();
-        return ResponseEntity.ok(ApiResponseDto.ok(
-                count + " kalıcı e-posta teslimatı kuyruğa alındı.", count));
-    }
-
     @PostMapping("/send-test-email")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN')")
     public ResponseEntity<ApiResponseDto<Void>> sendTestEmail() {

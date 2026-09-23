@@ -4,8 +4,8 @@ import com.yasarbilgi.announcementtracker.dto.request.DepartmentRequestDto;
 import com.yasarbilgi.announcementtracker.dto.response.DepartmentResponseDto;
 import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
+import com.yasarbilgi.announcementtracker.exception.AlreadyExistsException;
 import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
-import com.yasarbilgi.announcementtracker.exception.ScrapingException;
 import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
 import com.yasarbilgi.announcementtracker.service.impl.DepartmentServiceImpl;
@@ -77,12 +77,25 @@ class DepartmentServiceImplTest {
 
         when(departmentRepository.existsByNameIgnoreCase("Java")).thenReturn(true);
 
-        ScrapingException exception = assertThrows(ScrapingException.class, () ->
+        AlreadyExistsException exception = assertThrows(AlreadyExistsException.class, () ->
                 departmentService.createDepartment(requestDto)
         );
 
         assertTrue(exception.getMessage().contains("departman zaten mevcut"));
         verify(departmentRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Servis doğrudan çağrıldığında boş departman adı reddedilmeli")
+    void createDepartment_BlankName_ThrowsException() {
+        DepartmentRequestDto requestDto = DepartmentRequestDto.builder().name("   ").build();
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> departmentService.createDepartment(requestDto));
+
+        assertEquals("Departman adı boş olamaz.", exception.getMessage());
+        verifyNoInteractions(departmentRepository);
     }
 
     @Test

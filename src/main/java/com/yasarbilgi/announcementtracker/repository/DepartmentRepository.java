@@ -16,8 +16,6 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
 
     boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 
-    Optional<Department> findByName(String name);
-
     Optional<Department> findByNameIgnoreCase(String name);
 
     @Override

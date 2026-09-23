@@ -42,7 +42,7 @@ public class UnsubscribeController {
         String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Abonelik İptali</title>" +
                 styles() + "</head><body><div class='card'>" +
                 "<h2 class='success'>Abonelik İptal Edildi</h2>" +
-                "<p>Aboneliğiniz e-Belge Duyuru Bildirim listesinden çıkarılmıştır. Artık e-posta bildirimi almayacaksınız.</p>" +
+                "<p>Aboneliğiniz Duyuru Takip Sistemi bildirim listesinden çıkarılmıştır. Artık e-posta bildirimi almayacaksınız.</p>" +
                 "<a href='/'>Giriş Sayfasına Dön</a>" +
                 "</div></body></html>";
         return ResponseEntity.ok(html);

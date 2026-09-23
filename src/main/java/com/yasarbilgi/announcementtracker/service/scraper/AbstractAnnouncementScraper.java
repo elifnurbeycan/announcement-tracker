@@ -9,14 +9,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.Collections;
 import java.util.HexFormat;
-import java.util.List;
 import java.util.Locale;
-import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
 
 @Slf4j
@@ -25,15 +25,8 @@ public abstract class AbstractAnnouncementScraper implements AnnouncementScraper
     protected static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
     protected static final int TIMEOUT_MS = 15000;
 
-    @Override
-    public List<com.yasarbilgi.announcementtracker.dto.ScrapedAnnouncementDto> scrape() {
-        return scrape(hash -> false);
-    }
-
-    @Override
-    public List<com.yasarbilgi.announcementtracker.dto.ScrapedAnnouncementDto> scrape(Predicate<String> hashExistsPredicate) {
-        return Collections.emptyList();
-    }
+    private static final Pattern DATE_PATTERN = Pattern.compile(
+            "(?<!\\d)(\\d{1,2}[./-]\\d{1,2}[./-]\\d{4}|\\d{4}-\\d{1,2}-\\d{1,2})(?!\\d)");
 
     /**
      * Fetch document with custom user agent and timeout settings.
@@ -44,7 +37,6 @@ public abstract class AbstractAnnouncementScraper implements AnnouncementScraper
             return Jsoup.connect(url)
                     .userAgent(USER_AGENT)
                     .timeout(TIMEOUT_MS)
-                    .referrer("https://www.google.com")
                     .get();
         } catch (IOException e) {
             log.error("Failed to fetch content from URL: {}", url, e);
@@ -97,8 +89,15 @@ public abstract class AbstractAnnouncementScraper implements AnnouncementScraper
         if (dateStr == null || dateStr.isBlank()) {
             return null;
         }
-        String cleanStr = dateStr.trim().replaceAll("[^0-9./-]", "");
-        for (String pattern : new String[]{"dd.MM.yyyy", "d.M.yyyy", "dd/MM/yyyy", "d/M/yyyy", "yyyy-MM-dd"}) {
+        Matcher matcher = DATE_PATTERN.matcher(dateStr.trim());
+        if (!matcher.find()) {
+            log.warn("Could not parse date string: {}. Announcement date will be left empty.", dateStr);
+            return null;
+        }
+        String cleanStr = matcher.group(1);
+        for (String pattern : new String[]{
+                "dd.MM.yyyy", "d.M.yyyy", "dd/MM/yyyy", "d/M/yyyy",
+                "dd-MM-yyyy", "d-M-yyyy", "yyyy-MM-dd"}) {
             try {
                 return LocalDate.parse(cleanStr, DateTimeFormatter.ofPattern(pattern));
             } catch (DateTimeParseException ignored) {
@@ -112,18 +111,21 @@ public abstract class AbstractAnnouncementScraper implements AnnouncementScraper
      * Helper to resolve relative URL to absolute URL.
      */
     protected String resolveAbsoluteUrl(String baseUrl, String relativeOrAbsoluteUrl) {
-        if (relativeOrAbsoluteUrl == null || relativeOrAbsoluteUrl.isBlank()) {
+        if (baseUrl == null || baseUrl.isBlank()
+                || relativeOrAbsoluteUrl == null || relativeOrAbsoluteUrl.isBlank()) {
             return null;
         }
-        if (relativeOrAbsoluteUrl.startsWith("http://") || relativeOrAbsoluteUrl.startsWith("https://")) {
-            return relativeOrAbsoluteUrl;
+        try {
+            URI baseUri = URI.create(baseUrl.trim());
+            URI resolved = baseUri.resolve(relativeOrAbsoluteUrl.trim());
+            String scheme = resolved.getScheme();
+            if (("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+                    && resolved.getHost() != null) {
+                return resolved.toASCIIString();
+            }
+        } catch (IllegalArgumentException exception) {
+            log.warn("Invalid URL could not be resolved: {}", relativeOrAbsoluteUrl);
         }
-        if (baseUrl.endsWith("/") && relativeOrAbsoluteUrl.startsWith("/")) {
-            return baseUrl.substring(0, baseUrl.length() - 1) + relativeOrAbsoluteUrl;
-        }
-        if (!baseUrl.endsWith("/") && !relativeOrAbsoluteUrl.startsWith("/")) {
-            return baseUrl + "/" + relativeOrAbsoluteUrl;
-        }
-        return baseUrl + relativeOrAbsoluteUrl;
+        return null;
     }
 }

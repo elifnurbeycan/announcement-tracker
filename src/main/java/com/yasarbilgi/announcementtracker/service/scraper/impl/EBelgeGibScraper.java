@@ -11,7 +11,10 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
@@ -36,6 +39,7 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
     @Override
     public List<ScrapedAnnouncementDto> scrape(Predicate<String> hashExistsPredicate) {
         List<ScrapedAnnouncementDto> results = new ArrayList<>();
+        Set<String> hashesSeenInThisRun = new HashSet<>();
         log.info("Site için duyuru tarama işlemi başlatılıyor: {}", getSiteType());
 
         Document doc = fetchDocument(TARGET_URL);
@@ -49,9 +53,6 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
         }
 
         log.info("Hedef adreste ({}) {} potansiyel duyuru öğesi bulundu.", TARGET_URL, paragraphs.size());
-
-        int consecutiveExistingCount = 0;
-        final int MAX_CONSECUTIVE_EXISTING = 3;
 
         for (Element p : paragraphs) {
             String text = p.text().trim();
@@ -68,7 +69,7 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
             String attachmentUrl = null;
             if (linkElement != null) {
                 String href = linkElement.attr("href");
-                if (href.contains("dosyalar") || href.endsWith(".pdf") || href.endsWith(".zip") || href.endsWith(".rar")) {
+                if (isAttachmentUrl(href)) {
                     attachmentUrl = resolveAbsoluteUrl(DOMAIN_BASE, href);
                 }
             }
@@ -84,19 +85,10 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
             String contentHash = calculateAnnouncementHash(getSiteType(), attachmentUrl, title, date);
 
             if (hashExistsPredicate != null && hashExistsPredicate.test(contentHash)) {
-                consecutiveExistingCount++;
-                if (consecutiveExistingCount >= MAX_CONSECUTIVE_EXISTING) {
-                    log.info("e-Belge GİB: {} adet üst üste veritabanında var olan duyuruya ulaşıldı. Erken çıkış (Early Exit) yapılıyor.", MAX_CONSECUTIVE_EXISTING);
-                    break;
-                }
                 continue;
             }
 
-            // Yeni/silinmiş bir duyuru bulunduğunda üst üste sayacı sıfırlanır
-            consecutiveExistingCount = 0;
-
-            boolean existsInList = results.stream().anyMatch(r -> r.getContentHash().equals(contentHash));
-            if (!existsInList) {
+            if (hashesSeenInThisRun.add(contentHash)) {
                 ScrapedAnnouncementDto dto = ScrapedAnnouncementDto.builder()
                         .title(title)
                         .content(text)
@@ -129,13 +121,15 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
                 Element linkElement = nextElement.selectFirst("a[href]");
                 String attachmentUrl = null;
                 if (linkElement != null) {
-                    attachmentUrl = resolveAbsoluteUrl(DOMAIN_BASE, linkElement.attr("href"));
+                    String href = linkElement.attr("href");
+                    if (isAttachmentUrl(href)) {
+                        attachmentUrl = resolveAbsoluteUrl(DOMAIN_BASE, href);
+                    }
                 }
                 String contentHash = calculateAnnouncementHash(getSiteType(), attachmentUrl, title, date);
 
-                // Mükerrer kayıt oluşmasını engeller
-                boolean exists = results.stream().anyMatch(r -> r.getContentHash().equals(contentHash));
-                if (!exists) {
+                boolean existsInDatabase = hashExistsPredicate != null && hashExistsPredicate.test(contentHash);
+                if (!existsInDatabase && hashesSeenInThisRun.add(contentHash)) {
                     ScrapedAnnouncementDto dto = ScrapedAnnouncementDto.builder()
                             .title(title)
                             .content(text)
@@ -153,6 +147,25 @@ public class EBelgeGibScraper extends AbstractAnnouncementScraper {
 
         log.info("{} kaynağından {} duyuru başarıyla ayrıştırıldı.", getSiteType().getDisplayName(), results.size());
         return results;
+    }
+
+    private boolean isAttachmentUrl(String href) {
+        if (href == null || href.isBlank()) {
+            return false;
+        }
+        String normalized = href.toLowerCase(Locale.ROOT);
+        int queryIndex = normalized.indexOf('?');
+        if (queryIndex >= 0) {
+            normalized = normalized.substring(0, queryIndex);
+        }
+        int fragmentIndex = normalized.indexOf('#');
+        if (fragmentIndex >= 0) {
+            normalized = normalized.substring(0, fragmentIndex);
+        }
+        return normalized.contains("dosyalar")
+                || normalized.endsWith(".pdf")
+                || normalized.endsWith(".zip")
+                || normalized.endsWith(".rar");
     }
 
     /**

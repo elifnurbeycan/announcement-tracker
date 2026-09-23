@@ -58,7 +58,7 @@ public class SettingsServiceImpl implements SettingsService {
     @Override
     public boolean isSchedulerEnabled() {
         return systemSettingRepository.findById(KEY_SCHEDULER_ENABLED)
-                .map(setting -> Boolean.parseBoolean(setting.getSettingValue()))
+                .map(setting -> parseEnabled(setting.getSettingValue()))
                 .orElse(defaultEnabled);
     }
 
@@ -75,7 +75,7 @@ public class SettingsServiceImpl implements SettingsService {
     @Transactional
     public ScrapeSettingsDto updateScrapeSettings(int intervalMinutes, Boolean enabled) {
         if (intervalMinutes < 1) {
-            intervalMinutes = 1; // Minimum 1 dakika
+            throw new IllegalArgumentException("Tarama aralığı en az 1 dakika olmalıdır.");
         }
 
         saveSetting(KEY_INTERVAL_MINUTES, String.valueOf(intervalMinutes));
@@ -96,5 +96,19 @@ public class SettingsServiceImpl implements SettingsService {
                 .orElseGet(() -> SystemSetting.builder().settingKey(key).build());
         setting.setSettingValue(value);
         systemSettingRepository.save(setting);
+    }
+
+    private boolean parseEnabled(String value) {
+        if (value != null) {
+            if ("true".equalsIgnoreCase(value.trim())) {
+                return true;
+            }
+            if ("false".equalsIgnoreCase(value.trim())) {
+                return false;
+            }
+        }
+        log.warn("Geçersiz zamanlayıcı aktiflik değeri '{}'; varsayılan değer kullanılacak: {}",
+                value, defaultEnabled);
+        return defaultEnabled;
     }
 }

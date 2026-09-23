@@ -16,6 +16,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -68,5 +69,27 @@ class SettingsServiceImplTest {
         assertThat(dto.getIntervalMinutes()).isEqualTo(20);
         assertThat(dto.isEnabled()).isTrue();
         verify(systemSettingRepository, atLeastOnce()).save(any(SystemSetting.class));
+    }
+
+    @Test
+    @DisplayName("Bir dakikadan küçük tarama aralığı reddedilmeli")
+    void updateScrapeSettings_InvalidInterval_ShouldThrowException() {
+        assertThatThrownBy(() -> settingsService.updateScrapeSettings(0, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("en az 1 dakika");
+        verifyNoInteractions(systemSettingRepository);
+    }
+
+    @Test
+    @DisplayName("Geçersiz aktiflik değeri varsayılan ayara dönmeli")
+    void isSchedulerEnabled_InvalidValue_ShouldUseDefault() {
+        SystemSetting setting = SystemSetting.builder()
+                .settingKey("SCRAPE_SCHEDULER_ENABLED")
+                .settingValue("bozuk-deger")
+                .build();
+        when(systemSettingRepository.findById("SCRAPE_SCHEDULER_ENABLED"))
+                .thenReturn(Optional.of(setting));
+
+        assertThat(settingsService.isSchedulerEnabled()).isTrue();
     }
 }

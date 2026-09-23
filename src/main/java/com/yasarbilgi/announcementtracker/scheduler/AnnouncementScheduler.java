@@ -4,6 +4,7 @@ import com.yasarbilgi.announcementtracker.service.AnnouncementService;
 import com.yasarbilgi.announcementtracker.service.SettingsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import org.springframework.stereotype.Component;
@@ -20,8 +21,13 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class AnnouncementScheduler implements SchedulingConfigurer {
 
+    private static final int DEFAULT_INTERVAL_MINUTES = 60;
+
     private final AnnouncementService announcementService;
     private final SettingsService settingsService;
+
+    @Value("${announcement.tracker.scheduler.initial-delay-seconds:30}")
+    private long initialDelaySeconds;
 
     @Override
     public void configureTasks(ScheduledTaskRegistrar taskRegistrar) {
@@ -30,12 +36,16 @@ public class AnnouncementScheduler implements SchedulingConfigurer {
                 triggerContext -> {
                     Instant lastCompletion = triggerContext.lastCompletion();
                     if (lastCompletion == null) {
-                        lastCompletion = Instant.now();
+                        long effectiveInitialDelay = Math.max(0, initialDelaySeconds);
+                        Instant firstRun = Instant.now().plusSeconds(effectiveInitialDelay);
+                        log.info("İlk otomatik duyuru taraması {} saniye sonra çalışacak: {}",
+                                effectiveInitialDelay, firstRun);
+                        return firstRun;
                     }
-                    int intervalMinutes = settingsService.getScrapeIntervalMinutes();
-                    Duration duration = Duration.ofMinutes(intervalMinutes > 0 ? intervalMinutes : 60);
-                    Instant nextRun = lastCompletion.plus(duration);
-                    log.info("Sonraki otomatik duyuru taraması {} dakika sonra çalışacak: {}", intervalMinutes, nextRun);
+                    int intervalMinutes = effectiveIntervalMinutes(settingsService.getScrapeIntervalMinutes());
+                    Instant nextRun = lastCompletion.plus(Duration.ofMinutes(intervalMinutes));
+                    log.info("Sonraki otomatik duyuru taraması {} dakika sonra çalışacak: {}",
+                            intervalMinutes, nextRun);
                     return nextRun;
                 }
         );
@@ -47,7 +57,7 @@ public class AnnouncementScheduler implements SchedulingConfigurer {
             return;
         }
 
-        int intervalMinutes = settingsService.getScrapeIntervalMinutes();
+        int intervalMinutes = effectiveIntervalMinutes(settingsService.getScrapeIntervalMinutes());
         log.info("Zamanlanmış duyuru tarama görevi başlatılıyor (Periyot: {} dakikada bir)...", intervalMinutes);
         try {
             var newItems = announcementService.triggerScrapeAll();
@@ -55,5 +65,9 @@ public class AnnouncementScheduler implements SchedulingConfigurer {
         } catch (Exception e) {
             log.error("Zamanlanmış tarama işlemi sırasında hata oluştu: {}", e.getMessage(), e);
         }
+    }
+
+    int effectiveIntervalMinutes(int configuredIntervalMinutes) {
+        return configuredIntervalMinutes > 0 ? configuredIntervalMinutes : DEFAULT_INTERVAL_MINUTES;
     }
 }

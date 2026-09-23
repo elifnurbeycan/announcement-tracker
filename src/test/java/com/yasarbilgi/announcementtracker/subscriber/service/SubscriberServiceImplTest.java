@@ -6,8 +6,9 @@ import com.yasarbilgi.announcementtracker.entity.Announcement;
 import com.yasarbilgi.announcementtracker.entity.Department;
 import com.yasarbilgi.announcementtracker.entity.Subscriber;
 import com.yasarbilgi.announcementtracker.enums.SiteType;
+import com.yasarbilgi.announcementtracker.exception.InvalidTokenException;
 import com.yasarbilgi.announcementtracker.exception.ResourceNotFoundException;
-import com.yasarbilgi.announcementtracker.exception.ScrapingException;
+import com.yasarbilgi.announcementtracker.exception.UnauthorizedException;
 import com.yasarbilgi.announcementtracker.repository.AnnouncementRepository;
 import com.yasarbilgi.announcementtracker.repository.DepartmentRepository;
 import com.yasarbilgi.announcementtracker.repository.SubscriberRepository;
@@ -134,6 +135,22 @@ class SubscriberServiceImplTest {
     }
 
     @Test
+    @DisplayName("Abone eklenirken bulunamayan departman ID'si reddedilmeli")
+    void addSubscriber_MissingDepartment_ShouldThrowNotFound() {
+        SubscriberRequestDto dto = SubscriberRequestDto.builder()
+                .email("test@example.com")
+                .fullName("Test User")
+                .departmentIds(Set.of(99L))
+                .build();
+        when(departmentRepository.findAllById(Set.of(99L))).thenReturn(List.of());
+
+        assertThatThrownBy(() -> subscriberService.addSubscriber(dto))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("99");
+        verify(subscriberRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
     @DisplayName("Karşılama e-postası atılırken hata çıkarsa işlem çökmemeli")
     void addSubscriber_EmailException_ShouldNotFailRegistration() {
         SubscriberRequestDto dto = SubscriberRequestDto.builder()
@@ -227,7 +244,7 @@ class SubscriberServiceImplTest {
 
         assertThatThrownBy(() -> subscriberService.updateSitePreferences(999L, Set.of(SiteType.EBELGE_GIB)))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("Subscriber not found with ID: 999");
+                .hasMessageContaining("Abone bulunamadı, ID: 999");
     }
 
     @Test
@@ -312,11 +329,12 @@ class SubscriberServiceImplTest {
     }
 
     @Test
-    @DisplayName("Geçersiz token ile abonelik iptali false dönmeli")
-    void unsubscribeByToken_InvalidToken_ShouldReturnFalse() {
+    @DisplayName("Geçersiz token ile abonelik iptali InvalidTokenException fırlatmalı")
+    void unsubscribeByToken_InvalidToken_ShouldThrowException() {
         when(unsubscribeTokenService.verifyAndExtractEmail("invalid-token-123")).thenReturn(Optional.empty());
-        boolean result = subscriberService.unsubscribeByToken("invalid-token-123");
-        assertThat(result).isFalse();
+        assertThatThrownBy(() -> subscriberService.unsubscribeByToken("invalid-token-123"))
+                .isInstanceOf(InvalidTokenException.class)
+                .hasMessageContaining("geçersiz veya süresi dolmuş");
     }
 
     @Test
@@ -396,7 +414,7 @@ class SubscriberServiceImplTest {
         when(subscriberRepository.findByEmail("test@example.com")).thenReturn(Optional.of(subscriber));
 
         assertThatThrownBy(() -> subscriberService.createOidcSession("different-subject", "test@example.com"))
-                .isInstanceOf(ScrapingException.class)
+                .isInstanceOf(UnauthorizedException.class)
                 .hasMessageContaining("farklı bir Keycloak kimliği");
     }
 }

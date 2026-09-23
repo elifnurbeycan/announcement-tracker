@@ -35,6 +35,8 @@ public class TaklitTagsisScraper extends AbstractAnnouncementScraper {
     private static final Pattern DATE_MS_PATTERN = Pattern.compile("/Date\\((\\d+)\\)/");
     private static final ZoneId SOURCE_TIME_ZONE = ZoneId.of("Europe/Istanbul");
     private static final int PAGE_SIZE = 100;
+    private static final int MAX_PAGES_PER_LIST = 1000;
+    private static final int MAX_RECORDS_PER_LIST = PAGE_SIZE * MAX_PAGES_PER_LIST;
     private static final List<String> COLUMN_NAMES = List.of(
             "DuyuruTarihi",
             "FirmaAdi",
@@ -43,7 +45,8 @@ public class TaklitTagsisScraper extends AbstractAnnouncementScraper {
             "Uygunsuzluk",
             "PartiSeriNo",
             "FirmaIlce",
-            "FirmaIl"
+            "FirmaIl",
+            "UrunGrupAdi"
     );
     private static final List<String> LIST_TYPE_IDS = List.of("304", "305");
 
@@ -82,19 +85,32 @@ public class TaklitTagsisScraper extends AbstractAnnouncementScraper {
             List<ScrapedAnnouncementDto> results) {
         int start = 0;
         int draw = 1;
+        int pagesFetched = 0;
 
         while (true) {
+            if (pagesFetched++ >= MAX_PAGES_PER_LIST) {
+                throw new ScrapingException(
+                        "Taklit/Tağşiş listesi güvenli sayfa sınırını aştı. ListeTurId=" + listTypeId);
+            }
             JsonNode root = fetchPage(listTypeId, start, PAGE_SIZE, draw++);
             JsonNode data = root.path("data");
 
             if (!data.isArray()) {
-                String remoteMessage = root.path("Mesaj").asText("Beklenmeyen cevap biçimi");
+                JsonNode messageNode = root.path("Mesaj");
+                String remoteMessage = messageNode.isMissingNode() || messageNode.isNull()
+                        ? "Beklenmeyen cevap biçimi"
+                        : messageNode.asString();
                 throw new ScrapingException(
                         "Taklit/Tağşiş listesi alınamadı. ListeTurId=" + listTypeId + ", hata=" + remoteMessage);
             }
 
             int totalRecords = root.path("recordsFiltered")
                     .asInt(root.path("recordsTotal").asInt(data.size()));
+            if (totalRecords > MAX_RECORDS_PER_LIST) {
+                throw new ScrapingException(
+                        "Taklit/Tağşiş listesi güvenli kayıt sınırını aştı. ListeTurId="
+                                + listTypeId + ", kayıt=" + totalRecords);
+            }
 
             for (JsonNode item : data) {
                 ScrapedAnnouncementDto announcement = toAnnouncement(item, listTypeId);
@@ -223,7 +239,7 @@ public class TaklitTagsisScraper extends AbstractAnnouncementScraper {
     }
 
     private String text(JsonNode node, String fieldName) {
-        return node.path(fieldName).asText("").trim();
+        return node.path(fieldName).asString("").trim();
     }
 
     private String normalize(String value) {
